@@ -3,12 +3,6 @@ server:
 spring:
   application:
     name: fieldwork-backend
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/fieldwork}
-    username: ${DB_USER:fieldwork}
-    password: ${DB_PASSWORD:}
-    hikari:
-      maximum-pool-size: 5
   jpa:
     hibernate:
       ddl-auto: validate
