@@ -1,4 +1,4 @@
-package com.example.fieldwork.common;
+package com.meter.fieldwork.global;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
