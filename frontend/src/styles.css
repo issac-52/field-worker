@@ -1,0 +1,22 @@
+:root { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1d2b2a; background: #f4f7f6; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; }
+.app-shell { min-height: 100dvh; padding-bottom: 80px; }
+.topbar { background: #102f2b; color: white; padding: 18px max(20px, calc((100vw - 1050px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.env-tag { background: #21453e; border-radius: 99px; padding: 5px 10px; font-size: 11px; }
+main { max-width: 1050px; margin: auto; padding: 20px; }
+h1 { font-size: 24px; margin: 0 0 18px; }
+h2 { font-size: 18px; }
+p { color: #596764; line-height: 1.65; }
+.panel { padding: 22px; background: white; border: 1px solid #dce5e1; border-radius: 16px; }
+.muted { color: #758480; font-size: 13px; }
+.stack { display: grid; gap: 18px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stats div { background: white; border: 1px solid #dce5e1; border-radius: 12px; padding: 14px; display: grid; gap: 6px; }
+.stats small { color: #637570; }
+.stats strong { font-size: 26px; }
+.link-card { display: block; padding: 18px; border-radius: 12px; background: #e5efec; text-decoration: none; }
+.bottom-nav { position: fixed; display: flex; justify-content: space-around; align-items: center; bottom: 0; width: 100%; height: 70px; background: white; border-top: 1px solid #dce5e1; padding-bottom: env(safe-area-inset-bottom); }
+.bottom-nav a { text-decoration: none; font-size: 13px; font-weight: 600; }
+@media (min-width: 750px) { .bottom-nav { width: auto; max-width: 350px; height: 55px; bottom: 20px; left: 50%; transform: translateX(-50%); border: 1px solid #dce5e1; border-radius: 22px; box-shadow: 0 10px 30px #0001; } }

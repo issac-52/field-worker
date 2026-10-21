@@ -1,0 +1,25 @@
+server:
+  port: ${PORT:8080}
+spring:
+  application:
+    name: fieldwork-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/fieldwork}
+    username: ${DB_USER:fieldwork}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
