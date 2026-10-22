@@ -1,0 +1,111 @@
+# 프론트엔드 점검 결과 (2026-10-23)
+
+## 구현
+- 수도관리 명칭, 모바일 하단 메뉴, 관리자 전용 진입과 작업자 금액 비공개.
+- 중블록/소블록 API 연동 필터와 초기화, 페이지 목록/진행 집계/관리자/정산/출력 조건 공유.
+- 기본 단가와 기존 검침 단가 일괄 변경 분리, 서버 방식 Mock 미리보기와 결과/이력.
+- 조사자 계정 생성, 이름 수정, 활성/비활성, 임시 비밀번호 초기화 Mock 계약.
+- 수용가 20건 페이지 조회, 별도 전체 집계, 지도 현재 페이지 표시와 SDK 미연결 대체 목록.
+- HWP 파일명 열거 제거, 대상 건수만 표시, 미구현 생성 버튼 비활성.
+- App 조립/페이지/업무 입력창/공통 UI/hooks/API/MSW/CSS 분리 및 Prettier 적용.
+
+## 실제 검증
+- npm run format:check 통과.
+- npm run test:api 통과: 권한 및 금액 제외, 블록, 소급 단가 미리보기/적용, 조사자 계정 처리와 기존 이력 보존.
+- 12,050건/603페이지와 소블록 4,018건 API 시험 통과. 브라우저 페이지 전환 확인.
+- npm run build 통과 (TypeScript + Vite).
+- 360/390/430/1280px × 9개 화면 iframe 렌더링 및 가로 넘침 검사 통과. 관리자 메뉴·조사자 연결 및 작업자 경로 접근 차단 확인.
+- 소스 파일 이동 중 기존 탭의 오래된 HMR import 오류가 있었으나 새로고침 후 정상 렌더링 확인.
+
+## 한계
+- 현재 모든 저장은 MSW 메모리이며 새로고침하면 초기화된다. 실제 비밀번호 저장/로그인/세션 권한은 미구현.
+- 실제 NAVER 지도 SDK 로더/키 인증/실지도 검증, 엑셀 업로드, HWP/ZIP 생성, 사진 영구 저장 미구현.
+- 모바일 실제 장치 촬영/키보드와 운영 서버 부하 시험은 수행하지 않았다.
+- 지도는 현재 페이지 마커만 표시한다. 전체 범위 클러스터링은 별도 작업이다.
+
+## 변경 파일
+주요 변경 위치는 frontend/README.md의 구조표를 참조한다. 이번 변경의 파일 목록은 아래와 같다 (생성된 빌드 및 테스트 산출물 제외).
+-  M docs/DECISIONS_AND_PORTFOLIO.md
+-  M frontend/index.html
+-  M frontend/package.json
+-  M frontend/src/App.tsx
+-  D frontend/src/api.ts
+-  D frontend/src/demo.css
+-  M frontend/src/main.tsx
+-  M frontend/src/mocks/browser.ts
+-  M frontend/src/mocks/data.ts
+-  D frontend/src/mocks/handlers.ts
+-  M frontend/src/pages/AdminPage.tsx
+-  D frontend/src/pages/LoginPage.tsx
+-  M frontend/src/pages/MapPage.tsx
+-  D frontend/src/pages/WorkDetailPage.tsx
+-  D frontend/src/shared/api.ts
+-  D frontend/src/styles.css
+-  M frontend/src/types.ts
+-  M frontend/tsconfig.json
+-  M frontend/vite.config.ts
+- ?? docs/FRONTEND_REVIEW.md
+- ?? frontend/.env.admin
+- ?? frontend/.gitignore
+- ?? frontend/.prettierignore
+- ?? frontend/.prettierrc.json
+- ?? frontend/API_CONTRACT.md
+- ?? frontend/README.md
+- ?? frontend/check-api.ts
+- ?? frontend/check-scale.ts
+- ?? frontend/package-lock.json
+- ?? frontend/public/mockServiceWorker.js
+- ?? frontend/src/api/client.ts
+- ?? frontend/src/api/fees.ts
+- ?? frontend/src/api/index.ts
+- ?? frontend/src/api/investigators.ts
+- ?? frontend/src/api/sites.ts
+- ?? frontend/src/components/BlockFilters.tsx
+- ?? frontend/src/components/Modal.tsx
+- ?? frontend/src/components/Pagination.tsx
+- ?? frontend/src/components/SiteList.tsx
+- ?? frontend/src/components/SiteSearch.tsx
+- ?? frontend/src/components/StatusBadge.tsx
+- ?? frontend/src/components/fees/FeeEditor.tsx
+- ?? frontend/src/components/inspection/InspectionPanel.tsx
+- ?? frontend/src/components/inspection/MeasurementEditor.tsx
+- ?? frontend/src/components/inspection/NoteEditor.tsx
+- ?? frontend/src/components/inspection/PhotoEditor.tsx
+- ?? frontend/src/components/investigators/InvestigatorEditor.tsx
+- ?? frontend/src/components/layout/AppShell.tsx
+- ?? frontend/src/components/layout/PageContent.tsx
+- ?? frontend/src/components/map/FieldMap.tsx
+- ?? frontend/src/context/NotificationContext.tsx
+- ?? frontend/src/context/WorkContext.tsx
+- ?? frontend/src/hooks/useHashRoute.ts
+- ?? frontend/src/hooks/usePagePosition.ts
+- ?? frontend/src/hooks/useSaveAction.ts
+- ?? frontend/src/hooks/useWorkController.ts
+- ?? frontend/src/hooks/useWorkData.ts
+- ?? frontend/src/lib/auth.ts
+- ?? frontend/src/lib/format.ts
+- ?? frontend/src/mocks/handlers/auth.ts
+- ?? frontend/src/mocks/handlers/fees.ts
+- ?? frontend/src/mocks/handlers/index.ts
+- ?? frontend/src/mocks/handlers/investigators.ts
+- ?? frontend/src/mocks/handlers/settlements.ts
+- ?? frontend/src/mocks/handlers/sites.ts
+- ?? frontend/src/mocks/http.ts
+- ?? frontend/src/mocks/queries.ts
+- ?? frontend/src/mocks/store.ts
+- ?? frontend/src/pages/FeesPage.tsx
+- ?? frontend/src/pages/HomePage.tsx
+- ?? frontend/src/pages/InvestigatorPage.tsx
+- ?? frontend/src/pages/ReportsPage.tsx
+- ?? frontend/src/pages/SettlementsPage.tsx
+- ?? frontend/src/pages/SiteDetailPage.tsx
+- ?? frontend/src/pages/SitesPage.tsx
+- ?? frontend/src/styles/admin.css
+- ?? frontend/src/styles/base.css
+- ?? frontend/src/styles/detail.css
+- ?? frontend/src/styles/home.css
+- ?? frontend/src/styles/index.css
+- ?? frontend/src/styles/layout.css
+- ?? frontend/src/styles/map.css
+- ?? frontend/src/styles/shared.css
+- ?? frontend/src/styles/sites.css

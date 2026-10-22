@@ -7,7 +7,11 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "postinstall": "msw init public --save"
+    "postinstall": "msw init public --save",
+    "format": "prettier --write src check-api.ts check-scale.ts index.html vite.config.ts tsconfig.json package.json",
+    "format:check": "prettier --check src check-api.ts check-scale.ts index.html vite.config.ts tsconfig.json package.json",
+    "test:api": "esbuild check-api.ts check-scale.ts --bundle --platform=node --format=esm --packages=external --outdir=.checks && node .checks/check-api.js && node .checks/check-scale.js",
+    "dev:admin": "vite --host 0.0.0.0 --mode admin --port 5175 --strictPort"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
@@ -22,8 +26,11 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "prettier": "^3.9.10",
     "typescript": "^5.9.0",
     "vite": "^7.1.0"
   },
-  "msw": {"workerDirectory":"public"}
+  "msw": {
+    "workerDirectory": "public"
+  }
 }

@@ -1,0 +1,39 @@
+.map-fallback {
+  padding: 20px;
+  line-height: 1.8;
+}
+.map-fallback > p {
+  background: #edf7f3;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.naver-map:empty {
+  display: none;
+}
+.naver-map:not(:empty) {
+  height: 400px;
+  margin: 14px 0;
+}
+.map-fallback small {
+  display: block;
+  color: #637982;
+}
+.map-selection {
+  padding: 15px;
+}
+@media (max-width: 760px) {
+  .naver-map:not(:empty) {
+    height: 330px;
+  }
+}
+.naver-map.sdk-ready:empty {
+  display: block;
+  height: 400px;
+  margin: 14px 0;
+}
+@media (max-width: 760px) {
+  .naver-map.sdk-ready:empty {
+    height: 330px;
+  }
+}
