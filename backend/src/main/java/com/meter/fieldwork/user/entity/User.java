@@ -3,13 +3,14 @@ package com.meter.fieldwork.user.entity;
 import jakarta.persistence.*;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 /*
   유저정보 테이블
 */
 @Entity
 @Table(name = "users")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
     // ID (PK ID)
