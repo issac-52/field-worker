@@ -8,7 +8,15 @@ import { preparePhoto, photoDataUrl } from '../../lib/photos';
 import { Modal } from '../Modal';
 
 type DraftPhoto = SitePhoto & { blob?: Blob };
-export function PhotoEditor({ site, onClose }: { site: Site; onClose: () => void }) {
+export function PhotoEditor({
+  site,
+  onClose,
+  inline = false,
+}: {
+  site: Site;
+  onClose: () => void;
+  inline?: boolean;
+}) {
   const [images, setImages] = useState<DraftPhoto[]>(site.photos);
   const [reading, setReading] = useState(false);
   const [fileError, setFileError] = useState('');
@@ -61,17 +69,19 @@ export function PhotoEditor({ site, onClose }: { site: Site; onClose: () => void
     selectedSlot.current = slot;
     (camera ? cameraInput : fileInput).current?.click();
   }
-  return (
-    <Modal title="사진·위치도 관리" onClose={onClose} busy={busy || reading}>
-      <p className="form-help">
-        시연용 이미지입니다. R2 업로드는 하지 않으며 새로고침하면 초기화됩니다. JPG·PNG·WebP, 한
-        장당 10MB 이하. 미리보기는 최대 1600px로 축소됩니다.
-      </p>
+  const content = (
+    <>
+      {!inline && (
+        <p className="form-help">
+          시연용 이미지입니다. R2 업로드는 하지 않으며 새로고침하면 초기화됩니다. JPG·PNG·WebP, 한
+          장당 10MB 이하. 미리보기는 최대 1600px로 축소됩니다.
+        </p>
+      )}
       <input
         type="file"
         ref={fileInput}
         hidden
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/*"
         onChange={(event) => void addFile(event.target.files?.[0])}
       />
       <input
@@ -82,13 +92,19 @@ export function PhotoEditor({ site, onClose }: { site: Site; onClose: () => void
         capture="environment"
         onChange={(event) => void addFile(event.target.files?.[0])}
       />
-      <div className="photo-editor-grid">
+      <div className={inline ? 'photo-editor-grid inline-photos' : 'photo-editor-grid'}>
         {PHOTO_SLOTS.map((slot) => {
           const image = images.find((value) => value.slot === slot);
           return (
             <section className="photo-editor-slot" key={slot}>
               <h3>{PHOTO_LABEL[slot]}</h3>
-              <div className="photo-slot">
+              <button
+                type="button"
+                className="photo-slot"
+                aria-label={`${PHOTO_LABEL[slot]} 사진 입력`}
+                disabled={busy || reading}
+                onClick={() => choose(slot, false)}
+              >
                 {image ? (
                   <img src={image.url} alt={PHOTO_LABEL[slot]} />
                 ) : (
@@ -96,9 +112,9 @@ export function PhotoEditor({ site, onClose }: { site: Site; onClose: () => void
                     {slot === 'LOCATION_MAP' ? '지도 이미지 · 촬영 필수 아님' : '선택한 사진 없음'}
                   </span>
                 )}
-              </div>
+              </button>
               <div className="photo-slot-actions">
-                {slot !== 'LOCATION_MAP' && (
+                {!inline && slot !== 'LOCATION_MAP' && (
                   <button
                     className="outline-btn"
                     aria-label={`${PHOTO_LABEL[slot]} 촬영`}
@@ -109,15 +125,17 @@ export function PhotoEditor({ site, onClose }: { site: Site; onClose: () => void
                     촬영
                   </button>
                 )}
-                <button
-                  className="outline-btn"
-                  aria-label={`${PHOTO_LABEL[slot]} ${image ? '교체' : '선택'}`}
-                  disabled={busy || reading}
-                  onClick={() => choose(slot, false)}
-                >
-                  <ImagePlus size={16} />
-                  {image ? '교체' : '선택'}
-                </button>
+                {!inline && (
+                  <button
+                    className="outline-btn"
+                    aria-label={`${PHOTO_LABEL[slot]} ${image ? '교체' : '선택'}`}
+                    disabled={busy || reading}
+                    onClick={() => choose(slot, false)}
+                  >
+                    <ImagePlus size={16} />
+                    {image ? '교체' : '선택'}
+                  </button>
+                )}
                 {image && (
                   <button
                     className="outline-btn"
@@ -164,6 +182,13 @@ export function PhotoEditor({ site, onClose }: { site: Site; onClose: () => void
             ? '시연 저장 중…'
             : `이미지 ${images.length}개 시연 저장`}
       </button>
+    </>
+  );
+  return inline ? (
+    content
+  ) : (
+    <Modal title="사진·위치도 관리" onClose={onClose} busy={busy || reading}>
+      {content}
     </Modal>
   );
 }

@@ -1,17 +1,20 @@
-import { statusOf } from '../types';
-import type { PageResponse, Site, SiteSummary, SettlementRow } from '../types';
+import { statusOf, isPhaseComplete } from '../types';
+import type { PageResponse, Phase, Site, SiteSummary, SettlementRow } from '../types';
 
 export function filterSites(sites: Site[], params: URLSearchParams) {
   const middle = params.get('middleBlockId');
   const small = params.get('smallBlockId');
   const q = (params.get('q') ?? '').trim().toLocaleLowerCase();
   const status = params.get('status');
+  const phase = params.get('inspectionPhase') as Phase | null;
+  const completion = params.get('inspectionStatus');
   return sites
     .filter(
       (s) =>
         (!middle || s.middleBlockId === middle) &&
         (!small || s.smallBlockId === small) &&
         (!status || statusOf(s) === status) &&
+        (!phase || !completion || isPhaseComplete(s, phase) === (completion === 'COMPLETED')) &&
         (!q ||
           [s.name, s.address, s.waterNo, s.managementNo, s.zone].some((v) =>
             v.toLocaleLowerCase().includes(q),

@@ -68,6 +68,8 @@ export const PHASE_LABEL: Record<Phase, string> = {
 };
 export const statusOf = (site: Pick<Site, 'inspections'>): 'DONE' | 'IN_PROGRESS' | 'TODO' =>
   site.inspections.END ? 'DONE' : site.inspections.START ? 'IN_PROGRESS' : 'TODO';
+export const isPhaseComplete = (site: Pick<Site, 'inspections'>, phase: Phase) =>
+  !!site.inspections[phase];
 
 export type Block = { id: string; name: string; parentId?: string };
 export type FeeAdjustmentRequest = {
@@ -91,6 +93,8 @@ export type BlockFilter = { middleBlockId?: string; smallBlockId?: string };
 export type SiteFilter = BlockFilter & {
   q?: string;
   status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  inspectionPhase?: Phase;
+  inspectionStatus?: 'PENDING' | 'COMPLETED';
 };
 export type PageRequest = { page?: number; pageSize?: number };
 export type PageResponse<T> = {

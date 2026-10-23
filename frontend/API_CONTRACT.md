@@ -12,6 +12,8 @@
 
 `PageResponse`는 items/page/pageSize/total/totalPages다. 빈 결과의 페이지는 1이며 초과 페이지는 마지막 페이지로 조정한다. 지도도 현재 페이지 수용가의 유효 좌표만 표시한다.
 
+지도는 `inspectionPhase=START|END`, `inspectionStatus=PENDING|COMPLETED`를 목록과 요약에 동일하게 전달한다. 해당 단계의 검침 존재 여부로 필터링하고, 상태 생략 시 전체다. 기본 지도 조건은 START/PENDING이다. 기존 `status=TODO|IN_PROGRESS|DONE`은 전체 검침 상태이며 목록 화면에서 사용한다. IN_PROGRESS의 화면 명칭은 `시작검침완료`다. 이 계약은 현재 MSW에 구현되어 있으며 실제 백엔드 연동 시 구현해야 한다.
+
 ## 작업비
 
 - `GET/POST /api/fee-rules`: 향후 검침 등록에 적용하는 기간별 단계 단가. 기존 검침에는 소급하지 않는다.

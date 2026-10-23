@@ -16,8 +16,8 @@ export function HomePage() {
   const cards = [
     { label: '전체 수용가', value: summary.total, Icon: ClipboardList },
     { label: '검침 완료', value: summary.done, Icon: CheckCircle2 },
-    { label: '진행 중', value: summary.progress, Icon: Clock3 },
-    { label: '미시작', value: summary.todo, Icon: Activity },
+    { label: '시작검침완료', value: summary.progress, Icon: Clock3 },
+    { label: '미처리', value: summary.todo, Icon: Activity },
   ];
   return (
     <>

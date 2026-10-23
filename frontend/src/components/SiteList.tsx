@@ -1,15 +1,17 @@
 import { ArrowRight, House } from 'lucide-react';
-import type { SiteListItem } from '../types';
+import type { Phase, SiteListItem } from '../types';
 import { StatusBadge } from './StatusBadge';
 
 export function SiteList({
   sites,
   onSelect,
   loading = false,
+  phase,
 }: {
   sites: SiteListItem[];
   onSelect: (id: number) => void;
   loading?: boolean;
+  phase?: Phase;
 }) {
   return (
     <div className="panel site-panel" aria-busy={loading}>
@@ -28,7 +30,7 @@ export function SiteList({
             </small>
           </span>
           <span className="site-end">
-            <StatusBadge site={site} />
+            <StatusBadge site={site} phase={phase} />
             <ArrowRight size={15} />
           </span>
         </button>

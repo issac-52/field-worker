@@ -17,6 +17,30 @@ try {
   const { data: blocks } = await call('/blocks');
   const { data: sitePage } = await call('/sites');
   const sites = sitePage.items;
+  for (const [phase, completed, pending] of [
+    ['START', 4, 8],
+    ['END', 2, 10],
+  ] as const) {
+    const done = await call(
+      `/sites?inspectionPhase=${phase}&inspectionStatus=COMPLETED&pageSize=2`,
+    );
+    const waiting = await call(`/sites?inspectionPhase=${phase}&inspectionStatus=PENDING`);
+    assert.equal(done.data.total, completed);
+    assert.equal(done.data.items.length, 2);
+    assert.equal(waiting.data.total, pending);
+    assert(done.data.items.every((site: any) => !!site.inspections[phase]));
+    assert(waiting.data.items.every((site: any) => !site.inspections[phase]));
+    assert.equal(
+      (await call(`/site-summary?inspectionPhase=${phase}&inspectionStatus=PENDING`)).data.total,
+      pending,
+    );
+    assert.equal((await call(`/sites?inspectionPhase=${phase}`)).data.total, 12);
+  }
+  const scopedMap = await call(
+    `/sites?inspectionPhase=START&inspectionStatus=PENDING&smallBlockId=${sites[0].smallBlockId}`,
+  );
+  assert.equal(scopedMap.data.total, 1);
+  assert.equal(scopedMap.data.items[0].id, 12);
   for (const s of sites) {
     assert(blocks.some((b: any) => b.id === s.smallBlockId && b.parentId === s.middleBlockId));
   }
@@ -252,6 +276,9 @@ try {
     'PASS: bounded list pages, whole-result summaries, amount preview without loading all sites',
   );
   console.log('PASS: worker amount redaction, admin API denial, own worker identity only');
+  console.log(
+    'PASS: START/END pending/completed/all filters, bounded pages, scoped blocks and summary consistency',
+  );
   console.log(
     'PASS: block hierarchy, scoped adjustment totals, unaffected blocks/phases, validation, audit history',
   );

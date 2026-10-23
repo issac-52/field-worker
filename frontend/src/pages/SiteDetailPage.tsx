@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  ImagePlus,
-  MapPin,
-  MapPinned,
-  ShieldCheck,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, MapPin, MapPinned, ShieldCheck } from 'lucide-react';
 import { useWork } from '../context/WorkContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { InspectionPanel } from '../components/inspection/InspectionPanel';
@@ -16,12 +8,11 @@ import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
 import { formatDate, formatWon } from '../lib/format';
 import type { Phase } from '../types';
-import { PHOTO_SLOTS, PHOTO_LABEL } from '../types';
 
 export function SiteDetailPage() {
   const { target: site, navigate, role } = useWork();
   const [phase, setPhase] = useState<Phase>('START');
-  const [editor, setEditor] = useState<'measurement' | 'note' | 'photos'>();
+  const [editor, setEditor] = useState<'measurement' | 'note'>();
   if (!site) return <p className="loading">불러오는 중...</p>;
   const info = [
     ['관리번호', site.managementNo],
@@ -96,39 +87,7 @@ export function SiteDetailPage() {
               <h3>현장 사진·위치도</h3>
               <span className="muted">{site.photos.length}/4개 영역</span>
             </div>
-            <div className="photos-grid">
-              {PHOTO_SLOTS.map((slot) => (
-                <button
-                  className="photo-slot"
-                  key={slot}
-                  aria-label={`${PHOTO_LABEL[slot]} 관리`}
-                  onClick={() => setEditor('photos')}
-                >
-                  {site.photos.find((photo) => photo.slot === slot) ? (
-                    <>
-                      <img
-                        src={site.photos.find((photo) => photo.slot === slot)!.url}
-                        alt={PHOTO_LABEL[slot]}
-                      />
-                      <span className="photo-caption">{PHOTO_LABEL[slot]}</span>
-                    </>
-                  ) : (
-                    <>
-                      <ImagePlus size={23} />
-                      <span>{PHOTO_LABEL[slot]}</span>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-            <p className="hint">
-              위치도는 지도 이미지 영역이며 필수 촬영 항목이 아닙니다. 이미지는 시연용으로만
-              저장됩니다.
-            </p>
-            <button className="outline-btn full" onClick={() => setEditor('photos')}>
-              <Camera size={17} />
-              사진 관리
-            </button>
+            <PhotoEditor key={site.id} site={site} inline onClose={() => {}} />
           </section>
         </div>
         <aside className="detail-side">
@@ -165,7 +124,6 @@ export function SiteDetailPage() {
         <MeasurementEditor site={site} phase={phase} onClose={() => setEditor(undefined)} />
       )}
       {editor === 'note' && <NoteEditor site={site} onClose={() => setEditor(undefined)} />}
-      {editor === 'photos' && <PhotoEditor site={site} onClose={() => setEditor(undefined)} />}
     </>
   );
 }

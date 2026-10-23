@@ -1,5 +1,92 @@
 import assert from 'node:assert/strict';
 import { loadNaverMaps, MAP_AUTH_ERROR } from './src/lib/naverMaps';
+import { mapMarker } from './src/lib/mapMarker';
+import { watchCurrentLocation } from './src/lib/currentLocation';
+import { seedSites } from './src/mocks/data';
+
+let geoSuccess: PositionCallback | undefined;
+let geoError: PositionErrorCallback | null | undefined;
+let geoOptions: PositionOptions | undefined;
+let cleared: number | undefined;
+let received = 0;
+let message = '';
+const geo = {
+  watchPosition(
+    success: PositionCallback,
+    error?: PositionErrorCallback | null,
+    options?: PositionOptions,
+  ) {
+    geoSuccess = success;
+    geoError = error;
+    geoOptions = options;
+    return 7;
+  },
+  clearWatch(id: number) {
+    cleared = id;
+  },
+};
+const stop = watchCurrentLocation(
+  geo,
+  true,
+  () => received++,
+  (value) => {
+    message = value;
+  },
+);
+const testPosition = {
+  coords: { latitude: seedSites[0].latitude, longitude: seedSites[0].longitude, accuracy: 10 },
+} as GeolocationPosition;
+geoSuccess!(testPosition);
+assert.equal(received, 1);
+assert.equal(geoOptions?.enableHighAccuracy, true);
+assert.equal(geoOptions?.timeout, 10000);
+geoError!({ code: 1 } as GeolocationPositionError);
+assert(message.includes('권한'));
+geoError!({ code: 3 } as GeolocationPositionError);
+assert(message.includes('초과'));
+stop();
+assert.equal(cleared, 7);
+geoSuccess!(testPosition);
+assert.equal(received, 1);
+watchCurrentLocation(
+  undefined,
+  true,
+  () => {},
+  (value) => {
+    message = value;
+  },
+)();
+assert(message.includes('지원하지'));
+watchCurrentLocation(
+  geo,
+  false,
+  () => {},
+  (value) => {
+    message = value;
+  },
+)();
+assert(message.includes('HTTPS'));
+console.log(
+  'PASS: geolocation callbacks, permission/timeout/unsupported/insecure messages and watch cleanup (fixture coordinates, not device GPS)',
+);
+
+const started = {
+  inspections: {
+    START: {
+      date: '2026-11-01',
+      reading: 1,
+      workerId: 11,
+      workerName: '가상 작업자',
+      recordedAt: '2026-11-01',
+    },
+  },
+};
+assert.equal(mapMarker(started, 'START').label, '처리됨');
+assert.equal(mapMarker(started, 'END').label, '미처리');
+assert(mapMarker(started, 'END').zIndex > mapMarker(started, 'START').zIndex);
+assert(mapMarker(started, 'START').content.includes('inspection-marker complete'));
+assert(mapMarker(started, 'END').content.includes('inspection-marker pending'));
+assert(!mapMarker(started, 'START').content.includes('<b '));
 
 // No network: this fake document captures scripts and invokes SDK outcomes explicitly.
 const scripts: any[] = [];

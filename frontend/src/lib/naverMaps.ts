@@ -3,6 +3,8 @@ export type MapInstance = {
   destroy(): void;
   autoResize(): void;
   fitBounds(points: MapPoint[], options?: object): void;
+  setCenter(point: MapPoint): void;
+  setZoom(zoom: number): void;
 };
 export type NaverMaps = {
   LatLng: new (lat: number, lng: number) => MapPoint;
