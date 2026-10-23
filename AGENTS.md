@@ -13,6 +13,20 @@ Read `docs/PROJECT_CONTEXT.md`, `docs/REQUIREMENTS.md`, and `docs/DECISIONS_AND_
 - Do not expose or commit credentials, access keys, names/addresses from customer spreadsheets, or photos. Use fictitious sample data for tests, docs, and public portfolio.
 - Run relevant tests if possible; report exact commands and results. Do not claim success for unrun tests.
 
+## Testing policy
+
+- When adding features or fixing bugs, create or update relevant tests as part of the same change.
+- Verify that existing tests still cover the updated requirements and expected behavior.
+- Prefer JUnit 5 for Java business logic tests.
+- Test API authorization, input validation, error handling, and expected HTTP responses.
+- Test frontend API contracts, state changes, and user interactions where applicable.
+- Use fictional test data. Never include real personal information, credentials, or production data in tests.
+- Run relevant tests and builds after making changes. Report the exact commands executed and their results.
+- Never delete failing tests, weaken assertions, or skip tests solely to make the test suite pass.
+- If tests cannot be executed, clearly explain why and identify what remains unverified.
+- Do not modify or refactor developer-owned core business logic without explicit approval, even when fixing failing tests.
+
+
 ## Agreed technical direction
 - Java 21, Spring Boot 3.5.x, Gradle, Spring Data JPA, PostgreSQL 17, Flyway, Spring Security.
 - Package root: `com.meter.fieldwork`; package by feature / modular monolith; local `user`, `auth`, `worksite`, `inspection`, `photo`, `settlement`, `audit`, `excel`, `report`, plus minimal `global`.
