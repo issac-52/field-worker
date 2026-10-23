@@ -7,7 +7,7 @@
 - Java 21/Spring Boot 3.5.6/Gradle/JPA/Flyway, PostgreSQL 17 방향.
 - users V1, User/UserRole, UserRepository가 존재한다. UserService는 비어 있다.
 - SecurityConfig는 health 외 요청을 거부한다. 실제 인증·업무 서비스·R2·출력 작업은 없다.
-- 먼저 User의 Lombok/매핑과 Gradle 컴파일, DB 적용 이력 및 JPA 검증부터 확인한다. 마이그레이션 적용 여부 확인 없이 V1을 수정하지 않는다.
+- Lombok 컴파일 오류는 수정했으며 clean test/assemble을 확인했다. 다음은 User 매핑, DB 적용 이력 및 JPA 통합 검증이다. 마이그레이션 적용 여부 확인 없이 V1을 수정하지 않는다.
 
 ## 권장 구현 순서
 

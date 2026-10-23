@@ -4,3 +4,6 @@ dist
 public/mockServiceWorker.js
 package-lock.json
 *.tsbuildinfo
+
+dist-demo
+coverage

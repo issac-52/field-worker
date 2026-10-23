@@ -1,7 +1,7 @@
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Search } from 'lucide-react';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 
 export function SiteSearch() {
   const { query, setQuery, filter, setFilter } = useWork();

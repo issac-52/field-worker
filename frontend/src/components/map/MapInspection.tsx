@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, ChevronDown, ClipboardList } from 'lucide-react';
 import { api } from '../../api';
-import { useWork } from '../../context/WorkContext';
+import { useWork } from '../../context/work';
 import { StatusBadge } from '../StatusBadge';
 import { MeasurementEditor } from '../inspection/MeasurementEditor';
 import { PhotoEditor } from '../inspection/PhotoEditor';

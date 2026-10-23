@@ -1,5 +1,5 @@
 import { Button } from '../ui/button';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SiteListItem } from '../../types';
 import { mapMarker } from '../../lib/mapMarker';
 import { loadNaverMaps, MAP_AUTH_ERROR } from '../../lib/naverMaps';
@@ -22,7 +22,9 @@ export function FieldMap({
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const selectionHandler = useRef(onSelect);
-  selectionHandler.current = onSelect;
+  useLayoutEffect(() => {
+    selectionHandler.current = onSelect;
+  }, [onSelect]);
   const location = useCurrentLocation(!!sdk);
   const centeredOnPosition = useRef(false);
   const fallbackFramed = useRef(false);
@@ -56,6 +58,7 @@ export function FieldMap({
     setMap(undefined);
     if (!sdk || !container.current) return;
     const element = container.current;
+    const cleanups = markerCleanups.current;
     let instance: MapInstance | undefined;
     let resize: ResizeObserver | undefined;
     try {
@@ -71,7 +74,7 @@ export function FieldMap({
     return () => {
       resize?.disconnect();
       // Detach overlays before destroy(); NAVER invalidates their map internals.
-      markerCleanups.current.forEach((dispose) => dispose());
+      cleanups.forEach((dispose) => dispose());
       instance?.destroy();
       element.replaceChildren();
     };

@@ -41,17 +41,14 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Test API and scale
-        run: npm run test:api
+      - name: Lint frontend
+        run: npm run lint
 
-      - name: Test demo environment
-        run: npm run test:demo
+      - name: Typecheck frontend and tests
+        run: npm run typecheck
 
-      - name: Test map
-        run: npm run test:map
-
-      - name: Test export
-        run: npm run test:export
+      - name: Run Vitest
+        run: npm run test
 
       - name: Build frontend
         run: npm run build

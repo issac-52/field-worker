@@ -10,7 +10,7 @@ import {
   Search,
   Wallet,
 } from 'lucide-react';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 import { SiteList } from '../components/SiteList';
 
 export function HomePage() {

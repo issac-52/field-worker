@@ -75,12 +75,21 @@ NAVER SDK는 VITE_NAVER_MAP_CLIENT_ID와 서비스 URL 등록이 필요하다. �
 
 ```powershell
 npm run format:check
-npm run test:api
-npm run test:map
-npm run test:demo
-npm run test:export
+npm run lint
+npm run typecheck
+npm run test
+npm run test:coverage
 npm run build
 npm run build:demo
 ```
 
 검증 범위·미측정 항목은 [검증 기록](../docs/FRONTEND_REVIEW.md), API 상세는 [API 계약](API_CONTRACT.md), 다음 HWP 작업은 [HWP 설계](../docs/HWP_EXPORT_DESIGN.md)를 참고한다.
+
+### 테스트와 정적 분석
+
+- `npm run test`는 Vitest를 한 번 실행한다. `npm run test:watch`는 Watch, `npm run test:coverage`는 V8 커버리지와 `coverage/index.html` 보고서를 생성한다.
+- `tests/{api,scale,map,demo,export}.test.ts`가 기존 검사 스크립트의 시나리오를 보존한다. 기본 시드 12건, 규모 검사는 12,050건이다. MSW 저장소/핸들러, 환경 플래그, 전역 객체, 지도 타이머와 이벤트 구독을 격리한다. 외부 지도 SDK나 운영 서비스에 접속하지 않는다.
+- `npm run typecheck`는 앱/Vite와 테스트/Vitest 설정을 각각 검사한다. `npm run build`도 독립적으로 앱 타입 검사를 수행한다.
+- ESLint Flat Config는 TypeScript recommended, Hooks 호출 순서/의존성, Fast Refresh를 검사한다. React Compiler를 사용하지 않아 Compiler 전용 최적화 규칙은 도입하지 않는다. 객체 rest로 민감 필드를 제외하는 패턴은 `ignoreRestSiblings`로 허용한다.
+- `npm run lint:fix`, `npm run format`은 자동 정리용이다. CI는 변경 없는 검사 명령을 사용한다. 커버리지 수치는 검증 범위 확인용이며 UI/실제 서버 테스트를 대체하지 않는다.
+- CI는 Node 22에서 설치 → 형식 → lint → 타입 → 테스트 → 운영 빌드를 수행한다. Backend는 별도 Java 21 Job이다. 기존 Job 이름과 develop/main Push·PR·수동 실행을 유지한다.

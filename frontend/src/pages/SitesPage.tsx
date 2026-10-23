@@ -1,4 +1,4 @@
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 import { Pagination } from '../components/Pagination';
 import { SiteList } from '../components/SiteList';
 import { SiteSearch } from '../components/SiteSearch';

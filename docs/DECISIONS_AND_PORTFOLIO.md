@@ -20,7 +20,7 @@
 - Java 21/Spring Boot 3.5.6/Gradle/PostgreSQL 17/Flyway로 방향을 통일했다. Maven·이전 스타터 버전은 현재 기준이 아니다.
 - local/prod DB 설정과 외부 비밀번호 주입, 로컬 DB loopback 바인딩, health 외 API 거부를 적용했다.
 - Windows PEM 권한 오류를 icacls로 제한해 SSH 접속한 것은 사용자 확인 기록이다. Docker/PostgreSQL 기동도 사용자 보고이며 이번 문서 정리에서 원격 재검증하지 않았다.
-- 과거 Wrapper 미포함 설명은 현재와 다르다. 현재 Wrapper가 있으며 Gradle 9.6.0을 지정한다. 백엔드 테스트 성공 기록은 없다.
+- 과거 Wrapper 미포함 설명은 현재와 다르다. 현재 Wrapper가 있으며 Gradle 9.6.0을 지정한다. 당시에는 백엔드 테스트 성공 기록이 없었으며 아래 CI 통합 작업에서 컴파일/단위 테스트를 검증했다.
 
 ## 2026-10-21~22 — A/B 검침과 프론트 시연
 
@@ -74,6 +74,16 @@
 - 다운로드는 최신 HWP 준비를 확인한 뒤 R2 객체를 순차 ZIP으로 조립하는 방향이다. 사전 생성으로 대기 시간을 줄이지만 저장 공간·버전·실패 복구와 ZIP 조립 시간은 남는다.
 - RAM 약 2GB를 고려해 단일 작업자·한 건 생성·제한된 사진 디코딩·파일 스트림을 제안했다. 구체 제한과 시간/메모리는 미측정이다.
 - [HWP_EXPORT_DESIGN.md](HWP_EXPORT_DESIGN.md)에 최신성·실패 처리·검증 순서를 기록했다. 다음은 가상 텍스트/사진을 포함한 한 건 PoC이며 실제 생성/저장 API는 없다.
+
+## 2026-10-23 — CI 및 테스트 환경 통합
+
+- 별도 esbuild/Node 검사 실행 대신 Vitest로 통합했다. 기존 193개 assertion을 보존하고 구독 해제 1개를 추가했다. 원본 실행과 전환 후 동등 검증을 확인한 뒤 check 파일 5개를 삭제했다. esbuild는 Vite의 전이 의존성으로 유지된다.
+- MSW 저장소 스냅샷을 테스트마다 복구하고 핸들러/전역 객체/구독/지도 가상 타이머를 정리한다. 브라우저 시연 확장은 Node 테스트 setup에서 비활성화해 기본 12건과 대량 12,050건을 구분한다. 운영 서비스가 필요하지 않다.
+- ESLint Flat Config의 TypeScript recommended, 기본 Hooks 호출/의존성, Fast Refresh와 Prettier 충돌 방지를 적용했다. React Compiler 미사용 프로젝트에 Compiler 최적화 규칙을 강제하는 대안은 업무 범위 밖 리팩터링을 늘려 제외했다. Context 훅/Provider 모듈 분리와 지도 ref/cleanup의 최소 변경만 적용했다.
+- 앱/테스트의 타입 검사, Vitest 실행/Watch/V8 커버리지 명령을 제공한다. 전체 소스 기준 lines 31.49%이며 UI 렌더링 자동 검증까지 완료됐다는 뜻은 아니다.
+- Lombok compileOnly/annotationProcessor와 누락 import를 수정했다. Java 21/Gradle 9.6.0에서 clean test(health 1개) 및 assemble 통과. 테스트 소스가 Lombok을 사용하지 않아 테스트용 processor는 추가하지 않았다. DB/JPA 검증은 별도다.
+- CI는 기존 Frontend Tests & Build / Backend Tests & Build 이름을 유지했다. develop/main Push·대상 PR·수동 실행, Node 22/Java 21, npm/Gradle 캐시를 유지하고 형식·lint·타입·Vitest·빌드를 실패 시 중단하도록 연결했다.
+- 로컬 npm ci, format:check, lint, typecheck, test, test:coverage, build와 순서 섞기 회귀가 통과했다. 원격 Actions 실행은 아직 확인하지 않았다. 상세 범위는 [검증 기록](FRONTEND_REVIEW.md)을 따른다.
 
 ## 기록 규칙
 

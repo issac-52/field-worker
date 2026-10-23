@@ -22,7 +22,7 @@
 | 외부 지도 | NAVER 동적 SDK 실제 연동. 서버 geocoding·전체 영역 조회는 미구현 |
 | 인증 | 서버 세션 우선 검토. 실제 쿠키/CSRF/도메인 배치 검증 전이며 현재 health 외 요청 거부 |
 
-User/UserRole과 findByLoginId/existsByLoginId Repository가 존재한다. UserService는 비어 있다. 과거 초안에 등장했던 인증 서비스·관리자 API가 현재 구현되어 있다고 해석하면 안 된다. Lombok 설정과 엔티티 매핑부터 컴파일·DB 통합 확인이 필요하다.
+User/UserRole과 findByLoginId/existsByLoginId Repository가 존재한다. UserService는 비어 있다. 과거 초안에 등장했던 인증 서비스·관리자 API가 현재 구현되어 있다고 해석하면 안 된다. Lombok 컴파일 설정을 수정해 Java 21/Gradle 9.6.0의 clean test 및 assemble을 확인했다. 엔티티 매핑·실제 DB 통합은 별도 검증이 필요하다.
 
 ## 현재 프론트
 

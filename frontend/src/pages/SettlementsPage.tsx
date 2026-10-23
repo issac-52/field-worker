@@ -1,7 +1,7 @@
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Wallet } from 'lucide-react';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 import { Pagination } from '../components/Pagination';
 import { formatDate, formatWon } from '../lib/format';
 import { PHASE_LABEL } from '../types';

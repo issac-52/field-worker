@@ -1,7 +1,7 @@
 import { Button } from '../components/ui/button';
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, MapPin, MapPinned, ShieldCheck } from 'lucide-react';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 import { StatusBadge } from '../components/StatusBadge';
 import { InspectionPanel } from '../components/inspection/InspectionPanel';
 import { MeasurementEditor } from '../components/inspection/MeasurementEditor';

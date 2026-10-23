@@ -56,7 +56,7 @@ $env:SPRING_PROFILES_ACTIVE='local'
 - local: localhost:5432/fieldwork, DB 사용자 fieldwork, 비밀번호는 DB_PASSWORD.
 - prod: DB_URL/DB_USER/DB_PASSWORD를 외부에서 주입한다.
 - GET /api/health만 공개하며 나머지는 SecurityConfig에서 거부한다. health는 고정 응답으로 DB 상태 진단이 아니다.
-- User 엔티티의 Lombok import/의존성 설정 등 컴파일 정합성 확인이 필요하다. 백엔드 테스트 성공을 주장하지 않는다.
+- Lombok import/annotationProcessor를 수정하고 Java 21 + Gradle 9.6.0에서 clean test 및 assemble을 확인했다. 현재 테스트는 health 단위 테스트 1개이며 DB/JPA 통합 검증은 별도다.
 - 루트 compose.yml은 로컬 전용이다. EC2의 별도 /opt/field-work/compose.yml을 덮어쓰지 않는다.
 - Flyway 변경 전 각 DB 적용 이력을 확인한다. 적용된 마이그레이션을 수정하거나 DB 볼륨을 삭제하지 않는다.
 

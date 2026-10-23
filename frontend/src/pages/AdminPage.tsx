@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../components/ui/button';
 import { ArrowRight, Coins, FileText, Users, Wallet } from 'lucide-react';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 
 const CARDS = [
   {

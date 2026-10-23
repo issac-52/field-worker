@@ -17,7 +17,7 @@ Read `docs/PROJECT_CONTEXT.md`, `docs/REQUIREMENTS.md`, and `docs/DECISIONS_AND_
 
 - When adding features or fixing bugs, create or update relevant tests as part of the same change.
 - Verify that existing tests still cover the updated requirements and expected behavior.
-- Prefer JUnit 5 for Java business logic tests.
+- Prefer JUnit 5 for Java business logic tests. Use Vitest for frontend regression tests, with isolated MSW state and no dependency on production services.
 - Test API authorization, input validation, error handling, and expected HTTP responses.
 - Test frontend API contracts, state changes, and user interactions where applicable.
 - Use fictional test data. Never include real personal information, credentials, or production data in tests.

@@ -11,12 +11,14 @@
     "preview:demo": "vite preview --mode demo --outDir dist-demo --port 4174 --strictPort",
     "preview": "vite preview",
     "postinstall": "msw init public --save",
-    "format": "prettier --write src config check-api.ts check-scale.ts check-map.ts check-demo.ts check-export.ts index.html vite.config.ts tsconfig.json package.json",
-    "format:check": "prettier --check src config check-api.ts check-scale.ts check-map.ts check-demo.ts check-export.ts index.html vite.config.ts tsconfig.json package.json",
-    "test:demo": "esbuild check-demo.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-demo.js && node .checks/check-demo.js",
-    "test:api": "esbuild check-api.ts check-scale.ts --bundle --platform=node --format=esm --packages=external --outdir=.checks && node .checks/check-api.js && node .checks/check-scale.js",
-    "test:map": "esbuild check-map.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-map.js && node .checks/check-map.js",
-    "test:export": "esbuild check-export.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-export.js && node .checks/check-export.js"
+    "format": "prettier --write src config tests index.html *.config.* tsconfig*.json package.json",
+    "format:check": "prettier --check src config tests index.html *.config.* tsconfig*.json package.json",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",
@@ -35,12 +37,22 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.20.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
     "prettier": "^3.9.10",
     "typescript": "^5.9.0",
-    "vite": "^7.1.0"
+    "typescript-eslint": "^8.72.0",
+    "vite": "^7.1.0",
+    "vitest": "^5.0.5"
   },
   "msw": {
     "workerDirectory": "public"

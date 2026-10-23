@@ -1,21 +1,33 @@
 # 프론트 검증 기록과 한계
 
-업데이트: 2026-10-23. 이 문서는 세션에서 실제 실행한 검증의 요약이다. **이번 문서 정리에서 코드 테스트를 다시 실행한 것은 아니다.** 기능 설명은 [README](../frontend/README.md), 계약은 [API_CONTRACT](../frontend/API_CONTRACT.md)를 참고한다.
+업데이트: 2026-10-23. CI/테스트 통합 작업에서 아래 명령을 실제 실행했다. 로컬 Node 24.18.0/Windows 검증이며 GitHub Actions의 Node 22/Linux 실행 결과는 아직 없다. 기능은 [README](../frontend/README.md), 계약은 [API_CONTRACT](../frontend/API_CONTRACT.md)를 참고한다.
 
-## 자동 검증 이력
+## 자동 검증
 
-frontend에서 실행했으며 단계별 마지막 관련 변경에 대한 통과 기록이다. 모든 명령을 최종 커밋 하나에 동시에 실행한 것으로 해석하지 않는다.
-
-| 명령 | 확인 범위 |
+| 명령 (frontend) | 결과 |
 | --- | --- |
-| npm run format:check | TS/TSX/CSS/설정의 Prettier 형식 |
-| npm run test:api | 권한·금액 제외, 블록/페이지/요약, 계정, 단가, START/END 등록·정정/충돌, 사진 4종/중복/삭제/형식. 12,050건/603페이지 회귀 포함 |
-| npm run test:map | 3상태 마커, 좌표 판별, fake DOM SDK 준비/중복/실패/재시도, 가상 Geolocation 처리와 정리 |
-| npm run test:demo | 시연 환경 조합, 운영 설정 거부, 역할 전환/구독/초기화 및 Mock 헤더 경계 |
-| npm run test:export | 실제 XLSX 쓰기/재조회 12행·35열, 앞자리 0·날짜·숫자·문자열 수식 방지, 12,050행 페이지 수집·취소·중복/건수 변경 |
-| npm run build | TypeScript + 운영 Vite 빌드. 최근 지도 상태 통일 후 통과 |
-| npm run build:demo | 명시적 demo 플래그로 시연 빌드. 최근 시연 데이터 확장 시 통과; 이후 UI/사진/지도 변경의 최종 시연 재빌드는 별도 필요 |
-| git diff --check | 패치 공백 검사 |
+| npm ci | 통과. 실행 중인 Vite의 Windows 네이티브 파일 잠금을 해제한 뒤 재설치 |
+| npm run format:check | 통과. 소스/설정/새 테스트 포함 |
+| npm run lint | 통과, 경고 0 |
+| npm run typecheck | 앱 및 테스트/설정 모두 통과 |
+| npm run test | Vitest 5개 파일, 10개 테스트 통과 |
+| npm run test:coverage | 동일 10개 통과, V8 HTML/JSON 보고서 생성 |
+| npm run test -- --sequence.shuffle --sequence.seed=42 | 순서를 섞어도 10개 통과 |
+| npm run build | 운영 빌드 통과 |
+
+기존 check 스크립트 5개도 전환 전에 실행해 통과를 확인했다. 원본의 assertion 호출 193개(api 96, scale 21, map 35, export 22, demo 19)를 보존하고 구독 해제 검증 1개를 추가한 뒤 기존 파일을 삭제했다. 테스트 개수는 시나리오 묶음 수이며 assertion 호출 횟수와 다르다.
+
+| 새 테스트 | 보존한 범위 |
+| --- | --- |
+| tests/api.test.ts | 권한/금액 제외, 블록/페이지/요약, 계정/단가, 검침 등록·정정·동시 충돌, 사진 4종/중복/삭제/형식 |
+| tests/scale.test.ts | 12,050건/603페이지, 블록 조건·응답 제한·전체 집계·검색·빈 결과/범위 초과 |
+| tests/map.test.ts | 3상태 마커, 좌표/Geolocation 정리, fake DOM SDK 중복/실패/재시도. 가상 타이머, 외부 SDK 요청 없음 |
+| tests/demo.test.ts | 시연 환경 조합·운영 혼입 거부, 역할/구독/초기화, 요청별 Mock 헤더 및 운영 헤더 제외 |
+| tests/export.test.ts | XLSX 12행·35열 재조회, 앞자리 0·날짜·숫자·문자열, 12,050행 수집, 취소·중복·건수 변경 거부 |
+
+전체 src/config 기준 커버리지는 statements 31.91%, branches 29.88%, functions 24.58%, lines 31.49%다. 기존 테스트는 API/순수 로직 위주이며 React 화면 렌더링은 포함하지 않는다. 커버리지 분모에서 화면을 제외해 수치를 높이지 않았다. 보고서는 로컬 frontend/coverage/index.html이며 Git에 포함하지 않는다.
+
+Backend는 Java 21.0.12.1, Spring Boot 3.5.6, Gradle Wrapper 9.6.0에서 `./gradlew clean test --no-daemon`과 `./gradlew assemble --no-daemon`의 Windows 동등 명령(`.\gradlew.bat`)을 통과했다. 기존 health 단위 테스트 1개이며 실제 DB/Flyway/JPA 통합 테스트는 아니다.
 
 ## 브라우저 확인 이력
 
@@ -31,9 +43,9 @@ frontend에서 실행했으며 단계별 마지막 관련 변경에 대한 통�
 ## 미검증·남은 과제
 
 - 실제 로그인/세션/CSRF/서버 권한·DB/Flyway/JPA·R2·Excel 업로드·HWP/ZIP 생성은 프론트 검증에 포함하지 않는다.
-- 실제 휴대폰 카메라/갤러리/키보드/GPS 수신과 운영 도메인의 NAVER 인증은 별도 점검한다. test:map은 NAVER 실인증 시험이 아니다.
+- 실제 휴대폰 카메라/갤러리/키보드/GPS 수신과 운영 도메인의 NAVER 인증은 별도 점검한다. map.test.ts는 NAVER 실인증 시험이 아니다.
 - 10,000건 이상 XLSX/HWP/ZIP 전체 생성 시간·최대 메모리·2GB 서버 공존·R2 전송/디스크/운영 부하는 미측정이다.
-- ExcelJS 청크가 약 940kB이며 Vite 경고가 남는다. 과거 의존성 감사 moderate 2건은 해결됐다고 주장하지 않으며 최신 상태는 재확인 필요하다.
+- ExcelJS 청크가 약 940kB이며 Vite 경고가 남는다. npm ci에서 moderate 2건이 보고됐다. 강제 버전 변경은 하지 않았다.
 - 화면 파일 이동/대규모 HMR 중 stale import 또는 Mock 연결 오류가 나타난 경우 새로고침 후 복구했다. 이 기록은 운영 복구 보장을 의미하지 않는다.
 
-검증하지 않은 사항은 완료로 기록하지 않는다. 백엔드 테스트는 과거 Java 미탐지로 진입하지 못한 기록이 있으며 현재 성공 근거가 없다.
+검증하지 않은 사항은 완료로 기록하지 않는다. 원격 GitHub Actions 실행과 실제 운영 통합 검증은 별도다.
