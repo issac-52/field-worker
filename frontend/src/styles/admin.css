@@ -277,6 +277,9 @@
   font-size: 15px;
   margin-left: 7px;
 }
+.report-panel + .report-panel {
+  margin-top: 16px;
+}
 .account-list {
   display: grid;
   gap: 12px;

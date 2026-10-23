@@ -9,7 +9,7 @@ export const mockLocationMaps = new Map<number, LocationMapImage>();
 const inFlight = new Set<number>();
 const requests = new Map<string, { body: string; result: Promise<Response> }>();
 
-function state(siteId: number): LocationMapState {
+export function locationMapState(siteId: number): LocationMapState {
   const site = store.sites.find((value) => value.id === siteId)!;
   const image = mockLocationMaps.get(siteId) ?? null;
   return { image, stale: !!image && !locationMapMatches(image, site), imageUrl: null };
@@ -50,7 +50,7 @@ export const locationMapsHandlers = [
   http.get('/api/sites/:id/location-map', ({ params }) => {
     const id = Number(params.id);
     if (!store.sites.some((site) => site.id === id)) return err('수용가 없음', 404);
-    return ok(state(id));
+    return ok(locationMapState(id));
   }),
   http.post('/api/sites/:id/location-map', async ({ params, request }) => {
     const id = Number(params.id);
@@ -88,7 +88,7 @@ export const locationMapsHandlers = [
         503,
       );
     }
-    const current = state(id);
+    const current = locationMapState(id);
     if (!body.regenerate && current.image && !current.stale) {
       const response = ok({ ...current, reused: true });
       requests.set(scope, { body: digest, result: Promise.resolve(response.clone()) });
@@ -127,7 +127,7 @@ export const locationMapsHandlers = [
           centerLongitude: longitude,
           ...LOCATION_MAP_OPTIONS,
         });
-        return ok({ ...state(id), reused: false });
+        return ok({ ...locationMapState(id), reused: false });
       } finally {
         inFlight.delete(id);
       }

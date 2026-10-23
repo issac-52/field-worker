@@ -70,3 +70,8 @@ HWP 화면은 블록 조건과 전체 대상 건수만 표시하며 파일명을
 `PATCH /api/sites/:id/coordinates`: `{ latitude, longitude, expectedLatitude, expectedLongitude }` → 역할별 `Site`. ADMIN/WORKER의 수용가 접근 범위를 유지한다. 지도 클릭은 임시 선택일 뿐이며 위치 저장에서만 호출한다. 취소는 요청하지 않는다. 좌표 범위/유한값/(0,0) 검증 실패는 422, 조회 당시 좌표와 달라진 동시 변경은 409, 이미 같은 목표 좌표라면 응답 유실 재시도로 보고 기존 Site를 반환한다. 좌표 누락의 이전 값은 null이다.
 
 수정은 사진/검침/기존 위치도 파일을 건드리지 않는다. 기존 위치도는 새 좌표와 다르면 stale이 되고 사용자가 `위치도 다시 생성`을 누르기 전에는 Static 호출을 하지 않는다. 단건 Site·목록·위치도 조회를 갱신해 지도 마커도 새 위치를 반영한다. 실제 서버는 숫자 비교 대신 coordinate_revision/버전 조건부 갱신과 변경자·전후 좌표·시각 감사 이력을 적용하도록 설계한다. 이번에는 MSW만 구현했으며 실제 DB 수정은 하지 않는다.
+
+## 검침 수정 및 Excel 출력 (2026-10-23)
+
+- PATCH /api/sites/:id/measurements/:phase: { date, reading, expectedUpdatedAt }. 최초 버전은 updatedAt ?? recordedAt. ADMIN 전체/WORKER 본인 기록만 수정한다. 작업자/단가/최초 등록 시각은 보존한다. 달력 날짜, START 2026/END 2027, 유한한 0 이상 지침을 검사한다. 오래된 버전은 409. 실제 세션 권한/버전 갱신/영구 감사/정산 확정 후 정책은 서버 구현 전이다.
+- GET /api/exports/sites: ADMIN 전용. 기존 블록 필터와 page/size(최대100). 기본정보·검침·특이사항·photoSlots·locationMap을 반환하며 사진 바이너리/URL은 제외한다. 현재 MSW만 구현했다. 전체 페이지 순차 수집 시 중복/건수 변경은 거부하나 동일 건수 내 값 변경의 스냅샷 일관성은 후속 서버 계약이 필요하다.

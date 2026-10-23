@@ -44,26 +44,33 @@ export function InspectionPanel({
         </span>
       </div>
       {measurement ? (
-        <div className="measure-grid">
-          <div>
-            <small>검침일자</small>
-            <strong>{formatDate(measurement.date)}</strong>
-          </div>
-          <div>
-            <small>계량지침</small>
-            <strong>{measurement.reading.toLocaleString()}</strong>
-          </div>
-          <div>
-            <small>실제 조사자</small>
-            <strong>{measurement.workerName}</strong>
-          </div>
-          {admin && (
+        <>
+          <div className="measure-grid">
             <div>
-              <small>건당 작업비</small>
-              <strong>{formatWon(measurement.fee ?? 0)}</strong>
+              <small>검침일자</small>
+              <strong>{formatDate(measurement.date)}</strong>
             </div>
+            <div>
+              <small>계량지침</small>
+              <strong>{measurement.reading.toLocaleString()}</strong>
+            </div>
+            <div>
+              <small>실제 조사자</small>
+              <strong>{measurement.workerName}</strong>
+            </div>
+            {admin && (
+              <div>
+                <small>건당 작업비</small>
+                <strong>{formatWon(measurement.fee ?? 0)}</strong>
+              </div>
+            )}
+          </div>
+          {(admin || measurement.workerId === 11) && (
+            <button className="outline-btn" onClick={onMeasure}>
+              검침 수정
+            </button>
           )}
-        </div>
+        </>
       ) : (
         <>
           <p className="phase-empty">등록된 검침이 없습니다.</p>

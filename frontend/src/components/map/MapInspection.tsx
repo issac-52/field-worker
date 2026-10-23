@@ -21,6 +21,7 @@ export function MapInspection({
 }) {
   const { role } = useWork();
   const [phase, setPhase] = useState(initialPhase);
+  const [editingPhase, setEditingPhase] = useState<Phase>();
   const result = useQuery({
     queryKey: ['site', role, id],
     queryFn: ({ signal }) => api.site(id, signal),
@@ -71,18 +72,28 @@ export function MapInspection({
                 key={value}
                 aria-pressed={phase === value}
                 className={phase === value ? 'active' : ''}
-                onClick={() => setPhase(value)}
+                onClick={() => {
+                  setPhase(value);
+                  setEditingPhase(undefined);
+                }}
               >
                 {value === 'START' ? '2026 시작검침' : '2027 종료검침'}
               </button>
             ))}
           </div>
-          {site.inspections[phase] ? (
-            <p className="map-saved-reading">
-              {site.inspections[phase]!.date} · 지침{' '}
-              <b>{site.inspections[phase]!.reading.toLocaleString()}</b> ·{' '}
-              {site.inspections[phase]!.workerName}
-            </p>
+          {site.inspections[phase] && editingPhase !== phase ? (
+            <>
+              <p className="map-saved-reading">
+                {site.inspections[phase]!.date} · 지침{' '}
+                <b>{site.inspections[phase]!.reading.toLocaleString()}</b> ·{' '}
+                {site.inspections[phase]!.workerName}
+              </p>
+              {(role === 'ADMIN' || site.inspections[phase]!.workerId === 11) && (
+                <button className="outline-btn" onClick={() => setEditingPhase(phase)}>
+                  검침 수정
+                </button>
+              )}
+            </>
           ) : phase === 'END' && !site.inspections.START ? (
             <p>시작검침을 먼저 등록하세요.</p>
           ) : (
@@ -91,7 +102,7 @@ export function MapInspection({
               site={site}
               phase={phase}
               inline
-              onClose={() => {}}
+              onClose={() => setEditingPhase(undefined)}
             />
           )}
           <LocationMapPanel site={site} />

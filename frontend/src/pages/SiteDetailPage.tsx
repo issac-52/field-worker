@@ -125,7 +125,12 @@ export function SiteDetailPage() {
         </aside>
       </div>
       {editor === 'measurement' && (
-        <MeasurementEditor site={site} phase={phase} onClose={() => setEditor(undefined)} />
+        <MeasurementEditor
+          key={`${site.id}-${phase}`}
+          site={site}
+          phase={phase}
+          onClose={() => setEditor(undefined)}
+        />
       )}
       {editor === 'note' && <NoteEditor site={site} onClose={() => setEditor(undefined)} />}
     </>

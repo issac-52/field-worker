@@ -18,17 +18,23 @@ export function MeasurementEditor({
   onClose: () => void;
   inline?: boolean;
 }) {
-  const { role, users } = useWork();
+  const { role, users, refresh } = useWork();
   const availableWorkers = users.filter((user) => user.role === 'WORKER' && user.active);
   const year = phase === 'START' ? 2026 : 2027;
   const firstDate = `${year}-01-01`;
   const lastDate = `${year}-12-31`;
   const currentDate = today();
+  const measurement = site.inspections[phase];
+  const editing = !!measurement;
   const [date, setDate] = useState(
-    currentDate < firstDate ? firstDate : currentDate > lastDate ? lastDate : currentDate,
+    measurement?.date ??
+      (currentDate < firstDate ? firstDate : currentDate > lastDate ? lastDate : currentDate),
   );
-  const [reading, setReading] = useState('');
-  const [workerId, setWorkerId] = useState(role === 'WORKER' ? 11 : (availableWorkers[0]?.id ?? 0));
+  const [reading, setReading] = useState(measurement ? String(measurement.reading) : '');
+  const [workerId, setWorkerId] = useState(
+    measurement?.workerId ?? (role === 'WORKER' ? 11 : (availableWorkers[0]?.id ?? 0)),
+  );
+  const [expectedUpdatedAt] = useState(measurement?.updatedAt ?? measurement?.recordedAt);
   const { busy, error, save } = useSaveAction();
   async function submit() {
     if (
@@ -38,21 +44,27 @@ export function MeasurementEditor({
       !workerId ||
       date < firstDate ||
       date > lastDate ||
-      site.inspections[phase] ||
       (phase === 'END' && !site.inspections.START)
     )
       return;
     const success = await save(
       () =>
-        api.measurement(site.id, {
-          phase,
-          date,
-          reading: Number(reading),
-          workerId,
-        }),
-      `${PHASE_LABEL[phase]}을 등록했습니다.`,
+        editing
+          ? api.updateMeasurement(site.id, phase, {
+              date,
+              reading: Number(reading),
+              expectedUpdatedAt: expectedUpdatedAt!,
+            })
+          : api.measurement(site.id, {
+              phase,
+              date,
+              reading: Number(reading),
+              workerId,
+            }),
+      `${PHASE_LABEL[phase]}을 ${editing ? '수정' : '등록'}했습니다.`,
     );
     if (success) onClose();
+    else void refresh();
   }
   const form = (
     <form
@@ -70,7 +82,8 @@ export function MeasurementEditor({
         </p>
       )}
       <p className="form-help">
-        {year}년 {PHASE_LABEL[phase]} · 저장 후 중복 등록할 수 없습니다.
+        {year}년 {PHASE_LABEL[phase]}
+        {editing ? ' 수정' : ''}
       </p>
       <label className="field">
         검침일자
@@ -101,7 +114,7 @@ export function MeasurementEditor({
         <select
           required
           value={workerId || ''}
-          disabled={role === 'WORKER' || busy}
+          disabled={editing || role === 'WORKER' || busy}
           onChange={(event) => setWorkerId(Number(event.target.value))}
         >
           <option value="" disabled>
@@ -112,6 +125,9 @@ export function MeasurementEditor({
               {user.name}
             </option>
           ))}
+          {editing && !availableWorkers.some((user) => user.id === workerId) && (
+            <option value={workerId}>{measurement.workerName}</option>
+          )}
         </select>
       </label>
       {error && (
@@ -130,14 +146,23 @@ export function MeasurementEditor({
         }
         type="submit"
       >
-        {busy ? '저장 중...' : '검침 저장'}
+        {busy ? '저장 중...' : editing ? '수정 저장' : '검침 저장'}
       </button>
+      {inline && editing && (
+        <button type="button" className="outline-btn full" disabled={busy} onClick={onClose}>
+          수정 취소
+        </button>
+      )}
     </form>
   );
   return inline ? (
     form
   ) : (
-    <Modal title={`${PHASE_LABEL[phase]} 입력`} onClose={onClose} busy={busy}>
+    <Modal
+      title={`${PHASE_LABEL[phase]} ${editing ? '수정' : '입력'}`}
+      onClose={onClose}
+      busy={busy}
+    >
       {form}
     </Modal>
   );

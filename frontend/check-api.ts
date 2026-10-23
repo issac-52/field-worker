@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { setupServer } from 'msw/node';
 import { handlers } from './src/mocks/handlers';
 import { checkLocationMaps } from './check-location-map';
+import { store } from './src/mocks/store';
 Object.defineProperty(globalThis, 'location', {
   value: new URL('http://localhost/'),
 });
@@ -284,6 +285,60 @@ try {
   console.log(
     'PASS: block hierarchy, scoped adjustment totals, unaffected blocks/phases, validation, audit history',
   );
+  {
+    const edit = async (id: number, phase: string, body: unknown, role = 'WORKER') => {
+      const response = await fetch(`http://localhost/api/sites/${id}/measurements/${phase}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Demo-Role': role },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, ...(await response.json()) };
+    };
+    const original = (await call('/sites/1')).data.inspections.START;
+    const correction = {
+      date: '2026-11-04',
+      reading: original.reading + 5,
+      expectedUpdatedAt: original.updatedAt ?? original.recordedAt,
+    };
+    const countBefore = store.measurementEdits.length;
+    const corrected = await edit(1, 'START', correction);
+    assert.equal(corrected.status, 200);
+    assert.equal(corrected.data.inspections.START.reading, correction.reading);
+    assert(!('fee' in corrected.data.inspections.START));
+    const saved = (await call('/sites/1')).data.inspections.START;
+    assert.equal(saved.fee, original.fee);
+    assert.equal(saved.workerId, original.workerId);
+    assert.equal(saved.recordedAt, original.recordedAt);
+    assert.equal(store.measurementEdits.length, countBefore + 1);
+    assert.equal((store.measurementEdits.at(-1)!.before as any).reading, original.reading);
+    assert.equal((await edit(1, 'START', correction)).status, 409);
+    const currentBody = { ...correction, expectedUpdatedAt: saved.updatedAt };
+    assert.equal((await edit(1, 'START', currentBody)).status, 200);
+    assert.equal(store.measurementEdits.length, countBefore + 1);
+    assert.equal((await edit(1, 'START', { ...currentBody, date: '2026-02-30' })).status, 400);
+    assert.equal((await edit(1, 'START', { ...currentBody, date: '2027-11-01' })).status, 400);
+    assert.equal((await edit(1, 'START', { ...currentBody, reading: -1 })).status, 400);
+    assert.equal((await edit(1, 'START', { ...currentBody, workerId: 12 })).status, 400);
+    const end = (await call('/sites/1')).data.inspections.END;
+    assert.notEqual(end.workerId, 11);
+    const endBody = {
+      date: end.date,
+      reading: end.reading + 1,
+      expectedUpdatedAt: end.updatedAt ?? end.recordedAt,
+    };
+    assert.equal((await edit(1, 'END', endBody)).status, 403);
+    assert.equal((await edit(1, 'END', endBody, 'ADMIN')).status, 200);
+    const concurrent = await Promise.all([
+      edit(1, 'START', { ...currentBody, reading: saved.reading + 1 }),
+      edit(1, 'START', { ...currentBody, reading: saved.reading + 2 }),
+    ]);
+    assert.deepEqual(concurrent.map((value) => value.status).sort(), [200, 409]);
+    assert.equal((await edit(999999, 'START', correction)).status, 404);
+    assert.equal((await edit(1, 'OTHER', correction)).status, 404);
+    console.log(
+      'PASS: START/END correction, own-worker/admin permissions, historical fee/worker/recordedAt preservation, audit snapshots, calendar validation, immutable ownership and concurrent-edit conflict',
+    );
+  }
 } finally {
   server.close();
 }

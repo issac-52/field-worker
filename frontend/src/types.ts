@@ -35,6 +35,7 @@ export type Site = {
         workerName: string;
         fee?: number;
         recordedAt: string;
+        updatedAt?: string;
       }
     >
   >;
@@ -105,6 +106,10 @@ export type PageResponse<T> = {
 };
 export type SiteListItem = Omit<Site, 'photos' | 'note'> & {
   photoCount: number;
+};
+export type SiteExportItem = Omit<Site, 'photos'> & {
+  photoSlots: PhotoSlot[];
+  locationMap: import('./lib/locationMap').LocationMapState;
 };
 export type WorkerCount = {
   workerId: number;

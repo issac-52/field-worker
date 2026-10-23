@@ -8,10 +8,14 @@ import type {
   SiteListItem,
   SiteSummary,
   SitePhoto,
+  SiteExportItem,
+  BlockFilter,
 } from '../types';
 import { call, json, query } from './client';
 
 export const siteApi = {
+  exportSites: (params: BlockFilter & PageRequest, signal?: AbortSignal) =>
+    call<PageResponse<SiteExportItem>>('/exports/sites' + query(params), { signal }),
   blocks: (signal?: AbortSignal) => call<Block[]>('/blocks', { signal }),
   sites: (params: SiteFilter & PageRequest = {}, signal?: AbortSignal) =>
     call<PageResponse<SiteListItem>>('/sites' + query(params), { signal }),
@@ -25,4 +29,13 @@ export const siteApi = {
     body: { phase: Phase; date: string; reading: number; workerId: number },
   ) => call<Site>(`/sites/${id}/measurements`, json(body)),
   photos: (id: number, photos: SitePhoto[]) => call<Site>(`/sites/${id}/photos`, json({ photos })),
+  updateMeasurement: (
+    id: number,
+    phase: Phase,
+    body: { date: string; reading: number; expectedUpdatedAt: string },
+  ) =>
+    call<Site>(`/sites/${id}/measurements/${phase}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 };

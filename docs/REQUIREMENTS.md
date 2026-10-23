@@ -20,7 +20,7 @@ _Last updated: 2026-10-22._
 - Actual final Excel file, column mapping, ~1,800 cases selection rule, unique import identity, refresh/reimport/upsert behavior.
 - Whether a physical site/address can contain multiple accounts or meters, whether meter is replaced between A/B, and how to handle negative B−A.
 - Permission to retain NAVER Static Map images in R2 and reuse/distribute them in HWP, acceptable image quality and retention policy. The four image roles themselves are confirmed above.
-- Ability to edit completed entries, permissions for edits, rejection/approval requirements, reinspection/exception statuses.
+- Completed-entry date/reading correction requested and implemented in frontend/MSW (2026-10-23): worker own records/admin all. Production approval, settled-record correction and exception policies remain pending.
 - Assignment by geographic area, ownership rules, duplicate/concurrent work policies.
 - Whether A/B stages are paid separately, which event counts for settlement, unit-price exceptions, approval/reversal/payment status.
 - Whether `.hwpx` is acceptable or native `.hwp` strictly required; final document formatting acceptance criteria; output of incomplete A cards.
