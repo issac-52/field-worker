@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { api } from '../../api';
@@ -98,7 +99,8 @@ export function PhotoEditor({
           return (
             <section className="photo-editor-slot" key={slot}>
               <h3>{PHOTO_LABEL[slot]}</h3>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 className="photo-slot"
                 aria-label={`${PHOTO_LABEL[slot]} 사진 입력`}
@@ -110,10 +112,11 @@ export function PhotoEditor({
                 ) : (
                   <span>선택한 사진 없음</span>
                 )}
-              </button>
+              </Button>
               <div className="photo-slot-actions">
                 {!inline && (
-                  <button
+                  <Button
+                    variant="outline"
                     className="outline-btn"
                     aria-label={`${PHOTO_LABEL[slot]} 촬영`}
                     disabled={busy || reading}
@@ -121,10 +124,11 @@ export function PhotoEditor({
                   >
                     <Camera size={16} />
                     촬영
-                  </button>
+                  </Button>
                 )}
                 {!inline && (
-                  <button
+                  <Button
+                    variant="outline"
                     className="outline-btn"
                     aria-label={`${PHOTO_LABEL[slot]} ${image ? '교체' : '선택'}`}
                     disabled={busy || reading}
@@ -132,10 +136,11 @@ export function PhotoEditor({
                   >
                     <ImagePlus size={16} />
                     {image ? '교체' : '선택'}
-                  </button>
+                  </Button>
                 )}
                 {image && (
-                  <button
+                  <Button
+                    variant="outline"
                     className="outline-btn"
                     aria-label={`${PHOTO_LABEL[slot]} 삭제`}
                     disabled={busy || reading}
@@ -146,7 +151,7 @@ export function PhotoEditor({
                   >
                     <Trash2 size={16} />
                     삭제
-                  </button>
+                  </Button>
                 )}
               </div>
             </section>
@@ -158,7 +163,8 @@ export function PhotoEditor({
           {fileError || error}
         </p>
       )}
-      <button
+      <Button
+        variant="default"
         className="primary-btn full modal-save"
         disabled={busy || reading}
         onClick={async () => {
@@ -179,7 +185,7 @@ export function PhotoEditor({
           : busy
             ? '시연 저장 중…'
             : `이미지 ${images.length}개 시연 저장`}
-      </button>
+      </Button>
     </>
   );
   return inline ? (

@@ -1,3 +1,5 @@
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
@@ -86,7 +88,7 @@ export function InvestigatorEditor({
         {action.mode === 'create' && (
           <label className="field">
             아이디
-            <input
+            <Input
               autoComplete="off"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
@@ -101,7 +103,7 @@ export function InvestigatorEditor({
         {(action.mode === 'create' || action.mode === 'edit') && (
           <label className="field">
             이름
-            <input
+            <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
@@ -117,7 +119,7 @@ export function InvestigatorEditor({
         {(action.mode === 'create' || action.mode === 'password') && (
           <label className="field">
             임시 비밀번호
-            <input
+            <Input
               type="password"
               autoComplete="new-password"
               value={password}
@@ -141,9 +143,9 @@ export function InvestigatorEditor({
             {error}
           </p>
         )}
-        <button className="primary-btn full" type="submit" disabled={busy}>
+        <Button variant="default" className="primary-btn full" type="submit" disabled={busy}>
           {busy ? '저장 중...' : action.mode === 'edit' ? '저장' : title.replace('조사자 ', '')}
-        </button>
+        </Button>
       </form>
     </Modal>
   );

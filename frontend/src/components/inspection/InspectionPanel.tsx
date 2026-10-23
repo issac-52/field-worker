@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import { Check, Clock3, Plus } from 'lucide-react';
 import type { Phase, Site } from '../../types';
 import { PHASE_LABEL } from '../../types';
@@ -24,14 +25,15 @@ export function InspectionPanel({
       </div>
       <div className="phase-tabs">
         {(['START', 'END'] as const).map((value) => (
-          <button
+          <Button
+            variant="ghost"
             key={value}
             className={phase === value ? 'active' : ''}
             aria-pressed={phase === value}
             onClick={() => setPhase(value)}
           >
             {value === 'START' ? '2026 START' : '2027 END'}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="phase-top">
@@ -66,22 +68,23 @@ export function InspectionPanel({
             )}
           </div>
           {(admin || measurement.workerId === 11) && (
-            <button className="outline-btn" onClick={onMeasure}>
+            <Button variant="outline" className="outline-btn" onClick={onMeasure}>
               검침 수정
-            </button>
+            </Button>
           )}
         </>
       ) : (
         <>
           <p className="phase-empty">등록된 검침이 없습니다.</p>
-          <button
+          <Button
+            variant="default"
             className="primary-btn"
             disabled={phase === 'END' && !site.inspections.START}
             onClick={onMeasure}
           >
             <Plus size={17} />
             {PHASE_LABEL[phase]} 입력
-          </button>
+          </Button>
           {phase === 'END' && !site.inspections.START && (
             <p className="hint">시작단계 검침을 먼저 등록하세요.</p>
           )}

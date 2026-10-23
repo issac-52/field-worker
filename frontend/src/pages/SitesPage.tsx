@@ -7,10 +7,7 @@ export function SitesPage() {
   const { sites, sitePage, openSite, changeListPage, loading } = useWork();
   return (
     <>
-      <section className="pagehead">
-        <h1>수용가 관리</h1>
-        <span className="head-count">{(sitePage?.total ?? 0).toLocaleString()}건</span>
-      </section>
+      <h1 className="sr-only">수용가 관리</h1>
       <SiteSearch />
       <section id="results" className="list-meta">
         <b>검색 결과 {(sitePage?.total ?? 0).toLocaleString()}건</b>

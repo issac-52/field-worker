@@ -1,3 +1,5 @@
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Wallet } from 'lucide-react';
 import { useWork } from '../context/WorkContext';
 import { Pagination } from '../components/Pagination';
@@ -23,9 +25,7 @@ export function SettlementsPage() {
   const rows = settlementData?.items ?? [];
   return (
     <>
-      <section className="pagehead">
-        <h1>정산 내역</h1>
-      </section>
+      <h1 className="sr-only">정산 내역</h1>
       <div className="settlement-filters block-filters panel">
         <label>
           조사자
@@ -50,7 +50,7 @@ export function SettlementsPage() {
         </label>
         <label>
           시작일
-          <input
+          <Input
             type="date"
             value={from}
             onInput={(e) => setFrom(e.currentTarget.value)}
@@ -59,7 +59,7 @@ export function SettlementsPage() {
         </label>
         <label>
           종료일
-          <input
+          <Input
             type="date"
             min={from}
             value={until}
@@ -110,7 +110,8 @@ export function SettlementsPage() {
       </section>
       <div className="panel settle-list">
         {rows.map((row) => (
-          <button
+          <Button
+            variant="ghost"
             className="settle-row"
             key={`${row.siteId}-${row.phase}`}
             onClick={() => openSite(row.siteId)}
@@ -125,7 +126,7 @@ export function SettlementsPage() {
               </span>
             </div>
             <strong>{formatWon(row.fee)}</strong>
-          </button>
+          </Button>
         ))}
         {!rows.length && (
           <div className="empty">{loading ? '불러오는 중...' : '검침 기록이 없습니다.'}</div>

@@ -10,7 +10,7 @@ import { useWorkData } from './useWorkData';
 const STATUS_FILTERS: Record<string, SiteFilter['status']> = {
   미처리: 'TODO',
   시작검침완료: 'IN_PROGRESS',
-  완료: 'DONE',
+  검침완료: 'DONE',
 };
 
 export function useWorkController() {
@@ -33,8 +33,6 @@ export function useWorkController() {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('전체');
-  const [mapPhase, setMapPhase] = useState<Phase>('START');
-  const [mapFilter, setMapFilter] = useState<'미처리' | '처리됨' | '전체'>('미처리');
   const [middle, setMiddle] = useState('');
   const [small, setSmall] = useState('');
   const [settleWorker, setSettleWorker] = useState('');
@@ -51,17 +49,11 @@ export function useWorkController() {
     () => ({
       middleBlockId: middle || undefined,
       smallBlockId: small || undefined,
-      ...(route.page === 'sites' ? { q: search || undefined, status: STATUS_FILTERS[filter] } : {}),
-      ...(route.page === 'map'
-        ? {
-            q: search || undefined,
-            inspectionPhase: mapPhase,
-            inspectionStatus:
-              mapFilter === '미처리' ? 'PENDING' : mapFilter === '처리됨' ? 'COMPLETED' : undefined,
-          }
+      ...(['sites', 'map'].includes(route.page)
+        ? { q: search || undefined, status: STATUS_FILTERS[filter] }
         : {}),
     }),
-    [middle, small, route.page, search, filter, mapPhase, mapFilter],
+    [middle, small, route.page, search, filter],
   );
   const settlementFilter = useMemo<SettlementFilter>(
     () => ({
@@ -93,8 +85,6 @@ export function useWorkController() {
     setQuery('');
     setSearch('');
     setFilter('전체');
-    setMapPhase('START');
-    setMapFilter('미처리');
     setSettleWorker('');
     setSettlePhase('');
     setFrom('');
@@ -119,10 +109,6 @@ export function useWorkController() {
     setQuery,
     filter,
     setFilter,
-    mapPhase,
-    setMapPhase,
-    mapFilter,
-    setMapFilter,
     middle,
     setMiddle,
     small,

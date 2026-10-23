@@ -3,119 +3,12 @@ import { loadNaverMaps, MAP_AUTH_ERROR } from './src/lib/naverMaps';
 import { mapMarker } from './src/lib/mapMarker';
 import { watchCurrentLocation } from './src/lib/currentLocation';
 import { seedSites } from './src/mocks/data';
-import { hasCoordinates } from './src/lib/locationMap';
-import { createLocationMapPreview } from './src/lib/locationMapPreview';
-import type { NaverMaps } from './src/lib/naverMaps';
+import { hasCoordinates } from './src/lib/coordinates';
 
 assert(!hasCoordinates({ latitude: null, longitude: null }));
 assert(!hasCoordinates({ latitude: 0, longitude: 0 }));
 assert(!hasCoordinates({ latitude: Infinity, longitude: 10 }));
 assert(!hasCoordinates({ latitude: 91, longitude: 10 }));
-const previewCalls: string[] = [];
-let previewCenter: object | undefined;
-const previewSdk = {
-  LatLng: class {
-    constructor(
-      public latitude: number,
-      public longitude: number,
-    ) {}
-  },
-  Map: class {
-    constructor(_element: unknown, options: { center: object; draggable: boolean }) {
-      previewCenter = options.center;
-      assert.equal(options.draggable, false);
-      previewCalls.push('map');
-    }
-    autoResize() {
-      previewCalls.push('resize');
-    }
-    destroy() {
-      previewCalls.push('destroy');
-    }
-  },
-  Marker: class {
-    constructor(options: { position: object }) {
-      assert.equal(options.position, previewCenter);
-      previewCalls.push('marker');
-    }
-    setMap(value: unknown) {
-      assert.equal(value, null);
-      previewCalls.push('detach');
-    }
-  },
-} as unknown as NaverMaps;
-const preview = createLocationMapPreview(
-  previewSdk,
-  {
-    replaceChildren() {
-      previewCalls.push('empty');
-    },
-  } as unknown as HTMLElement,
-  35,
-  128,
-);
-preview.resize();
-preview.dispose();
-preview.dispose();
-assert.deepEqual(previewCalls, ['map', 'marker', 'resize', 'detach', 'destroy', 'empty']);
-console.log(
-  'PASS: single centered preview marker and overlay-before-map cleanup; invalid coordinates rejected',
-);
-let clickPoint: ((event: { coord: { lat(): number; lng(): number } }) => void) | undefined;
-let selectedPoint: { latitude: number; longitude: number } | undefined;
-let movedMarker = 0;
-let removedClick = 0;
-const editingSdk = {
-  ...previewSdk,
-  Map: class {
-    constructor(_element: unknown, options: { draggable: boolean; pinchZoom: boolean }) {
-      assert(options.draggable);
-      assert(options.pinchZoom);
-    }
-    autoResize() {}
-    destroy() {}
-  },
-  Marker: class {
-    setPosition() {
-      movedMarker++;
-    }
-    setMap() {}
-  },
-  Event: {
-    addListener(_target: unknown, event: string, callback: typeof clickPoint) {
-      assert.equal(event, 'click');
-      clickPoint = callback;
-      return {};
-    },
-    removeListener() {
-      removedClick++;
-    },
-  },
-} as unknown as NaverMaps;
-const interactive = createLocationMapPreview(
-  editingSdk,
-  { replaceChildren() {} } as unknown as HTMLElement,
-  35,
-  128,
-  16,
-  {
-    showMarker: true,
-    onPick: (point) => {
-      selectedPoint = point;
-    },
-  },
-);
-clickPoint!({ coord: { lat: () => 35.001, lng: () => 128.001 } });
-assert.deepEqual(selectedPoint, { latitude: 35.001, longitude: 128.001 });
-clickPoint!({ coord: { lat: () => 91, lng: () => 128 } });
-assert.equal(movedMarker, 1);
-interactive.dispose();
-interactive.dispose();
-assert.equal(removedClick, 1);
-console.log(
-  'PASS: editable map click updates one marker, invalid picks ignored and click listener cleaned once',
-);
-
 let geoSuccess: PositionCallback | undefined;
 let geoError: PositionErrorCallback | null | undefined;
 let geoOptions: PositionOptions | undefined;
@@ -193,12 +86,12 @@ const started = {
     },
   },
 };
-assert.equal(mapMarker(started, 'START').label, '처리됨');
-assert.equal(mapMarker(started, 'END').label, '미처리');
-assert(mapMarker(started, 'END').zIndex > mapMarker(started, 'START').zIndex);
-assert(mapMarker(started, 'START').content.includes('inspection-marker complete'));
-assert(mapMarker(started, 'END').content.includes('inspection-marker pending'));
-assert(!mapMarker(started, 'START').content.includes('<b '));
+assert.equal(mapMarker(started).label, '시작검침완료');
+assert(mapMarker(started).content.includes('inspection-marker started'));
+assert.equal(mapMarker({ inspections: {} }).label, '미처리');
+assert.equal(mapMarker(seedSites[0]).label, '검침완료');
+assert(mapMarker({ inspections: {} }).zIndex > mapMarker(started).zIndex);
+assert(!mapMarker(started).content.includes('<b '));
 
 // No network: this fake document captures scripts and invokes SDK outcomes explicitly.
 const scripts: any[] = [];

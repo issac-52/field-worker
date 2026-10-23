@@ -1,3 +1,6 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { useEffect, useState } from 'react';
 import type { PageResponse } from '../types';
 
@@ -27,12 +30,19 @@ export function Pagination({
       </span>
       {pages > 1 && (
         <div>
-          <button className="outline-btn" disabled={page === 1} onClick={() => onChange(page - 1)}>
-            이전
-          </button>
+          <Button
+            variant="outline"
+            className="outline-btn pagination-arrow"
+            aria-label="이전 페이지"
+            title="이전 페이지"
+            disabled={page === 1}
+            onClick={() => onChange(page - 1)}
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </Button>
           <label>
             <span className="sr-only">페이지 번호</span>
-            <input
+            <Input
               aria-label="페이지 번호"
               type="number"
               min={1}
@@ -46,13 +56,16 @@ export function Pagination({
             />
           </label>
           <span>/ {pages.toLocaleString()}</span>
-          <button
-            className="outline-btn"
+          <Button
+            variant="outline"
+            className="outline-btn pagination-arrow"
+            aria-label="다음 페이지"
+            title="다음 페이지"
             disabled={page === pages}
             onClick={() => onChange(page + 1)}
           >
-            다음
-          </button>
+            <ChevronRight size={18} aria-hidden="true" />
+          </Button>
         </div>
       )}
     </nav>

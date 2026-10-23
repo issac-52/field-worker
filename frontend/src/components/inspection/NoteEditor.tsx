@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import { useState } from 'react';
 import { api } from '../../api';
 import { useSaveAction } from '../../hooks/useSaveAction';
@@ -31,9 +32,9 @@ export function NoteEditor({
           {error}
         </p>
       )}
-      <button className="primary-btn full" disabled={busy} type="submit">
+      <Button variant="default" className="primary-btn full" disabled={busy} type="submit">
         저장
-      </button>
+      </Button>
     </form>
   );
   return inline ? (

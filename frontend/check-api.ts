@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { setupServer } from 'msw/node';
 import { handlers } from './src/mocks/handlers';
-import { checkLocationMaps } from './check-location-map';
 import { store } from './src/mocks/store';
 Object.defineProperty(globalThis, 'location', {
   value: new URL('http://localhost/'),
@@ -16,7 +15,6 @@ const call = async (path: string, body?: unknown) => {
   return { status: response.status, ...(await response.json()) };
 };
 try {
-  await checkLocationMaps();
   const { data: blocks } = await call('/blocks');
   const { data: sitePage } = await call('/sites');
   const sites = sitePage.items;
@@ -226,6 +224,17 @@ try {
   );
   const imageUrl =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+  const fourPhotos = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP', 'TEMPORARY'].map((slot) => ({
+    slot,
+    url: imageUrl,
+  }));
+  const savedFour = await workerPost('/sites/6/photos', { photos: fourPhotos });
+  assert.equal(savedFour.status, 200);
+  assert.equal(savedFour.data.photos.length, 4);
+  assert.equal(
+    (await workerPost('/sites/6/photos', { photos: [...fourPhotos, fourPhotos[0]] })).status,
+    400,
+  );
   const photos = [
     { slot: 'OVERVIEW', url: imageUrl },
     { slot: 'END_CLOSEUP', url: imageUrl },

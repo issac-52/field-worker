@@ -1,3 +1,5 @@
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { useState } from 'react';
 import { api } from '../../api';
 import { useWork } from '../../context/WorkContext';
@@ -87,7 +89,7 @@ export function MeasurementEditor({
       </p>
       <label className="field">
         검침일자
-        <input
+        <Input
           type="date"
           required
           min={firstDate}
@@ -99,7 +101,7 @@ export function MeasurementEditor({
       </label>
       <label className="field">
         계량지침
-        <input
+        <Input
           type="number"
           inputMode="decimal"
           min={0}
@@ -135,7 +137,8 @@ export function MeasurementEditor({
           {error}
         </p>
       )}
-      <button
+      <Button
+        variant="default"
         className="primary-btn full modal-save"
         disabled={
           busy ||
@@ -147,11 +150,17 @@ export function MeasurementEditor({
         type="submit"
       >
         {busy ? '저장 중...' : editing ? '수정 저장' : '검침 저장'}
-      </button>
+      </Button>
       {inline && editing && (
-        <button type="button" className="outline-btn full" disabled={busy} onClick={onClose}>
+        <Button
+          variant="ghost"
+          type="button"
+          className="outline-btn full"
+          disabled={busy}
+          onClick={onClose}
+        >
           수정 취소
-        </button>
+        </Button>
       )}
     </form>
   );

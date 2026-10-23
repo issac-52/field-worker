@@ -7,21 +7,18 @@ import { useState } from 'react';
 import { MapInspection } from '../components/map/MapInspection';
 
 export function MapPage() {
-  const { sites, sitePage, changeListPage, loading, mapPhase } = useWork();
+  const { sites, sitePage, changeListPage, loading } = useWork();
   const [selected, setSelected] = useState<number>();
   return (
     <>
-      <section className="pagehead">
-        <h1>현장 지도</h1>
-        <span className="head-count">{(sitePage?.total ?? 0).toLocaleString()}건</span>
-      </section>
-      <SiteSearch mapMode />
-      <FieldMap sites={sites} onSelect={setSelected} phase={mapPhase} />
+      <h1 className="sr-only">현장 지도</h1>
+      <SiteSearch />
+      <FieldMap sites={sites} onSelect={setSelected} />
       {selected !== undefined && (
         <MapInspection
           key={selected}
           id={selected}
-          initialPhase={mapPhase}
+          initialPhase="START"
           onClose={() => setSelected(undefined)}
         />
       )}
@@ -29,7 +26,7 @@ export function MapPage() {
         <h3>수용가 목록</h3>
         <span>현재 조회 페이지</span>
       </section>
-      <SiteList sites={sites} onSelect={setSelected} loading={loading} phase={mapPhase} />
+      <SiteList sites={sites} onSelect={setSelected} loading={loading} />
       <Pagination data={sitePage} onChange={changeListPage} />
     </>
   );

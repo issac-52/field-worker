@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button';
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, MapPin, MapPinned, ShieldCheck } from 'lucide-react';
 import { useWork } from '../context/WorkContext';
@@ -6,8 +7,8 @@ import { InspectionPanel } from '../components/inspection/InspectionPanel';
 import { MeasurementEditor } from '../components/inspection/MeasurementEditor';
 import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
-import { LocationMapPanel } from '../components/inspection/LocationMapPanel';
 import { formatDate, formatWon } from '../lib/format';
+import { PHOTO_SLOTS } from '../types';
 import type { Phase } from '../types';
 
 export function SiteDetailPage() {
@@ -28,10 +29,10 @@ export function SiteDetailPage() {
   ];
   return (
     <>
-      <button className="back" onClick={() => navigate('sites')}>
+      <Button variant="ghost" className="back" onClick={() => navigate('sites')}>
         <ArrowLeft size={17} />
         수용가 목록
-      </button>
+      </Button>
       <section className="detail-head">
         <div>
           <h1>
@@ -42,10 +43,10 @@ export function SiteDetailPage() {
             {site.address}
           </p>
         </div>
-        <button className="outline-btn" onClick={() => navigate('map')}>
+        <Button variant="outline" className="outline-btn" onClick={() => navigate('map')}>
           <MapPinned size={16} />
           지도 보기
-        </button>
+        </Button>
       </section>
       <div className="detail-layout">
         <div className="detail-main">
@@ -66,6 +67,26 @@ export function SiteDetailPage() {
               ))}
             </dl>
           </section>
+
+          <section className="panel photos-panel">
+            <div className="panel-title">
+              <h3>현장 사진</h3>
+              <span className="muted">
+                {site.photos.length}/{PHOTO_SLOTS.length}개 영역
+              </span>
+            </div>
+            <PhotoEditor key={site.id} site={site} inline onClose={() => {}} />
+          </section>
+          <section className="panel note-panel">
+            <div className="panel-title">
+              <h3>특이사항</h3>
+              <Button variant="ghost" className="text-btn" onClick={() => setEditor('note')}>
+                수정
+                <ArrowRight size={14} />
+              </Button>
+            </div>
+            <p>{site.note || '등록된 특이사항이 없습니다.'}</p>
+          </section>
           <InspectionPanel
             site={site}
             phase={phase}
@@ -73,26 +94,6 @@ export function SiteDetailPage() {
             admin={role === 'ADMIN'}
             onMeasure={() => setEditor('measurement')}
           />
-          <section className="panel note-panel">
-            <div className="panel-title">
-              <h3>특이사항</h3>
-              <button className="text-btn" onClick={() => setEditor('note')}>
-                수정
-                <ArrowRight size={14} />
-              </button>
-            </div>
-            <p>{site.note || '등록된 특이사항이 없습니다.'}</p>
-          </section>
-          <section className="panel location-map-card">
-            <LocationMapPanel site={site} />
-          </section>
-          <section className="panel photos-panel">
-            <div className="panel-title">
-              <h3>현장 사진</h3>
-              <span className="muted">{site.photos.length}/3개 영역</span>
-            </div>
-            <PhotoEditor key={site.id} site={site} inline onClose={() => {}} />
-          </section>
         </div>
         <aside className="detail-side">
           <section className="panel summary-card">

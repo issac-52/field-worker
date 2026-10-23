@@ -2,7 +2,6 @@ import { http } from 'msw';
 import { isAdmin, ok, err } from '../http';
 import { store } from '../store';
 import { filterSites, paginate } from '../queries';
-import { locationMapState } from './locationMaps';
 
 export const exportHandlers = [
   http.get('/api/exports/sites', ({ request }) => {
@@ -16,7 +15,6 @@ export const exportHandlers = [
         return {
           ...values,
           photoSlots: photos.map((photo) => photo.slot),
-          locationMap: locationMapState(site.id),
         };
       }),
     });

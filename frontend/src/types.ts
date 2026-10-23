@@ -1,11 +1,12 @@
 export type Phase = 'START' | 'END';
 export type Role = 'ADMIN' | 'WORKER';
-export const PHOTO_SLOTS = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP'] as const;
+export const PHOTO_SLOTS = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP', 'TEMPORARY'] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 export const PHOTO_LABEL: Record<PhotoSlot, string> = {
   OVERVIEW: '원경사진',
   START_CLOSEUP: 'START 근경사진',
   END_CLOSEUP: 'END 근경사진',
+  TEMPORARY: '임시용 사진',
 };
 export type SitePhoto = { slot: PhotoSlot; url: string };
 export type Site = {
@@ -109,7 +110,6 @@ export type SiteListItem = Omit<Site, 'photos' | 'note'> & {
 };
 export type SiteExportItem = Omit<Site, 'photos'> & {
   photoSlots: PhotoSlot[];
-  locationMap: import('./lib/locationMap').LocationMapState;
 };
 export type WorkerCount = {
   workerId: number;

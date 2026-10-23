@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
@@ -78,7 +79,8 @@ export function Modal({
       >
         <div className="modal-heading">
           <h2 id={headingId}>{title}</h2>
-          <button
+          <Button
+            variant="ghost"
             type="button"
             className="close-btn"
             aria-label="닫기"
@@ -86,7 +88,7 @@ export function Modal({
             onClick={onClose}
           >
             <X size={21} />
-          </button>
+          </Button>
         </div>
         {children}
       </div>

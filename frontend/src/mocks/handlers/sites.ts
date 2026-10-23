@@ -133,8 +133,8 @@ export const sitesHandlers = [
     const b = (await request.json()) as {
       photos: SitePhoto[];
     };
-    if (!Array.isArray(b.photos) || b.photos.length > 3)
-      return err('현장 사진은 최대 3개 영역입니다. 위치도는 자동 생성 API를 사용하세요.');
+    if (!Array.isArray(b.photos) || b.photos.length > PHOTO_SLOTS.length)
+      return err('현장 사진은 원경·START 근경·END 근경·임시용의 4개 영역만 등록할 수 있습니다.');
     if (
       b.photos.some(
         (photo) =>

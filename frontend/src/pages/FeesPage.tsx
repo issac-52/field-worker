@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button';
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Plus, Settings2 } from 'lucide-react';
 import { useWork } from '../context/WorkContext';
@@ -13,13 +14,11 @@ export function FeesPage() {
   const [editingRule, setEditingRule] = useState<FeeRule>();
   return (
     <>
-      <button className="back" onClick={() => navigate('admin')}>
+      <Button variant="ghost" className="back" onClick={() => navigate('admin')}>
         <ArrowLeft size={17} />
         관리자 메뉴
-      </button>
-      <section className="pagehead">
-        <h1>작업비 관리</h1>
-      </section>
+      </Button>
+      <h1 className="sr-only">작업비 관리</h1>
       <div className="fee-summary">
         {(['START', 'END'] as const).map((phase) => (
           <div key={phase}>
@@ -36,7 +35,8 @@ export function FeesPage() {
             <h3>기본 단가 규칙</h3>
             <p className="muted">새로 등록하는 검침에 적용</p>
           </div>
-          <button
+          <Button
+            variant="default"
             className="primary-btn small"
             onClick={() => {
               setEditingRule(undefined);
@@ -45,7 +45,7 @@ export function FeesPage() {
           >
             <Plus size={16} />
             규칙 추가
-          </button>
+          </Button>
         </div>
         <div className="table-scroll">
           <table>
@@ -68,7 +68,8 @@ export function FeesPage() {
                     <b>{formatWon(rule.amount)}</b>
                   </td>
                   <td>
-                    <button
+                    <Button
+                      variant="outline"
                       className="outline-btn"
                       onClick={() => {
                         setEditingRule(rule);
@@ -76,7 +77,7 @@ export function FeesPage() {
                       }}
                     >
                       {rule.phase} 단가 변경
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -96,10 +97,10 @@ export function FeesPage() {
             <b>기간별 일괄 변경</b>
             <p>단계와 검침 기간을 지정해 기존 작업비를 변경합니다.</p>
           </div>
-          <button className="outline-btn" onClick={() => setMode('adjust')}>
+          <Button variant="outline" className="outline-btn" onClick={() => setMode('adjust')}>
             변경하기
             <ArrowRight size={16} />
-          </button>
+          </Button>
         </div>
       </section>
       {result && (

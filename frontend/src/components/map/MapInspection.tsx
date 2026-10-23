@@ -1,13 +1,13 @@
+import { Button } from '../ui/button';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ClipboardList } from 'lucide-react';
 import { api } from '../../api';
 import { useWork } from '../../context/WorkContext';
 import { StatusBadge } from '../StatusBadge';
 import { MeasurementEditor } from '../inspection/MeasurementEditor';
 import { PhotoEditor } from '../inspection/PhotoEditor';
 import { NoteEditor } from '../inspection/NoteEditor';
-import { LocationMapPanel } from '../inspection/LocationMapPanel';
 import type { Phase } from '../../types';
 
 export function MapInspection({
@@ -31,17 +31,22 @@ export function MapInspection({
     <section className="panel map-inspection" aria-label="선택 수용가 현장 입력">
       <div className="panel-title">
         <h2>{site ? `${site.name} · ${site.managementNo}` : '수용가 정보'}</h2>
-        <button className="map-icon-button" aria-label="현장 입력 닫기" onClick={onClose}>
+        <Button
+          variant="ghost"
+          className="map-icon-button"
+          aria-label="현장 입력 닫기"
+          onClick={onClose}
+        >
           <X size={20} />
-        </button>
+        </Button>
       </div>
       {result.isPending && <p role="status">불러오는 중…</p>}
       {result.error && (
         <p role="alert">
           {result.error.message}
-          <button className="text-btn" onClick={() => void result.refetch()}>
+          <Button variant="ghost" className="text-btn" onClick={() => void result.refetch()}>
             다시 시도
-          </button>
+          </Button>
         </p>
       )}
       {site && (
@@ -49,7 +54,11 @@ export function MapInspection({
           <p>{site.address}</p>
           <StatusBadge site={site} />
           <details className="map-site-info">
-            <summary>기본정보</summary>
+            <summary>
+              <ClipboardList size={18} aria-hidden="true" />
+              <span>기본정보</span>
+              <ChevronDown className="map-info-chevron" size={18} aria-hidden="true" />
+            </summary>
             <dl className="info-grid">
               {Object.entries({
                 급수전번호: site.waterNo,
@@ -66,9 +75,13 @@ export function MapInspection({
               ))}
             </dl>
           </details>
+          <h3>현장 사진</h3>
+          <PhotoEditor key={`photos-${id}`} site={site} inline onClose={() => {}} />
+          <NoteEditor key={`note-${id}`} site={site} inline onClose={() => {}} />
           <div className="phase-tabs">
             {(['START', 'END'] as const).map((value) => (
-              <button
+              <Button
+                variant="ghost"
                 key={value}
                 aria-pressed={phase === value}
                 className={phase === value ? 'active' : ''}
@@ -78,7 +91,7 @@ export function MapInspection({
                 }}
               >
                 {value === 'START' ? '2026 시작검침' : '2027 종료검침'}
-              </button>
+              </Button>
             ))}
           </div>
           {site.inspections[phase] && editingPhase !== phase ? (
@@ -89,9 +102,13 @@ export function MapInspection({
                 {site.inspections[phase]!.workerName}
               </p>
               {(role === 'ADMIN' || site.inspections[phase]!.workerId === 11) && (
-                <button className="outline-btn" onClick={() => setEditingPhase(phase)}>
+                <Button
+                  variant="outline"
+                  className="outline-btn"
+                  onClick={() => setEditingPhase(phase)}
+                >
                   검침 수정
-                </button>
+                </Button>
               )}
             </>
           ) : phase === 'END' && !site.inspections.START ? (
@@ -105,10 +122,6 @@ export function MapInspection({
               onClose={() => setEditingPhase(undefined)}
             />
           )}
-          <LocationMapPanel site={site} />
-          <h3>현장 사진</h3>
-          <PhotoEditor key={`photos-${id}`} site={site} inline onClose={() => {}} />
-          <NoteEditor key={`note-${id}`} site={site} inline onClose={() => {}} />
         </>
       )}
     </section>

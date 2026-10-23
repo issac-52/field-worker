@@ -1,20 +1,19 @@
+import { Button } from '../ui/button';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Phase, SiteListItem } from '../../types';
+import type { SiteListItem } from '../../types';
 import { mapMarker } from '../../lib/mapMarker';
 import { loadNaverMaps, MAP_AUTH_ERROR } from '../../lib/naverMaps';
 import type { MapInstance, NaverMaps } from '../../lib/naverMaps';
 import { LocateFixed } from 'lucide-react';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
-import { hasCoordinates } from '../../lib/locationMap';
+import { hasCoordinates } from '../../lib/coordinates';
 
 export function FieldMap({
   sites,
   onSelect,
-  phase,
 }: {
   sites: SiteListItem[];
   onSelect: (id: number) => void;
-  phase: Phase;
 }) {
   const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID?.trim() ?? '';
   const container = useRef<HTMLDivElement>(null);
@@ -91,11 +90,11 @@ export function FieldMap({
     markerCleanups.current.add(dispose);
     try {
       valid.forEach((site) => {
-        const appearance = mapMarker(site, phase);
+        const appearance = mapMarker(site);
         const marker = new sdk.Marker({
           map,
           position: new sdk.LatLng(site.latitude, site.longitude),
-          title: `${site.name} · ${site.managementNo} · ${phase} ${appearance.label}`,
+          title: `${site.name} · ${site.managementNo} · ${appearance.label}`,
           icon: {
             content: appearance.content,
             size: { width: 32, height: 32 },
@@ -112,7 +111,7 @@ export function FieldMap({
       setError('수용가 마커를 표시하지 못했습니다. 아래 목록을 이용하세요.');
     }
     return dispose;
-  }, [sdk, map, valid, phase]);
+  }, [sdk, map, valid]);
 
   useEffect(() => {
     if (!sdk || !map || !location.position) return;
@@ -178,9 +177,13 @@ export function FieldMap({
         </p>
       )}
       {error && (
-        <button className="outline-btn" onClick={() => setRetry((value) => value + 1)}>
+        <Button
+          variant="outline"
+          className="outline-btn"
+          onClick={() => setRetry((value) => value + 1)}
+        >
           지도 다시 시도
-        </button>
+        </Button>
       )}
       {sites.length > valid.length && (
         <p className="form-error">
@@ -199,9 +202,11 @@ export function FieldMap({
           <>
             <div className="map-legend" aria-label="지도 마커 범례">
               <span className="pending">미처리</span>
-              <span className="complete">처리됨</span>
+              <span className="started">시작검침완료</span>
+              <span className="complete">검침완료</span>
             </div>
-            <button
+            <Button
+              variant="ghost"
               className={`map-gps map-icon-button${location.position ? ' located' : ''}`}
               aria-label="현재 위치"
               title={location.error || '현재 위치'}
@@ -209,7 +214,7 @@ export function FieldMap({
               onClick={showMyLocation}
             >
               <LocateFixed size={22} />
-            </button>
+            </Button>
           </>
         )}
       </div>

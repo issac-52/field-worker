@@ -1,3 +1,4 @@
+import { Badge } from './ui/badge';
 import type { Phase, Site } from '../types';
 import { statusOf, isPhaseComplete } from '../types';
 
@@ -9,10 +10,10 @@ const STATUS_PRESENTATION = {
 export function StatusBadge({ site, phase }: { site: Pick<Site, 'inspections'>; phase?: Phase }) {
   if (phase)
     return (
-      <span className={`status ${isPhaseComplete(site, phase) ? 'done' : 'pending'}`}>
+      <Badge className={`status ${isPhaseComplete(site, phase) ? 'done' : 'pending'}`}>
         {phase} {isPhaseComplete(site, phase) ? '처리됨' : '미처리'}
-      </span>
+      </Badge>
     );
   const status = STATUS_PRESENTATION[statusOf(site)];
-  return <span className={`status ${status.className}`}>{status.label}</span>;
+  return <Badge className={`status ${status.className}`}>{status.label}</Badge>;
 }

@@ -1,3 +1,5 @@
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
@@ -105,7 +107,7 @@ export function FeeEditor({
         <div className="form-2">
           <label className="field">
             시작일
-            <input
+            <Input
               type="date"
               required
               disabled={busy || !!rule}
@@ -116,7 +118,7 @@ export function FeeEditor({
           </label>
           <label className="field">
             종료일
-            <input
+            <Input
               type="date"
               required
               min={startDate}
@@ -129,7 +131,7 @@ export function FeeEditor({
         </div>
         <label className="field">
           건당 작업비 (원)
-          <input
+          <Input
             type="number"
             min={0}
             step={1}
@@ -146,7 +148,7 @@ export function FeeEditor({
             </p>
             <label className="field">
               변경 사유
-              <input
+              <Input
                 required
                 maxLength={200}
                 value={reason}
@@ -181,9 +183,14 @@ export function FeeEditor({
             {error}
           </p>
         )}
-        <button className="primary-btn full" type="submit" disabled={busy || !canSubmit}>
+        <Button
+          variant="default"
+          className="primary-btn full"
+          type="submit"
+          disabled={busy || !canSubmit}
+        >
           {busy ? '저장 중...' : mode === 'adjust' ? '작업비 일괄 변경' : '규칙 저장'}
-        </button>
+        </Button>
       </form>
     </Modal>
   );

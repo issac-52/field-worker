@@ -220,7 +220,7 @@ export const seedRules: FeeRule[] = [
   },
 ];
 
-// Opt-in development fixture. Production mock data stays small.
+// Shared expansion helper for browser demos and explicit scale checks.
 export function expandSeed(count: number) {
   const originals = seedSites.slice(0, 12);
   for (let id = seedSites.length + 1; id <= count; id++) {
@@ -235,9 +235,56 @@ export function expandSeed(count: number) {
     });
   }
 }
-if (import.meta.env?.DEV) {
-  const count = Number(import.meta.env.VITE_MOCK_SITE_COUNT);
-  if (Number.isSafeInteger(count) && count > 12 && count <= 50000) expandSeed(count);
+// Browser Mock sessions include enough fictitious records to inspect pagination.
+// Node regression tests retain the original small fixture.
+if (import.meta.env?.DEV || import.meta.env?.MODE === 'demo') {
+  for (let id = 14; id <= 37; id++) {
+    users.push({
+      id,
+      name: `시연 조사자 ${String(id - 10).padStart(2, '0')}`,
+      username: `demo_worker${id}`,
+      role: 'WORKER',
+      active: id % 7 !== 0,
+    });
+  }
+  const requested = Number(import.meta.env.VITE_MOCK_SITE_COUNT);
+  const count =
+    Number.isSafeInteger(requested) && requested > 12 && requested <= 50000 ? requested : 180;
+  expandSeed(count);
+  const workers = users.filter((user) => user.role === 'WORKER' && user.active);
+  for (const site of seedSites.slice(12)) {
+    const worker = workers[(site.id - 13) % workers.length];
+    const day = String((site.id % 28) + 1).padStart(2, '0');
+    site.address = `가상 현장 ${site.id} (시연 데이터)`;
+    // Small offsets separate generated markers around the existing demo blocks.
+    site.latitude = site.latitude! + Math.floor((site.id - 13) / 12) * 0.00015;
+    site.longitude = site.longitude! + Math.floor((site.id - 13) / 12) * 0.00012;
+    site.inspections =
+      site.id % 3 === 0
+        ? {}
+        : {
+            START: {
+              date: `2026-11-${day}`,
+              reading: 1000 + site.id * 7,
+              workerId: worker.id,
+              workerName: worker.name,
+              fee: 3000,
+              recordedAt: `2026-11-${day}T09:00:00`,
+            },
+            ...(site.id % 3 === 1
+              ? {
+                  END: {
+                    date: `2027-11-${day}`,
+                    reading: 1200 + site.id * 7,
+                    workerId: worker.id,
+                    workerName: worker.name,
+                    fee: 3500,
+                    recordedAt: `2027-11-${day}T10:00:00`,
+                  },
+                }
+              : {}),
+          };
+  }
 }
 
 export const blocks = Array.from(new Set(seedSites.map((s) => s.middleBlockId))).flatMap((id) => [

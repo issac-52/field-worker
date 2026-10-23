@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import { useWork } from '../../context/WorkContext';
 import { BlockFilters } from '../BlockFilters';
 import { HomePage } from '../../pages/HomePage';
@@ -41,9 +42,9 @@ export function PageContent() {
       <section className="panel admin-pad">
         <h1>관리자 전용 화면</h1>
         <p>조사자 계정으로 접근할 수 없습니다.</p>
-        <button className="primary-btn" onClick={() => navigate('home')}>
+        <Button variant="default" className="primary-btn" onClick={() => navigate('home')}>
           홈으로 이동
-        </button>
+        </Button>
       </section>
     );
   return (
@@ -52,9 +53,9 @@ export function PageContent() {
       {error ? (
         <section className="panel admin-pad" role="alert">
           <p>{error.message}</p>
-          <button className="outline-btn" onClick={() => void refresh()}>
+          <Button variant="outline" className="outline-btn" onClick={() => void refresh()}>
             다시 불러오기
-          </button>
+          </Button>
         </section>
       ) : (
         <>

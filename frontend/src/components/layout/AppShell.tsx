@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import type { ReactNode } from 'react';
 import {
   ClipboardList,
@@ -53,14 +54,15 @@ function NavItem({
   const { page, navigate } = useWork();
   const active = page === target || (target === 'sites' && page === 'detail');
   return (
-    <button
+    <Button
+      variant="ghost"
       className={`navbtn ${active ? 'active' : ''}`}
       aria-current={active ? 'page' : undefined}
       onClick={() => navigate(target)}
     >
       {children}
       <span>{label}</span>
-    </button>
+    </Button>
   );
 }
 

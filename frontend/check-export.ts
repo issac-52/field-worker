@@ -59,7 +59,9 @@ try {
     sheet.getCell('AD4').value,
     records[0].inspections.END!.reading - records[0].inspections.START!.reading,
   );
-  assert.equal(sheet.getCell('AR15').value, '');
+  assert.equal(EXPORT_COLUMNS.length, 35);
+  assert(records.every((item) => !('locationMap' in item)));
+  assert(!EXPORT_COLUMNS.some((column) => column.includes('위치도')));
   const many: SiteExportItem[] = Array.from({ length: 12050 }, (_, index) => ({
     ...records[index % records.length],
     id: index + 1,

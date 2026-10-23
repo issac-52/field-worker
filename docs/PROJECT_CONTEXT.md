@@ -2,7 +2,7 @@
 
 _Last context consolidation: 2026-10-22. This is a handoff, not a claim that code is already implemented._
 
-2026-10-23 확정 요구 보완: 대상은 **10,000건 이상**이며 HWP 이미지는 자동 위치도 1개 + 현장 원경/START 근경/END 근경 각 1개다. 아래 이전 1,800건 규모 설명보다 최신 요구를 우선한다. 위치도 프론트/MSW 시연과 서버 저장 계약은 `LOCATION_MAP_DESIGN.md`를 참조한다. 실제 Static/R2 저장은 이용 조건 확인 및 백엔드 구현 전으로 비활성이다.
+2026-10-23 최신 요청자 피드백: 대상은 **10,000건 이상**이며 위치도 기능은 요구사항에서 제외했다. 현장 사진은 원경/START 근경/END 근경/임시용 각 1개, 총 4종이다. 위치도 UI·생성/저장·좌표 수정 API·Mock·Excel 전용 열을 제거했다. 현장 지도와 수용가 좌표/현재 위치 표시는 유지한다. 이전 위치도 설명과 `LOCATION_MAP_DESIGN.md`는 철회된 과거 설계다.
 
 ## Project and goals
 Mobile-first private fieldwork system for ~20 part-time workers and admins. Friendly paid commission (~KRW 1,000,000); initial delivery target **2026-11-14**. Secondary developer goal: hands-on Spring/backend, transaction, security, and operations experience documented for job interviews. Developer implements core functionality; Codex primarily reviews and debugs real code.
@@ -13,7 +13,7 @@ Mobile-first private fieldwork system for ~20 part-time workers and admins. Frie
 3. **A (start-stage) inspection begins Nov 2026.** Record meter reading, inspection date, worker and photos.
 4. **B (end-stage) inspection occurs roughly one year later (around Nov 2027)** on the same inspection subject; potentially different worker. A and B are distinct stage completion states. Calculate final volume as B−A at read/export time, not a constantly updated derived column. Exceptions like replacement/resetting a meter remain to be clarified.
 5. Administrators inspect changes/worker activity, track completion, monthly/overall per-item compensation, export Excel, and create reports.
-6. HWP template provided: customer name, address, customer connection number, industry, meter number, seal, water district, notes, A/B dates and readings, B−A, and **4 image slots: location map, distant scene, A close-up, B close-up** (3 field photos + 1 location map, pending business confirmation).
+6. HWP template provided: customer name, address, customer connection number, industry, meter number, seal, water district, notes, A/B dates and readings, B−A, and **4 photo slots: distant scene, A close-up, B close-up, temporary photo** (location map removed by client feedback on 2026-10-23).
 7. Final output: **1,800 individual HWP files bundled as one ZIP**, not one merged HWP. Intended generation on demand; for bulk output run background job, stream per-file ZIP, upload to private R2, temporarily cache by data/template version, and expire output cache (proposed 3 days). Do not permanently generate one HWP for every edit. Feasibility of faithful HWP template/image manipulation is **not yet validated**; run a one-document PoC.
 
 ## Implementation environment

@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button';
 import { Download, FileText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useWork } from '../context/WorkContext';
@@ -84,17 +85,15 @@ export function ReportsPage() {
   }
   return (
     <>
-      <section className="pagehead">
-        <h1>문서 출력</h1>
-      </section>
+      <h1 className="sr-only">문서 출력</h1>
       <section className="panel report-panel">
         <span className="report-icon">
           <Download size={29} />
         </span>
         <h2>Excel 다운로드</h2>
         <p>
-          선택한 블록의 전체 수용가 기본정보, 검침값·일자·조사자, 특이사항, 작업비와 위치도 상태를
-          내려받습니다.
+          선택한 블록의 전체 수용가 기본정보, 검침값·일자·조사자, 특이사항, 작업비와 사진 등록
+          여부를 내려받습니다.
         </p>
         <p className="hint">
           사진은 종류별 등록 여부를 포함합니다. 사진 이미지와 HWP 파일은 포함하지 않습니다.
@@ -106,18 +105,23 @@ export function ReportsPage() {
             <small>건</small>
           </strong>
         </div>
-        <button
+        <Button
+          variant="default"
           className="primary-btn full"
           disabled={busy || loading || !summary.total || role !== 'ADMIN'}
           onClick={() => void downloadExcel()}
         >
           <Download size={18} />
           {busy ? '엑셀 준비 중…' : 'Excel 다운로드 (.xlsx)'}
-        </button>
+        </Button>
         {busy && (
-          <button className="outline-btn full" onClick={() => operation.current?.abort()}>
+          <Button
+            variant="outline"
+            className="outline-btn full"
+            onClick={() => operation.current?.abort()}
+          >
             다운로드 취소
-          </button>
+          </Button>
         )}
         {progress && <p role="status">{progress}</p>}
         {error && (
@@ -138,10 +142,10 @@ export function ReportsPage() {
             <small>건</small>
           </strong>
         </div>
-        <button className="primary-btn full" disabled>
+        <Button variant="default" className="primary-btn full" disabled>
           <Download size={18} />
           HWP · ZIP 생성 준비 중
-        </button>
+        </Button>
       </section>
     </>
   );

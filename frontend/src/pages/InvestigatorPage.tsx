@@ -1,3 +1,5 @@
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Search } from 'lucide-react';
@@ -24,21 +26,25 @@ export function InvestigatorPage({ onBack }: { onBack: () => void }) {
   });
   return (
     <>
-      <button className="back" onClick={onBack}>
+      <Button variant="ghost" className="back" onClick={onBack}>
         <ArrowLeft size={17} />
         관리자 메뉴
-      </button>
+      </Button>
       <section className="pagehead">
-        <h1>조사자 관리</h1>
-        <button className="primary-btn" onClick={() => setAction({ mode: 'create' })}>
+        <h1 className="sr-only">조사자 관리</h1>
+        <Button
+          variant="default"
+          className="primary-btn"
+          onClick={() => setAction({ mode: 'create' })}
+        >
           <Plus size={16} />
           계정 생성
-        </button>
+        </Button>
       </section>
       <div className="search-panel">
         <label className="search-field">
           <Search size={19} />
-          <input
+          <Input
             aria-label="조사자 검색"
             placeholder="이름 또는 아이디 검색"
             value={query}
@@ -57,9 +63,9 @@ export function InvestigatorPage({ onBack }: { onBack: () => void }) {
       {list.error ? (
         <p className="adjust-result" role="alert">
           {list.error.message}
-          <button className="text-btn" onClick={() => void list.refetch()}>
+          <Button variant="ghost" className="text-btn" onClick={() => void list.refetch()}>
             다시 불러오기
-          </button>
+          </Button>
         </p>
       ) : list.isPending ? (
         <p className="loading">불러오는 중...</p>
@@ -78,21 +84,27 @@ export function InvestigatorPage({ onBack }: { onBack: () => void }) {
                   </span>
                 </div>
                 <div className="account-actions">
-                  <button className="outline-btn" onClick={() => setAction({ mode: 'edit', user })}>
+                  <Button
+                    variant="outline"
+                    className="outline-btn"
+                    onClick={() => setAction({ mode: 'edit', user })}
+                  >
                     이름 수정
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     className="outline-btn"
                     onClick={() => setAction({ mode: 'password', user })}
                   >
                     비밀번호 재설정
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     className="outline-btn"
                     onClick={() => setAction({ mode: 'status', user })}
                   >
                     {user.active ? '비활성화' : '활성화'}
-                  </button>
+                  </Button>
                 </div>
               </article>
             ))}
