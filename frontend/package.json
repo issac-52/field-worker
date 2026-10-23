@@ -11,8 +11,8 @@
     "preview:demo": "vite preview --mode demo --outDir dist-demo --port 4174 --strictPort",
     "preview": "vite preview",
     "postinstall": "msw init public --save",
-    "format": "prettier --write src config check-api.ts check-scale.ts check-map.ts check-demo.ts index.html vite.config.ts tsconfig.json package.json",
-    "format:check": "prettier --check src config check-api.ts check-scale.ts check-map.ts check-demo.ts index.html vite.config.ts tsconfig.json package.json",
+    "format": "prettier --write src config check-api.ts check-location-map.ts check-scale.ts check-map.ts check-demo.ts index.html vite.config.ts tsconfig.json package.json",
+    "format:check": "prettier --check src config check-api.ts check-location-map.ts check-scale.ts check-map.ts check-demo.ts index.html vite.config.ts tsconfig.json package.json",
     "test:demo": "esbuild check-demo.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-demo.js && node .checks/check-demo.js",
     "test:api": "esbuild check-api.ts check-scale.ts --bundle --platform=node --format=esm --packages=external --outdir=.checks && node .checks/check-api.js && node .checks/check-scale.js",
     "test:map": "esbuild check-map.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-map.js && node .checks/check-map.js"

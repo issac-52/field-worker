@@ -7,6 +7,7 @@ import { StatusBadge } from '../StatusBadge';
 import { MeasurementEditor } from '../inspection/MeasurementEditor';
 import { PhotoEditor } from '../inspection/PhotoEditor';
 import { NoteEditor } from '../inspection/NoteEditor';
+import { LocationMapPanel } from '../inspection/LocationMapPanel';
 import type { Phase } from '../../types';
 
 export function MapInspection({
@@ -93,7 +94,8 @@ export function MapInspection({
               onClose={() => {}}
             />
           )}
-          <h3>현장 사진·위치도</h3>
+          <LocationMapPanel site={site} />
+          <h3>현장 사진</h3>
           <PhotoEditor key={`photos-${id}`} site={site} inline onClose={() => {}} />
           <NoteEditor key={`note-${id}`} site={site} inline onClose={() => {}} />
         </>

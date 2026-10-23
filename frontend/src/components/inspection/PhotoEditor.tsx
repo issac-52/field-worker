@@ -22,7 +22,7 @@ export function PhotoEditor({
   const [fileError, setFileError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
-  const selectedSlot = useRef<PhotoSlot>('DISTANT');
+  const selectedSlot = useRef<PhotoSlot>('OVERVIEW');
   const previewUrls = useRef(new Set<string>());
   const mounted = useRef(true);
   const processing = useRef(false);
@@ -108,13 +108,11 @@ export function PhotoEditor({
                 {image ? (
                   <img src={image.url} alt={PHOTO_LABEL[slot]} />
                 ) : (
-                  <span>
-                    {slot === 'LOCATION_MAP' ? '지도 이미지 · 촬영 필수 아님' : '선택한 사진 없음'}
-                  </span>
+                  <span>선택한 사진 없음</span>
                 )}
               </button>
               <div className="photo-slot-actions">
-                {!inline && slot !== 'LOCATION_MAP' && (
+                {!inline && (
                   <button
                     className="outline-btn"
                     aria-label={`${PHOTO_LABEL[slot]} 촬영`}
@@ -187,7 +185,7 @@ export function PhotoEditor({
   return inline ? (
     content
   ) : (
-    <Modal title="사진·위치도 관리" onClose={onClose} busy={busy || reading}>
+    <Modal title="현장 사진" onClose={onClose} busy={busy || reading}>
       {content}
     </Modal>
   );

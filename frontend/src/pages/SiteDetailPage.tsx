@@ -6,6 +6,7 @@ import { InspectionPanel } from '../components/inspection/InspectionPanel';
 import { MeasurementEditor } from '../components/inspection/MeasurementEditor';
 import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
+import { LocationMapPanel } from '../components/inspection/LocationMapPanel';
 import { formatDate, formatWon } from '../lib/format';
 import type { Phase } from '../types';
 
@@ -82,10 +83,13 @@ export function SiteDetailPage() {
             </div>
             <p>{site.note || '등록된 특이사항이 없습니다.'}</p>
           </section>
+          <section className="panel location-map-card">
+            <LocationMapPanel site={site} />
+          </section>
           <section className="panel photos-panel">
             <div className="panel-title">
-              <h3>현장 사진·위치도</h3>
-              <span className="muted">{site.photos.length}/4개 영역</span>
+              <h3>현장 사진</h3>
+              <span className="muted">{site.photos.length}/3개 영역</span>
             </div>
             <PhotoEditor key={site.id} site={site} inline onClose={() => {}} />
           </section>

@@ -1,12 +1,11 @@
 export type Phase = 'START' | 'END';
 export type Role = 'ADMIN' | 'WORKER';
-export const PHOTO_SLOTS = ['LOCATION_MAP', 'DISTANT', 'START_CLOSE', 'END_CLOSE'] as const;
+export const PHOTO_SLOTS = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP'] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 export const PHOTO_LABEL: Record<PhotoSlot, string> = {
-  LOCATION_MAP: '위치도 (선택)',
-  DISTANT: '원경사진',
-  START_CLOSE: 'START 근경사진',
-  END_CLOSE: 'END 근경사진',
+  OVERVIEW: '원경사진',
+  START_CLOSEUP: 'START 근경사진',
+  END_CLOSEUP: 'END 근경사진',
 };
 export type SitePhoto = { slot: PhotoSlot; url: string };
 export type Site = {
@@ -22,8 +21,8 @@ export type Site = {
   industry: string;
   meterNo: string;
   sealed: boolean;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   note: string;
   photos: SitePhoto[];
   inspections: Partial<

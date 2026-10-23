@@ -9,9 +9,19 @@ export type MapInstance = {
 export type NaverMaps = {
   LatLng: new (lat: number, lng: number) => MapPoint;
   Map: new (element: HTMLElement, options: object) => MapInstance;
-  Marker: new (options: object) => { setMap(map: MapInstance | null): void };
+  Marker: new (options: object) => {
+    setMap(map: MapInstance | null): void;
+    setPosition(point: MapPoint): void;
+  };
   Event: {
-    addListener(target: object, event: string, callback: () => void): object;
+    addListener(
+      target: object,
+      event: string,
+      callback: (event: {
+        coord?: { lat(): number; lng(): number };
+        latlng?: { lat(): number; lng(): number };
+      }) => void,
+    ): object;
     removeListener(listener: object): void;
   };
 };

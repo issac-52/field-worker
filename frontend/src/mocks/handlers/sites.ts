@@ -78,7 +78,8 @@ export const sitesHandlers = [
     const b = (await request.json()) as {
       photos: SitePhoto[];
     };
-    if (!Array.isArray(b.photos) || b.photos.length > 4) return err('이미지는 최대 4개 영역입니다');
+    if (!Array.isArray(b.photos) || b.photos.length > 3)
+      return err('현장 사진은 최대 3개 영역입니다. 위치도는 자동 생성 API를 사용하세요.');
     if (
       b.photos.some(
         (photo) =>

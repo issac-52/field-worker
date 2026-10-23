@@ -2,6 +2,8 @@
 
 _Last context consolidation: 2026-10-22. This is a handoff, not a claim that code is already implemented._
 
+2026-10-23 확정 요구 보완: 대상은 **10,000건 이상**이며 HWP 이미지는 자동 위치도 1개 + 현장 원경/START 근경/END 근경 각 1개다. 아래 이전 1,800건 규모 설명보다 최신 요구를 우선한다. 위치도 프론트/MSW 시연과 서버 저장 계약은 `LOCATION_MAP_DESIGN.md`를 참조한다. 실제 Static/R2 저장은 이용 조건 확인 및 백엔드 구현 전으로 비활성이다.
+
 ## Project and goals
 Mobile-first private fieldwork system for ~20 part-time workers and admins. Friendly paid commission (~KRW 1,000,000); initial delivery target **2026-11-14**. Secondary developer goal: hands-on Spring/backend, transaction, security, and operations experience documented for job interviews. Developer implements core functionality; Codex primarily reviews and debugs real code.
 

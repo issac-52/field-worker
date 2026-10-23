@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { setupServer } from 'msw/node';
 import { handlers } from './src/mocks/handlers';
+import { checkLocationMaps } from './check-location-map';
 Object.defineProperty(globalThis, 'location', {
   value: new URL('http://localhost/'),
 });
@@ -14,6 +15,7 @@ const call = async (path: string, body?: unknown) => {
   return { status: response.status, ...(await response.json()) };
 };
 try {
+  await checkLocationMaps();
   const { data: blocks } = await call('/blocks');
   const { data: sitePage } = await call('/sites');
   const sites = sitePage.items;
@@ -224,14 +226,14 @@ try {
   const imageUrl =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
   const photos = [
-    { slot: 'DISTANT', url: imageUrl },
-    { slot: 'END_CLOSE', url: imageUrl },
+    { slot: 'OVERVIEW', url: imageUrl },
+    { slot: 'END_CLOSEUP', url: imageUrl },
   ];
   assert.equal((await workerPost('/sites/6/photos', { photos })).status, 200);
   const remaining = await workerPost('/sites/6/photos', { photos: [photos[1]] });
   assert.deepEqual(
     remaining.data.photos.map((photo: any) => photo.slot),
-    ['END_CLOSE'],
+    ['END_CLOSEUP'],
   );
   assert.equal(
     (await workerPost('/sites/6/photos', { photos: [photos[1], photos[1]] })).status,
@@ -240,7 +242,7 @@ try {
   assert.equal(
     (
       await workerPost('/sites/6/photos', {
-        photos: [{ slot: 'DISTANT', url: 'https://example.com/photo' }],
+        photos: [{ slot: 'OVERVIEW', url: 'https://example.com/photo' }],
       })
     ).status,
     400,

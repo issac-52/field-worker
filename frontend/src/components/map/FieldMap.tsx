@@ -5,6 +5,7 @@ import { loadNaverMaps, MAP_AUTH_ERROR } from '../../lib/naverMaps';
 import type { MapInstance, NaverMaps } from '../../lib/naverMaps';
 import { LocateFixed } from 'lucide-react';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
+import { hasCoordinates } from '../../lib/locationMap';
 
 export function FieldMap({
   sites,
@@ -27,18 +28,7 @@ export function FieldMap({
   const centeredOnPosition = useRef(false);
   const fallbackFramed = useRef(false);
   const markerCleanups = useRef(new Set<() => void>());
-  const valid = useMemo(
-    () =>
-      sites.filter(
-        (site) =>
-          Number.isFinite(site.latitude) &&
-          Number.isFinite(site.longitude) &&
-          Math.abs(site.latitude) <= 90 &&
-          Math.abs(site.longitude) <= 180 &&
-          !(site.latitude === 0 && site.longitude === 0),
-      ),
-    [sites],
-  );
+  const valid = useMemo(() => sites.filter(hasCoordinates), [sites]);
 
   useEffect(() => {
     if (!clientId) return;
