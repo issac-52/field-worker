@@ -1,120 +1,86 @@
-# 프론트엔드 구조와 개발
+# 프론트엔드 개발·시연
 
-프로젝트 표시명은 **수도관리**다. React/Vite/TypeScript와 React Query, MSW를 유지하며 별도 UI 라이브러리는 도입하지 않았다.
+업데이트: 2026-10-23. React/Vite/TypeScript + React Query + MSW. shadcn/ui 방식의 Button/Input/Badge/Card 소스와 Tailwind v4를 사용하며 기존 CSS와 함께 관리한다.
 
-## 실행
+## 실행과 환경
 
-```sh
-npm install
+frontend 디렉터리에서 실행한다.
+
+```powershell
+npm ci
 npm run dev
+# 관리자/작업자 전환이 있는 시연
 npm run dev:demo
+```
+
+실제 환경파일은 Git 제외다. .env.example을 참고해 .env.local 또는 .env.demo를 만든다. Client ID/Secret 등 실제 값을 문서나 Git에 넣지 않는다. Client Secret은 브라우저에 전달하지 않는다.
+
+| 실행 | 환경 설정 | 산출물 / 주소 | Mock·역할 전환 |
+| --- | --- | --- | --- |
+| npm run dev | .env.local | localhost:5173 | Mock 기본 활성(명시적 false로 해제), 작업자 |
+| npm run dev:demo | .env.demo 또는 실행 환경변수 | localhost:5176 | Mock, 작업자/관리자 선택 |
+| npm run build:demo | .env.demo 또는 실행 환경변수 | dist-demo | Mock, 역할 선택 |
+| npm run build | 실행 환경변수만 | dist | Mock·역할 전환 없음 |
+
+시연에는 VITE_APP_ENV=demo, VITE_USE_MOCKS=true, VITE_DEMO_SWITCH=true 세 값이 모두 필요하다. 일반 모드에 시연 설정이 섞이거나 일반 빌드에 Mock을 켜면 실패한다. production은 envDir=false로 로컬 .env 파일을 읽지 않는다. NODE_ENV로 우회하지 않는다.
+
+역할/저장은 메모리 상태이며 새로고침 시 작업자와 초기 데이터로 돌아간다. 전환 시 진행 조회 취소·캐시 제거·홈 이동을 수행한다. X-Demo-Role은 Mock 전용이며 실제 권한 인증이 아니다. 미정의 동일 출처 /api/ 요청은 시연에서 오류로 처리한다.
+
+## Cloudflare Pages 배포 설정
+
+| 항목 | 시연 전용 프로젝트 | 운영 프로젝트 |
+| --- | --- | --- |
+| Root directory | frontend | frontend |
+| Build command | npm run build:demo | npm run build |
+| Output | dist-demo | dist |
+| VITE_APP_ENV | demo | production |
+| VITE_USE_MOCKS / VITE_DEMO_SWITCH | true / true | false / false |
+
+시연과 운영은 별도 프로젝트/호스트를 사용한다. Variables에 필요한 설정을 주입하며 운영용 환경파일은 만들지 않는다. 로컬 정적 시연은 build:demo 후 npm run preview:demo로 localhost:4174에서 확인한다. 실제 배포·서버 인증 통합 검증은 별도다.
+
+## 현재 동작
+
+- 중/소블록·검색 조건 공유. 수용가/지도 상태 필터는 전체/미처리/시작검침완료/검침완료.
+- 목록·조사자 관리·검침별 상세는 20건 페이지, 홈은 4건. 화살표 이동과 번호 입력을 제공한다.
+- 수용가 행은 상태 아이콘·이름·관리번호·소블록·주소 한 줄이다. 작은 화면은 목록 내부 가로 스크롤이며 앞쪽 아이콘으로 상태를 알 수 있다.
+- 지도 마커와 목록은 동일 페이지 응답이다. 미처리 회색/시작완료 파랑/완료 초록. 선택하면 지도 아래에 입력을 표시한다.
+- 지도 내 기본정보는 접이식 헤더다. 기본정보 다음 사진·특이사항·검침을 배치한다. 상세도 같은 우선순위이며 검침은 모달에서 입력한다.
+- START는 2026년, END는 2027년. 단계 선행/중복/날짜/지침/활성 작업자 검사, 작업자 본인 기록 정정과 관리자 전체 정정을 Mock으로 제공한다.
+- 사진 슬롯은 OVERVIEW/START_CLOSEUP/END_CLOSEUP/TEMPORARY. JPG/PNG/WebP 10MiB 이하를 디코딩 후 긴 변 최대 1600px JPEG, 최대 1MiB로 변환한다. 원본 영구 저장은 아니다. 임시 사진도 같은 저장/삭제/교체 경로다.
+- 관리자 계정 관리·신규 단가·과거 단가 일괄 변경·정산, 조사자별 현황의 활성/비활성 체크박스 필터를 제공한다.
+- Excel 다운로드는 현재 블록의 전체 페이지를 수집해 실제 XLSX 35열로 생성한다. 사진은 등록 여부만 포함한다. HWP는 준비 상태다.
+- 위치도 기능과 좌표 수정 API는 제거했다. 실제 인증·Excel 업로드·R2 사진 저장·HWP/ZIP은 미구현이다.
+
+## Mock 데이터와 지도
+
+브라우저 기본 시드는 수용가 180건, 조사자 27명, START/END 검침 174건이다. 비활성 조사자도 포함한다. Node 회귀 테스트의 기본 12건 시드와는 별개다.
+
+VITE_MOCK_SITE_COUNT를 13~50,000 범위로 지정하면 브라우저 Mock 수용가 수를 조정할 수 있다. 예: PowerShell에서 `$env:VITE_MOCK_SITE_COUNT='12050'` 후 개발/시연 서버 실행. 수용가/지도는 전체 데이터를 한 번에 조회하지 않는다.
+
+NAVER SDK는 VITE_NAVER_MAP_CLIENT_ID와 서비스 URL 등록이 필요하다. 설정을 바꾼 뒤 서버를 재시작한다. 로더는 중복 방지·15초 타임아웃·인증/네트워크 실패와 재시도를 처리한다. 설정이 없으면 대체 목록을 제공한다.
+
+현재 위치는 브라우저 Geolocation으로 메모리에서만 사용한다. 첫 수신에 중심 이동, 이후 위치 마커 갱신, GPS 버튼으로 재이동한다. HTTPS/localhost 환경이 필요하다. 지도 이동으로 근처 데이터를 자동 조회하지 않는다. 전체 영역/클러스터링은 [설계 제안](../docs/MAP_QUERY_DESIGN.md)이다.
+
+## 수정 위치와 검증
+
+| 경로 | 책임 |
+| --- | --- |
+| src/pages / components | 화면 구성·공통 UI·업무 입력 |
+| src/components/ui / lib/utils.ts | shadcn/ui 기반 컴포넌트와 cn |
+| src/hooks / context | 경로·조회 조건·페이지·저장·공유 상태 |
+| src/api / types.ts | API 클라이언트와 계약 타입 |
+| src/mocks | 가상 데이터·권한·필터·집계·저장 |
+| src/styles | 기존 업무 CSS와 shadcn.css/refresh.css 토큰·공통 스타일 |
+| config/environment.ts / vite.config.ts | 운영/시연 환경 정책 |
+
+```powershell
 npm run format:check
 npm run test:api
 npm run test:map
 npm run test:demo
+npm run test:export
 npm run build
 npm run build:demo
 ```
 
-로컬 작업자는 기본 개발 서버, 관리자/작업자 전환은 `npm run dev:demo`의 http://localhost:5176/ 에서 확인한다. `.env.admin`과 `dev:admin`은 제거했다. 운영 로그인/권한은 아직 백엔드 연동 전이다.
-
-실제 환경파일은 Git에 올리지 않는다. 저장소에는 `.env.example`만 제공한다.
-
-| 용도 | 설정 위치 |
-| --- | --- |
-| 로컬 개발 | `.env.local` (Git 제외) |
-| 로컬 시연·시연 빌드 | `.env.demo` (Git 제외) |
-| 운영 | Cloudflare Pages Variables (파일 없음) |
-
-처음 체크아웃하면 `.env.example`을 `.env.local`로 복사한다. 시연에는 같은 예제를 `.env.demo`로 복사하고 `VITE_APP_ENV=demo`, `VITE_USE_MOCKS=true`, `VITE_DEMO_SWITCH=true`로 설정한다. 실제 값·Client ID는 Git에 추가하지 않는다.
-
-## 배포용 시연 환경과 운영 환경 분리
-
-| 실행 | 산출물 | Mock | 역할 화면 전환 |
-| --- | --- | --- | --- |
-| npm run dev | 개발 서버 | 기본 활성 | 작업자 |
-| npm run dev:demo | localhost:5176 | 활성 | 작업자 ↔ 관리자 |
-| npm run build:demo | dist-demo | 활성 | 작업자 ↔ 관리자 |
-| npm run build | dist | 비활성 | 없음 |
-
-배포용 시연은 `vite build --mode demo`와 `.env.demo`를 사용한다. `VITE_APP_ENV=demo`, `VITE_USE_MOCKS=true`, `VITE_DEMO_SWITCH=true`가 모두 필요하다. 일반 모드에 demo 설정이 섞이거나 일반 빌드에 Mock/시연 관리자 설정이 있으면 빌드를 실패시킨다. 일반 산출물에서는 MSW 부트스트랩과 전환 UI가 제거되고 `X-Demo-Role` 헤더도 전송하지 않는다.
-
-시연 화면의 노란 안내문에는 **실제 권한 인증 아님**을 표시한다. 역할은 탭의 메모리에만 저장하며 URL·localStorage·쿠키로 관리자 역할을 활성화하지 않는다. 전환 시 진행 중 조회를 취소하고 React Query 캐시를 비운 뒤 홈으로 이동한다. 새로고침하면 작업자와 초기 Mock 데이터로 돌아간다. 데이터는 기존 가상 시드만 사용한다. MSW에 없는 동일 출처 `/api/` 요청은 오류로 차단하며 실제 API로 넘기지 않는다.
-
-정적 시연 확인:
-
-```sh
-npm run build:demo
-npm run preview:demo
-# http://localhost:4174/ → 상단 '시연 화면' 선택
-```
-
-### Cloudflare Pages 설정
-
-운영과 **다른 Pages 프로젝트·호스트명**으로 시연 사이트를 배포한다. 운영 프로젝트의 산출물을 시연 파일로 덮어쓰지 않는다. 아래 경로는 Pages Root directory가 frontend일 때 기준이다.
-
-| 설정 | 시연 전용 프로젝트 | 운영 프로젝트 |
-| --- | --- | --- |
-| Root directory | frontend | frontend |
-| Build command | npm run build:demo | npm run build |
-| Build output directory | dist-demo | dist |
-| 역할 선택기 / 가상 데이터 | 제공 | 제공하지 않음 |
-
-Cloudflare에서는 파일 대신 프로젝트별 Variables에 직접 설정한다. 시연 프로젝트는 `VITE_APP_ENV=demo`, `VITE_USE_MOCKS=true`, `VITE_DEMO_SWITCH=true`, 운영 프로젝트는 각각 `production`, `false`, `false`다. `VITE_DEMO_ROLE`은 더 이상 사용하지 않으므로 제거한다. 지도 Client ID도 해당 프로젝트 Variables에 설정한다. `NODE_ENV=development`로 우회하지 않는다.
-
-production 모드는 Vite `envDir=false`로 `.env.local`을 포함한 모든 환경파일 자동 로딩을 끄고 실행 환경변수만 읽는다. 운영 Variables가 없더라도 Mock과 역할 전환은 기본 비활성이다. 로컬 `.env.local`의 Mock/지도 설정이 운영 빌드에 섞이지 않는다. `.env.production` 파일은 만들지 않는다. 시연 프로젝트의 Variables가 있으면 로컬 `.env.demo` 없이도 build:demo가 가능하다.
-
-공식 참고: [Vite 모드와 환경변수](https://vite.dev/guide/env-and-mode), [Pages 빌드 설정](https://developers.cloudflare.com/pages/configuration/build-configuration/).
-
-Mock 전환은 누구나 사용하는 화면 시연 기능이며 비밀번호/권한 인증이 아니다. 운영 백엔드는 `X-Demo-Role`을 신뢰하지 않고 서버 세션으로 권한을 검사해야 한다. 현재 실제 로그인·세션 연동은 미구현이며 운영 화면은 인증 연동 대기로 표시한다. 이번 작업에서는 Cloudflare 프로젝트 생성이나 원격 배포를 실행하지 않았다.
-
-## 수정 위치
-
-| 위치 | 책임 |
-| --- | --- |
-| src/App.tsx | Provider와 앱 조립만 담당 |
-| src/pages/ | 화면별 구성 |
-| src/components/layout/ | 메뉴, 앱 틀, 라우트별 화면 선택 및 접근 제한 |
-| src/components/inspection/, fees/, investigators/, map/ | 업무별 입력창과 지도 |
-| src/components/ | 블록 필터, 목록, 페이지 이동, 모달 등 공통 UI |
-| src/hooks/ | hash 경로, 공유 조회 조건, 페이지 상태, React Query, 저장 흐름 |
-| src/context/ | 조회 상태와 알림 공유 |
-| src/api/ | 공통 HTTP 처리와 업무별 API 호출 |
-| src/types.ts | API 응답 및 업무 타입 |
-| src/styles/ | base/layout/shared 및 화면별 CSS; index.css에서 순서 관리 |
-| src/mocks/handlers/ | 권한, 수용가, 단가, 정산, 조사자별 MSW 핸들러 |
-| src/mocks/store.ts, queries.ts | Mock 상태와 필터/집계/페이지 처리 |
-
-화면의 일시적 입력 상태는 해당 페이지/입력창에 둔다. 블록 조건은 context에서 공유한다. 서버 데이터는 React Query를 통해 조회하고 저장 성공 시 무효화한다. App에 화면 JSX나 입력 폼을 다시 모으지 않는다. 스타일은 해당 업무 CSS에 추가하고 전역 요소 선택자는 base.css로 제한한다. Prettier로 TS/TSX/CSS 형식을 통일한다.
-
-## 대량 데이터 시연
-
-PowerShell에서 `$env:VITE_MOCK_SITE_COUNT='12050'` 후 개발 서버를 실행하면 테스트용 수용가가 확장된다. 기본 데이터는 12건이며 운영 데이터가 아니다. 목록과 지도는 페이지당 20건, 홈은 4건만 조회한다. 통계는 페이지와 별도 API로 조회한다. 지도 마커도 현재 페이지 범위다. 전체 지도 클러스터링은 구현하지 않았다.
-
-## NAVER 지도 설정
-
-`frontend/.env.local`에 `VITE_NAVER_MAP_CLIENT_ID=<발급받은 Client ID>`를 설정하고 Vite 서버를 재시작한다. 실제 파일을 커밋하지 않는다. Client Secret은 브라우저 환경변수에 넣지 않는다. NAVER Cloud의 Maps 애플리케이션에서 Web Dynamic Map 사용과 시연할 Web 서비스 URL 등록이 필요하다. 로컬 작업자/관리자 URL 및 실제 배포 주소를 공식 콘솔 정책에 맞게 등록한다.
-
-공식 SDK 문서: https://navermaps.github.io/maps.js.ncp/docs/tutorial-2-Getting-Started.html
-
-로더는 `ncpKeyId`, callback, 중복 요청 방지, 15초 타임아웃과 인증/네트워크 실패·재시도를 처리한다. 키가 없으면 SDK를 요청하지 않고 설정 안내 및 기존 목록을 제공한다. 키를 임의로 생성하지 않는다. 2026-10-23 로컬 설정으로 실제 타일·마커, 블록 변경, 마커 카드·상세 이동을 확인했다. 배포 URL/모바일 LAN 주소의 인증은 별도 확인해야 한다. `test:map` 자체는 네트워크 없는 로더 테스트다.
-
-## 모바일 시연
-
-지도는 기본 START(2026년) 미처리 조건으로 열린다. 처리 기준을 START/END로 선택하고 미처리/처리됨/전체로 조회한다. 선택한 단계의 검침 존재 여부를 기준으로 주황색/초록색 작은 점을 표시한다. 목록의 전체 상태는 미처리/시작검침완료/완료로 구분하며 내부 IN_PROGRESS 값은 유지한다.
-
-지도 SDK가 준비되면 브라우저 위치 권한을 요청한다. 첫 위치 수신 시 본인 위치로 중심을 이동하고 파란 점과 맥동 효과를 표시한다. 이후 위치 갱신은 마커만 움직이며 지도 안의 작은 GPS 아이콘으로 다시 중심을 맞출 수 있다. SDK 공식 예제처럼 브라우저 Geolocation을 사용한 사용자 정의 표시다. 권한 거부·시간 초과·미지원은 접이식 안내로 표시한다. 위치 기능은 HTTPS 또는 localhost에서 확인한다. 위치는 화면 메모리에서만 사용하며 업무 API나 저장소에 보관하지 않는다.
-
-내 위치로 중심을 옮겨도 근처 수용가를 자동 검색하지 않는다. 기존 블록·검색·단계 조건의 현재 페이지 최대 20건을 유지한다. 실제 기기의 위치 정확도와 권한 허용 후 내 위치 표시는 별도 확인이 필요하다. 수백 건 동시 지도 조회와 클러스터링은 아직 구현하지 않았다.
-
-마커나 지도 아래 목록을 누르면 페이지를 이동하지 않고 지도 바로 아래에 해당 수용가의 기본정보와 검침·사진·특이사항 입력을 표시한다. 검침 저장 후 미처리 마커에서 빠져도 선택 폼은 유지한다. 각 영역은 별도로 저장하며 검침의 기존 단계/중복/권한 검증을 재사용한다. 사진 칸 클릭은 관리 모달 없이 시스템 이미지 선택기를 연다. 카메라/갤러리 메뉴 구성은 휴대폰 OS와 브라우저에 따른다. 상세 페이지의 사진 칸도 같은 방식을 사용한다.
-
-START는 2026년, END는 2027년으로 구분한다. START 등록 전 END와 동일 단계 중복 등록을 막는다. 작업자는 본인 명의만 등록하고 금액은 표시하지 않는다. 수용가 기본정보는 읽기 전용이다.
-
-요청자 피드백(2026-10-23)으로 위치도 관련 미리보기·생성·저장·좌표 수정 및 Excel 메타데이터 열을 제거했다. 현장 지도와 현재 위치 표시는 유지한다.
-
-일반 사진 업로드는 원경(OVERVIEW), START 근경(START_CLOSEUP), END 근경(END_CLOSEUP), 임시용(TEMPORARY)의 4종만 제공한다. 사진 칸을 눌러 촬영/갤러리 선택기를 열며 JPG/PNG/WebP 10MB 이하를 최대 1600px로 축소해 MSW에만 저장한다. HEIC는 JPG 변환이 필요하다. 실제 R2 업로드나 사진 원본 영구 저장은 구현하지 않았다.
-
-신규 검침용 단가 변경은 기존 검침 금액에 영향을 주지 않는다. 기존 건 소급 변경은 별도 기간별 변경 화면에서 블록/기간/건수/변경 전후 금액과 사유를 확인한다.
-
-HWP·ZIP 생성, 엑셀 업로드, 실제 로그인과 비밀번호 저장/변경, 사진 영구 저장은 후속 작업이다. HWP 버튼은 비활성이다. MSW 계정 관리의 임시 비밀번호는 형식만 검증하고 저장하지 않는다. 화면 상단에 가상 데이터와 새로고침 시 초기화 안내를 표시한다. 실제 휴대폰 카메라·키보드와 외부 지도 인증은 별도 확인이 필요하다.
+검증 범위·미측정 항목은 [검증 기록](../docs/FRONTEND_REVIEW.md), API 상세는 [API 계약](API_CONTRACT.md), 다음 HWP 작업은 [HWP 설계](../docs/HWP_EXPORT_DESIGN.md)를 참고한다.

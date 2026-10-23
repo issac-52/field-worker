@@ -1,47 +1,53 @@
-# Field Work Manager — Project context
+# 프로젝트 컨텍스트
 
-_Last context consolidation: 2026-10-22. This is a handoff, not a claim that code is already implemented._
+업데이트: 2026-10-23. 현재 소스와 검증 기록을 우선하며, 설계/Mock/운영 구현을 구분한다.
 
-2026-10-23 최신 요청자 피드백: 대상은 **10,000건 이상**이며 위치도 기능은 요구사항에서 제외했다. 현장 사진은 원경/START 근경/END 근경/임시용 각 1개, 총 4종이다. 위치도 UI·생성/저장·좌표 수정 API·Mock·Excel 전용 열을 제거했다. 현장 지도와 수용가 좌표/현재 위치 표시는 유지한다. 이전 위치도 설명과 `LOCATION_MAP_DESIGN.md`는 철회된 과거 설계다.
+## 목적과 업무
 
-## Project and goals
-Mobile-first private fieldwork system for ~20 part-time workers and admins. Friendly paid commission (~KRW 1,000,000); initial delivery target **2026-11-14**. Secondary developer goal: hands-on Spring/backend, transaction, security, and operations experience documented for job interviews. Developer implements core functionality; Codex primarily reviews and debugs real code.
+- 약 20명의 현장 조사자·관리자, 수용가 10,000건 이상. 초기 납기 2026-11-14.
+- 관리자 엑셀 등록 → 주소/좌표 정리 → 지도·목록 조회 → 검침·사진·특이사항 입력 → 실적·정산 → Excel/HWP 출력.
+- START는 2026년, END는 약 1년 뒤인 2027년. 단계별 날짜·지침·작업자가 다를 수 있다. 사용량 B−A는 조회/출력 시 계산한다.
+- 사진은 OVERVIEW/START_CLOSEUP/END_CLOSEUP/TEMPORARY의 4종. 위치도는 요청자 피드백으로 제외했다.
+- 입력 원본 Excel의 최종 매핑은 미확정. 기존 참고용 파일을 실제 운영 대상으로 가져오지 않는다. HWP 원본 양식은 제공받았으나 실제 생성은 미검증이다.
 
-## Business flow
-1. Admin imports a future Excel file with ~1,800–2,000 target records; provided spreadsheet dated 10/13 is **format/reference only**, not the actual import dataset. Do not load its ~19,700 reference rows into production.
-2. Normalize baseline customer/meter/address data. Geocode once and persist coordinates. Display work items in NAVER map with appropriate stage/status filters; account for multiple meters/consumers at one address.
-3. **A (start-stage) inspection begins Nov 2026.** Record meter reading, inspection date, worker and photos.
-4. **B (end-stage) inspection occurs roughly one year later (around Nov 2027)** on the same inspection subject; potentially different worker. A and B are distinct stage completion states. Calculate final volume as B−A at read/export time, not a constantly updated derived column. Exceptions like replacement/resetting a meter remain to be clarified.
-5. Administrators inspect changes/worker activity, track completion, monthly/overall per-item compensation, export Excel, and create reports.
-6. HWP template provided: customer name, address, customer connection number, industry, meter number, seal, water district, notes, A/B dates and readings, B−A, and **4 photo slots: distant scene, A close-up, B close-up, temporary photo** (location map removed by client feedback on 2026-10-23).
-7. Final output: 10,000+ individual HWP files bundled as a ZIP for the selected scope. Latest agreed direction (2026-10-23): record output-data changes on save; a background worker regenerates only stale/missing HWP files and stores them in private R2. Downloads assemble prepared, versioned HWP objects into a ZIP in the background. Do not generate all HWP synchronously on download or block field saves on document generation. See `HWP_EXPORT_DESIGN.md`. Implementation/performance unverified; first run a one-document PoC.
+## 기술 방향과 현재 코드
 
-## Implementation environment
-- Package root **`com.meter.fieldwork`** (developer renamed from earlier starter package).
-- Backend: Java 21 / Spring Boot 3.5.x / Gradle / JPA / Flyway / PostgreSQL. Local Windows IntelliJ + Docker Desktop (PostgreSQL separate local container). Spring profiles: `application.yml` common, `application-local.yml`, `application-prod.yml`; secrets externally injected; **no need for Spring to auto-read `.env.local`**.
-- AWS EC2 Ubuntu t3.small ~2GiB, Docker Compose + PostgreSQL 17 has been provisioned and reached via SSH. `users` domain/entity is being developed; **verify actual repo before saying API/auth is implemented**. Earlier generated starter/auth archives are reference code and may not have been merged.
-- Frontend React/Vite TypeScript, Cloudflare Pages planned, private Cloudflare R2 already owned, NAVER geocoding/maps planned.
-- AWS Free-plan credits are temporary; budget alerts and service continuity beyond early 2027 require planning. Given B inspection in late 2027, **data and application restartability must be preserved until B completion** even if the server is paused.
+| 영역 | 방향 / 현재 상태 |
+| --- | --- |
+| Frontend | React/Vite/TypeScript, React Query, MSW, shadcn/ui 소스 컴포넌트와 Tailwind v4 |
+| Backend | Java 21, Spring Boot 3.5.6, Gradle, JPA, Flyway, Spring Security |
+| DB | PostgreSQL 17. V1은 users만 생성 |
+| 패키지 | com.meter.fieldwork, feature별 모듈러 모놀리스 |
+| 배포 방향 | Cloudflare Pages 프론트, EC2 + Docker Compose API/PostgreSQL, 비공개 R2 |
+| 외부 지도 | NAVER 동적 SDK 실제 연동. 서버 geocoding·전체 영역 조회는 미구현 |
+| 인증 | 서버 세션 우선 검토. 실제 쿠키/CSRF/도메인 배치 검증 전이며 현재 health 외 요청 거부 |
 
-## User schema selected by developer
-```sql
-CREATE TABLE users (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  login_id VARCHAR(80) NOT NULL UNIQUE,
-  nickname VARCHAR(100) NOT NULL,
-  password TEXT NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN','WORKER')),
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-No `updated_at` requested. Login ID differs from immutable internal primary key; inactive workers must retain historical references. JPA `User` drafted by developer; next is actual mapping/Repository verification. Use secure one-way password hash. Avoid claiming unverified account features exist.
+User/UserRole과 findByLoginId/existsByLoginId Repository가 존재한다. UserService는 비어 있다. 과거 초안에 등장했던 인증 서비스·관리자 API가 현재 구현되어 있다고 해석하면 안 된다. Lombok 설정과 엔티티 매핑부터 컴파일·DB 통합 확인이 필요하다.
 
-## Domain design decisions in progress
-- Developer favors explicit A/B columns in the current inspection-card record due to only two known phases and simple report shape, while keeping baseline worksite separate and audit changes separate. A/B per-stage lifecycle/approval needs may alter this after client confirmation.
-- Settlement separated; capture **historical per-item unit price and amount** so future rate changes don't revise old compensation.
-- Change audit logs should preserve who/when/old/new; updating the current value is compatible with separate history.
-- No speculative architecture or unnecessary queues; consider simple single-worker background jobs for 1,800 files.
+## 현재 프론트
 
-## Current next steps
-Inspect local source/Flyway schema against drafted User entity and fix gaps only after developer asks; confirm actual schema and migrations, implement/review UserRepository, then services/auth. Final Excel field mapping awaits actual import file. HWP document PoC can run independently when scheduled.
+- 홈 바로가기 → 검침 건수/통계 → 검침 대상. 중/소블록·검색·상태 조건을 공유한다.
+- 수용가와 지도 모두 전체/미처리/시작검침완료/검침완료 필터를 사용한다. 상태는 TODO/IN_PROGRESS/DONE이다.
+- 목록 한 줄 표시, 앞쪽 상태 아이콘/범례, 20건 페이지와 화살표·번호 입력. 좁은 화면의 목록 내부 가로 스크롤을 허용한다. 홈은 4건만 조회한다.
+- 지도는 현재 목록 페이지 최대 20건만 표시한다. 마커 선택 시 지도 아래 입력, 기본정보 접이식 헤더, 사진 4종 → 특이사항 → 검침 입력 순서다. 상세도 기본정보 → 사진 → 특이사항 → 검침 순서다.
+- 관리자 계정·단가·정산 화면, 작업자 금액 비노출, 본인 검침 수정·관리자 전체 수정의 Mock 정책을 제공한다.
+- Excel은 실제 XLSX 35열이며 사진은 4종 등록 여부만 포함한다. HWP 버튼은 비활성이다.
+- 브라우저 Mock 기본은 수용가 180건·조사자 27명·검침 174건. 테스트 기본 시드 12건과 별개다.
+- 시연 저장은 메모리이며 새로고침 시 초기화한다. 일반 운영 빌드는 Mock·역할 전환을 비활성화한다.
+
+## 다음 작업
+
+1. [HWP 사전 생성·ZIP 설계](HWP_EXPORT_DESIGN.md)에 따라 사진을 포함한 한 건 PoC 진행.
+2. 가상 데이터 100건을 순차 생성하며 메모리·시간·임시 디스크 측정. EC2 RAM 약 2GB에서 DB/앱과 공존 가능한지 확인.
+3. 개발자가 사용자/인증과 핵심 업무 모델·DB/API 설계 및 구현을 진행한다. [백엔드 계획](api-plan.md)과 [Mock 계약](../frontend/API_CONTRACT.md)을 참고한다.
+4. R2 사진 업로드, HWP 사전 생성·ZIP 작업은 실제 저장소·버전·재시도·권한을 구현한 뒤 연결한다.
+
+HWP 방향은 저장 시 변경 버전을 기록 → 백그라운드에서 오래된 문서만 생성해 R2 저장 → 다운로드 시 최신 객체를 ZIP으로 묶는 방식이다. 저장 API가 문서 완료를 기다리지 않는다. 이 방향은 합의됐지만 구현되지 않았다.
+
+## 운영·협업 주의
+
+- 개발자가 도메인/DB/핵심 로직을 주도한다. 명시적인 요청 없이 코어를 구현·리팩터링하지 않는다.
+- 약 2GB EC2의 메모리/디스크/처리량은 미측정이다. 사용자 보고 인프라 상태와 코드 실행 검증을 구분한다.
+- END 완료 시점인 2027년까지 데이터·사진·재시작 가능성을 보존해야 한다. 무료 크레딧 소진 후 운영비·보존/종료 정책은 별도 확인한다.
+- 원본 고객 자료·사진·환경파일을 커밋하거나 공개하지 않는다. 테스트/문서는 가상 데이터를 사용한다.
+- 현재 검증 범위는 [FRONTEND_REVIEW.md](FRONTEND_REVIEW.md), 결정 근거는 [DECISIONS_AND_PORTFOLIO.md](DECISIONS_AND_PORTFOLIO.md)를 참고한다.

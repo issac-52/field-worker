@@ -1,42 +1,39 @@
-# Requirements — confirmed vs pending
+# 요구사항
 
-_Last updated: 2026-10-22._
+업데이트: 2026-10-23. 이 문서의 요구사항은 실제 서버 구현 완료를 뜻하지 않는다.
 
-## Confirmed / agreed direction
-| Area | Requirement |
-|---|---|
-| Users | ~20 workers/admins; admin-issued accounts, `ADMIN` / `WORKER`; disabled account retains history. |
-| Interface | Mobile-first field-work UI; PC used mainly for admin reports, correction, and statistics. |
-| Import | Target scale is 10,000+ sites (confirmed 2026-10-23); final Excel mapping remains pending. Sample workbook is reference only. |
-| Map | NAVER Maps coordinates/markers; filters for progress including completion and outstanding work. |
-| Inspections | Two dated stages: A around Nov 2026, B around Nov 2027; persist worker and timestamp per stage; B−A derived. |
-| Photos | Updated 2026-10-23 by client feedback: location map removed. Four field photo slots: OVERVIEW/START_CLOSEUP/END_CLOSEUP/TEMPORARY (one optional temporary photo added by client feedback). Field map and existing coordinates are retained. |
-| Admin | View worker completion/edit/deletion history and stage counts; calculate per-worker monthly and overall compensation. |
-| Reports | Export data to Excel. Populate supplied HWP card template; **one HWP per customer, ~1,800 HWP files per ZIP**. |
-| Operations | AWS EC2 Docker/PG, React/Vite/Cloudflare Pages, R2. Minimize recurring cost, retain data long enough for B stage. |
-| Development | Developer designs/implements core code; AI reviews actual code and updates decision log with verified facts. |
+## 확정 및 합의
 
-## Pending client confirmation — do not implement as facts
-- Actual final Excel file, column mapping, ~1,800 cases selection rule, unique import identity, refresh/reimport/upsert behavior.
-- Whether a physical site/address can contain multiple accounts or meters, whether meter is replaced between A/B, and how to handle negative B−A.
-- Completed-entry date/reading correction requested and implemented in frontend/MSW (2026-10-23): worker own records/admin all. Production approval, settled-record correction and exception policies remain pending.
-- Assignment by geographic area, ownership rules, duplicate/concurrent work policies.
-- Whether A/B stages are paid separately, which event counts for settlement, unit-price exceptions, approval/reversal/payment status.
-- Whether `.hwpx` is acceptable or native `.hwp` strictly required; final document formatting acceptance criteria; output of incomplete A cards.
-- Whether full batch HWP export belongs to initial 2026-11-14 delivery or a subsequent phase; whether service is paused between A and B; termination/data retention policy.
-- Offline work necessity, actual working connectivity, privacy/access controls, backups and file retention.
+| 항목 | 내용 |
+| --- | --- |
+| 사용자 | 약 20명, 관리자 발급 계정, ADMIN/WORKER. 비활성 계정의 과거 실적 보존 |
+| 규모/기한 | 대상 10,000건 이상, 초기 납기 2026-11-14 |
+| 화면 | 모바일 현장 입력, PC 관리자 조회/정산/출력 |
+| 입력 | Excel 기초정보와 현장 입력 분리. 기본정보는 현재 UI에서 읽기 전용 |
+| 검침 | START 2026 / END 2027. 날짜·지침·작업자 별도. END는 START 이후 등록, 사용량은 B−A |
+| 조회 | 중/소블록·검색·전체/미처리/시작검침완료/검침완료. 지도와 수용가의 상태 기준 동일 |
+| 사진 | 원경/START 근경/END 근경/임시용 각 1장, 총 4슬롯. 임시용 필수 완료 조건 없음. 위치도 기능 제외 |
+| 수정 | 현재 Mock은 작업자 본인/관리자 전체 검침의 날짜·지침 수정, 버전 충돌 검사와 변경 이력 제공 |
+| 정산 | 단계별 실적·금액, 신규 단가 변경과 과거 건 일괄 변경 구분, 과거 적용 단가 보존 |
+| 출력 | Excel 및 양식 기반 수용가별 HWP를 ZIP으로 제공. HWP는 변경 시 사전 생성·R2 보관 후 ZIP 조립 방향 |
+| 운영 방향 | Cloudflare Pages + EC2/Docker/PostgreSQL + 비공개 R2, 외부 secrets, NAVER 지도 |
 
-## Implementation milestones (not confirmed complete)
-1. Verify source code, Flyway migration and JPA `User` entity against selected SQL.
-2. User repository, service, admin account provisioning and auth/security, then frontend login.
-3. Actual import file → mapping design, import validation/duplicate handling, target and status modeling.
-4. Map/geocoding, A-stage inspection, photos/R2.
-5. Admin audit, settlement and Excel download.
-6. HWP **single-template proof of concept**; then sequential/streamed ZIP background export with progress, failure list, temporary R2 retention.
-7. Integration testing, backup restore test, staging/production deployment and mobile validation.
+## 구현 전 확인할 정책
 
-## Nonfunctional guardrails
-- Never expose PostgreSQL port 5432 publicly; HTTPS APIs; restrict access to inspection data and private photos.
-- DB is authoritative; generated HWP/ZIP are derived artifacts. Reuse cached exports only if source-data and template version match.
-- Do not process ~4GB of report content in heap simultaneously on a 2GiB VM; stream and measure throughput before committing to ETAs.
-- Keep original customer spreadsheet/photos out of source control, screenshots, public issues, and portfolio materials.
+- 실제 Excel 컬럼·고유 식별자·중복/재업로드/upsert 규칙과 최종 대상 선정.
+- 동일 주소의 여러 수용가·계량기, 계량기 교체/초기화 및 음수 사용량 처리.
+- 지역별 배정·소유권·중복 작업과 동시 수정 정책.
+- 정산 확정/검수/지급 기준, 소급 변경·취소 및 확정 후 검침 정정 허용 범위.
+- 세션 인증의 도메인 배치·쿠키·CSRF, 비활성 계정 세션 폐기와 초기 비밀번호 변경.
+- HWP 원본 위치도 칸을 임시용 사진으로 변경할지, 임시 사진의 최종 출력 포함 여부, 빈 사진/미완료 검침/긴 텍스트 출력 규칙. HWPX 허용 여부도 미확정.
+- HWP/ZIP의 초기 납기 포함 범위, 파일 보관/캐시 만료/부분 실패 처리 및 출력 시점 일관성.
+- 오프라인 필요성, 실기기 연결/촬영 품질, 백업·복구·보관/삭제와 2027년 END까지 운영 유지 방식.
+
+## 현재 구현과 운영 기준
+
+- 프론트 업무 기능은 MSW 시연이며 실제 로그인·DB·사진 R2·HWP 연결이 없다. 자세한 상태는 [프로젝트 컨텍스트](PROJECT_CONTEXT.md).
+- 지도 현재 구현은 페이지 최대 20건이다. 전체/근처 자동 검색·클러스터링 요구와 구현은 별개다.
+- 사진 Mock 변환은 원본 보관을 보장하지 않는다. 실제 업로드 정책은 서버 연동 시 결정한다.
+- 운영 API의 권한은 서버에서 검사한다. Mock 헤더/프론트 메뉴 숨김을 실제 인증으로 사용하지 않는다.
+- DB/사진이 원본이고 HWP/ZIP은 재생성 가능한 파일이다. 2GB 서버에 전체 파일을 메모리로 모으지 않는다.
+- PostgreSQL은 외부 공개하지 않는다. 적용된 Flyway 이력을 임의 수정하거나 DB를 초기화하지 않는다.
