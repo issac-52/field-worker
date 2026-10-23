@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 
-const NotificationContext = createContext<((message: string) => void) | null>(null);
+import { NotificationContext } from './notification';
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState('');
@@ -24,10 +24,4 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       )}
     </NotificationContext.Provider>
   );
-}
-
-export function useNotify() {
-  const notify = useContext(NotificationContext);
-  if (!notify) throw new Error('useNotify requires NotificationProvider');
-  return notify;
 }

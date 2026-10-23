@@ -1,5 +1,5 @@
 import { Button } from '../ui/button';
-import { useWork } from '../../context/WorkContext';
+import { useWork } from '../../context/work';
 import { BlockFilters } from '../BlockFilters';
 import { HomePage } from '../../pages/HomePage';
 import { SitesPage } from '../../pages/SitesPage';

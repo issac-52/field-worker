@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 
 export function BlockFilters() {
   const { middle, setMiddle, small, setSmall, blocks, summary, resetFilters } = useWork();

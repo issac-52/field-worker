@@ -3,7 +3,7 @@ import { Input } from '../ui/input';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { useNotify } from '../../context/NotificationContext';
+import { useNotify } from '../../context/notification';
 import type { User } from '../../types';
 import { Modal } from '../Modal';
 

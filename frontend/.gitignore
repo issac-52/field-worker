@@ -1,3 +1,5 @@
 .checks/
 *.tsbuildinfo
 dist-demo/
+
+coverage/

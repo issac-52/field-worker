@@ -3,7 +3,7 @@ import { Input } from '../ui/input';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
-import { useWork } from '../../context/WorkContext';
+import { useWork } from '../../context/work';
 import { useSaveAction } from '../../hooks/useSaveAction';
 import { formatWon } from '../../lib/format';
 import type { FeeAdjustmentResult, FeeRule, Phase } from '../../types';

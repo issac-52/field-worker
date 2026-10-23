@@ -2,7 +2,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useState } from 'react';
 import { api } from '../../api';
-import { useWork } from '../../context/WorkContext';
+import { useWork } from '../../context/work';
 import { useSaveAction } from '../../hooks/useSaveAction';
 import { today } from '../../lib/format';
 import type { Phase, Site } from '../../types';

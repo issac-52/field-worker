@@ -1,7 +1,7 @@
 import { Button } from '../components/ui/button';
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Plus, Settings2 } from 'lucide-react';
-import { useWork } from '../context/WorkContext';
+import { useWork } from '../context/work';
 import { FeeEditor } from '../components/fees/FeeEditor';
 import { formatDate, formatWon } from '../lib/format';
 import { PHASE_LABEL } from '../types';

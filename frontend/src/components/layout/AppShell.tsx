@@ -13,7 +13,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { useWork } from '../../context/WorkContext';
+import { useWork } from '../../context/work';
 import { PAGE_TITLES } from '../../hooks/useHashRoute';
 import type { Page } from '../../hooks/useHashRoute';
 import type { Role } from '../../types';
