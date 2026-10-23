@@ -3,25 +3,27 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { useWork } from '../../context/WorkContext';
 import { useSaveAction } from '../../hooks/useSaveAction';
-import { formatWon, today } from '../../lib/format';
-import type { FeeAdjustmentResult, Phase } from '../../types';
+import { formatWon } from '../../lib/format';
+import type { FeeAdjustmentResult, FeeRule, Phase } from '../../types';
 import { Modal } from '../Modal';
 
 export function FeeEditor({
   mode,
   onClose,
   onAdjusted,
+  rule,
 }: {
   mode: 'rule' | 'adjust';
   onClose: () => void;
   onAdjusted: (result: FeeAdjustmentResult) => void;
+  rule?: FeeRule;
 }) {
-  const { middle, small, role } = useWork();
-  const year = Number(today().slice(0, 4)) + (mode === 'rule' ? 2 : 0);
-  const [phase, setPhase] = useState<Phase>('START');
-  const [startDate, setStartDate] = useState(`${year}-01-01`);
-  const [endDate, setEndDate] = useState(`${year}-12-31`);
-  const [amount, setAmount] = useState(mode === 'rule' ? '3500' : '3200');
+  const { middle, small, role, blocks } = useWork();
+  const year = 2026;
+  const [phase, setPhase] = useState<Phase>(rule?.phase ?? 'START');
+  const [startDate, setStartDate] = useState(rule?.startDate ?? `${year}-01-01`);
+  const [endDate, setEndDate] = useState(rule?.endDate ?? `${year}-12-31`);
+  const [amount, setAmount] = useState(String(rule?.amount ?? (mode === 'rule' ? 3500 : 3200)));
   const [reason, setReason] = useState('');
   const { busy, error, save } = useSaveAction();
   const body = {
@@ -54,16 +56,26 @@ export function FeeEditor({
     if (!canSubmit) return;
     const success = await save(
       async () => {
-        if (mode === 'rule') await api.addRule({ phase, startDate, endDate, amount: body.amount });
+        if (mode === 'rule' && rule) await api.updateRule(rule.id, body.amount);
+        else if (mode === 'rule')
+          await api.addRule({ phase, startDate, endDate, amount: body.amount });
         else onAdjusted(await api.adjust(body));
       },
-      mode === 'rule' ? '단가 규칙을 추가했습니다.' : '작업비를 변경했습니다.',
+      mode === 'rule'
+        ? '신규 검침용 단가 규칙을 저장했습니다. 기존 검침 금액은 유지됩니다.'
+        : '작업비를 변경했습니다.',
     );
     if (success) onClose();
   }
   return (
     <Modal
-      title={mode === 'rule' ? '단가 규칙 추가' : '기존 검침 작업비 변경'}
+      title={
+        mode === 'rule'
+          ? rule
+            ? '신규 검침용 단가 변경'
+            : '단가 규칙 추가'
+          : '기존 검침 작업비 변경'
+      }
       onClose={onClose}
       busy={busy}
     >
@@ -75,7 +87,17 @@ export function FeeEditor({
       >
         <label className="field">
           검침 단계
-          <select value={phase} onChange={(event) => setPhase(event.target.value as Phase)}>
+          <select
+            disabled={busy || !!rule}
+            value={phase}
+            onChange={(event) => {
+              const nextPhase = event.target.value as Phase;
+              setPhase(nextPhase);
+              const nextYear = nextPhase === 'START' ? 2026 : 2027;
+              setStartDate(`${nextYear}-01-01`);
+              setEndDate(`${nextYear}-12-31`);
+            }}
+          >
             <option value="START">시작단계</option>
             <option value="END">종료단계</option>
           </select>
@@ -86,7 +108,9 @@ export function FeeEditor({
             <input
               type="date"
               required
+              disabled={busy || !!rule}
               value={startDate}
+              onInput={(event) => setStartDate(event.currentTarget.value)}
               onChange={(event) => setStartDate(event.target.value)}
             />
           </label>
@@ -96,7 +120,9 @@ export function FeeEditor({
               type="date"
               required
               min={startDate}
+              disabled={busy || !!rule}
               value={endDate}
+              onInput={(event) => setEndDate(event.currentTarget.value)}
               onChange={(event) => setEndDate(event.target.value)}
             />
           </label>
@@ -114,6 +140,10 @@ export function FeeEditor({
         </label>
         {mode === 'adjust' && (
           <>
+            <p className="form-help">
+              변경 대상 블록: {blocks.find((block) => block.id === middle)?.name ?? '전체 중블록'} /{' '}
+              {blocks.find((block) => block.id === small)?.name ?? '전체 소블록'}
+            </p>
             <label className="field">
               변경 사유
               <input

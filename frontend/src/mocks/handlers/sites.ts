@@ -2,7 +2,8 @@ import { http } from 'msw';
 import { store } from '../store';
 import { ok, err, isAdmin, publicSite, feeFor } from '../http';
 import { filterSites, paginate, summarize } from '../queries';
-import type { Phase } from '../../types';
+import type { Phase, SitePhoto } from '../../types';
+import { PHOTO_SLOTS } from '../../types';
 import { blocks } from '../data';
 
 export const sitesHandlers = [
@@ -45,11 +46,14 @@ export const sitesHandlers = [
     };
     if (
       !['START', 'END'].includes(b.phase) ||
-      !b.date ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(b.date) ||
+      !Number.isFinite(Date.parse(b.date)) ||
+      new Date(b.date).toISOString().slice(0, 10) !== b.date ||
+      !b.date.startsWith(b.phase === 'START' ? '2026-' : '2027-') ||
       !Number.isFinite(b.reading) ||
       b.reading < 0
     )
-      return err('입력값을 확인하세요');
+      return err('입력값을 확인하세요. START는 2026년, END는 2027년 검침입니다.');
     if (x.inspections[b.phase])
       return err('이미 등록된 단계입니다. 수정은 관리자 기능으로 별도 처리해야 합니다.', 409);
     if (b.phase === 'END' && !x.inspections.START) return err('시작 검침을 먼저 완료하세요');
@@ -72,9 +76,21 @@ export const sitesHandlers = [
     const x = store.sites.find((s) => s.id === Number(params.id));
     if (!x) return err('수용가 없음', 404);
     const b = (await request.json()) as {
-      photos: string[];
+      photos: SitePhoto[];
     };
-    if (b.photos.length > 4) return err('사진은 최대 4장입니다');
+    if (!Array.isArray(b.photos) || b.photos.length > 4) return err('이미지는 최대 4개 영역입니다');
+    if (
+      b.photos.some(
+        (photo) =>
+          !photo ||
+          !PHOTO_SLOTS.includes(photo.slot) ||
+          typeof photo.url !== 'string' ||
+          photo.url.length > 1500000 ||
+          !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(photo.url),
+      ) ||
+      new Set(b.photos.map((photo) => photo.slot)).size !== b.photos.length
+    )
+      return err('이미지 형식 또는 영역을 확인하세요. 같은 영역에 중복 등록할 수 없습니다.');
     x.photos = b.photos;
     return ok(publicSite(x, request));
   }),

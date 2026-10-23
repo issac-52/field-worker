@@ -237,6 +237,42 @@
 .photo-actions > button {
   flex: 1;
 }
+.photo-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 4px;
+  color: white;
+  background: #153d35d9;
+  font-size: 12px;
+}
+.photo-editor-grid {
+  display: grid;
+  gap: 20px;
+}
+.photo-editor-slot h3 {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.photo-editor-slot .photo-slot {
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+  color: #526e66;
+  font-size: 12px;
+}
+.photo-slot-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.photo-slot-actions button {
+  flex: 1;
+  min-width: 76px;
+  padding: 10px 8px;
+}
 button.photo-slot {
   display: flex;
   flex-direction: column;

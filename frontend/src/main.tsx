@@ -5,10 +5,14 @@ import App from './App';
 import './styles/index.css';
 
 async function bootstrap() {
-  // 데모에서는 MSW를 켜고, Spring Boot API 연동 시 VITE_USE_MOCKS=false로 끌 수 있습니다.
-  if (import.meta.env.VITE_USE_MOCKS !== 'false') {
+  if (__MOCKS_ENABLED__) {
     const { worker } = await import('./mocks/browser');
-    await worker.start({ onUnhandledRequest: 'bypass' });
+    await worker.start({
+      onUnhandledRequest(request, print) {
+        const url = new URL(request.url);
+        if (url.origin === location.origin && url.pathname.startsWith('/api/')) print.error();
+      },
+    });
   }
   const client = new QueryClient({
     defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },

@@ -30,7 +30,7 @@ export function InspectionPanel({
             aria-pressed={phase === value}
             onClick={() => setPhase(value)}
           >
-            {value === 'START' ? '01 시작단계' : '02 종료단계'}
+            {value === 'START' ? '2026 START' : '2027 END'}
           </button>
         ))}
       </div>

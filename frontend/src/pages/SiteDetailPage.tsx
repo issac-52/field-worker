@@ -16,6 +16,7 @@ import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
 import { formatDate, formatWon } from '../lib/format';
 import type { Phase } from '../types';
+import { PHOTO_SLOTS, PHOTO_LABEL } from '../types';
 
 export function SiteDetailPage() {
   const { target: site, navigate, role } = useWork();
@@ -92,28 +93,38 @@ export function SiteDetailPage() {
           </section>
           <section className="panel photos-panel">
             <div className="panel-title">
-              <h3>현장 사진</h3>
-              <span className="muted">{site.photos.length}/4장</span>
+              <h3>현장 사진·위치도</h3>
+              <span className="muted">{site.photos.length}/4개 영역</span>
             </div>
             <div className="photos-grid">
-              {[0, 1, 2, 3].map((index) => (
+              {PHOTO_SLOTS.map((slot) => (
                 <button
                   className="photo-slot"
-                  key={index}
-                  aria-label={`사진 ${index + 1} 관리`}
+                  key={slot}
+                  aria-label={`${PHOTO_LABEL[slot]} 관리`}
                   onClick={() => setEditor('photos')}
                 >
-                  {site.photos[index] ? (
-                    <img src={site.photos[index]} alt={`현장 사진 ${index + 1}`} />
+                  {site.photos.find((photo) => photo.slot === slot) ? (
+                    <>
+                      <img
+                        src={site.photos.find((photo) => photo.slot === slot)!.url}
+                        alt={PHOTO_LABEL[slot]}
+                      />
+                      <span className="photo-caption">{PHOTO_LABEL[slot]}</span>
+                    </>
                   ) : (
                     <>
                       <ImagePlus size={23} />
-                      <span>사진 {index + 1}</span>
+                      <span>{PHOTO_LABEL[slot]}</span>
                     </>
                   )}
                 </button>
               ))}
             </div>
+            <p className="hint">
+              위치도는 지도 이미지 영역이며 필수 촬영 항목이 아닙니다. 이미지는 시연용으로만
+              저장됩니다.
+            </p>
             <button className="outline-btn full" onClick={() => setEditor('photos')}>
               <Camera size={17} />
               사진 관리

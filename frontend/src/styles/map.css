@@ -21,6 +21,25 @@
 }
 .map-selection {
   padding: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.map-selection p {
+  width: 100%;
+}
+.map-range {
+  margin: 12px 0;
+  font-size: 12px;
+  color: #44645e;
+  line-height: 1.7;
+}
+.naver-map[hidden] {
+  display: none;
+}
+.map-fallback p {
+  overflow-wrap: anywhere;
 }
 @media (max-width: 760px) {
   .naver-map:not(:empty) {

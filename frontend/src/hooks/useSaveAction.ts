@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useWork } from '../context/WorkContext';
 import { useNotify } from '../context/NotificationContext';
 
@@ -7,8 +7,10 @@ export function useSaveAction() {
   const notify = useNotify();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const inFlight = useRef(false);
   async function save(action: () => Promise<unknown>, message: string) {
-    if (busy) return false;
+    if (inFlight.current) return false;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -20,6 +22,7 @@ export function useSaveAction() {
       setError((error as Error).message);
       return false;
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }

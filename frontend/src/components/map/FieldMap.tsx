@@ -1,18 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SiteListItem } from '../../types';
+import { loadNaverMaps, MAP_AUTH_ERROR } from '../../lib/naverMaps';
+import type { MapInstance, NaverMaps } from '../../lib/naverMaps';
+import { StatusBadge } from '../StatusBadge';
 
-// The deployment integration supplies an authenticated NAVER SDK before mounting.
-type Point = object;
-type Marker = { setMap(map: object | null): void };
-type Maps = {
-  LatLng: new (lat: number, lng: number) => Point;
-  Map: new (el: HTMLElement, options: object) => object;
-  Marker: new (options: object) => Marker;
-  Event: {
-    addListener(target: object, event: string, callback: () => void): object;
-    removeListener(listener: object): void;
-  };
-};
 export function FieldMap({
   sites,
   onSelect,
@@ -20,61 +11,124 @@ export function FieldMap({
   sites: SiteListItem[];
   onSelect: (id: number) => void;
 }) {
-  const sdkAvailable = !!(window as Window & { naver?: { maps: Maps } }).naver?.maps;
+  const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID?.trim() ?? '';
   const container = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState('지도 연결 준비 중입니다. 아래 수용가 목록을 이용하세요.');
+  const [sdk, setSdk] = useState<NaverMaps>();
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   const [selected, setSelected] = useState<SiteListItem>();
+  const valid = useMemo(
+    () =>
+      sites.filter(
+        (site) =>
+          Number.isFinite(site.latitude) &&
+          Number.isFinite(site.longitude) &&
+          Math.abs(site.latitude) <= 90 &&
+          Math.abs(site.longitude) <= 180 &&
+          !(site.latitude === 0 && site.longitude === 0),
+      ),
+    [sites],
+  );
+
+  useEffect(() => {
+    if (!clientId) return;
+    let active = true;
+    setError('');
+    setSdk(undefined);
+    const authFailure = () => {
+      setError('NAVER 지도 인증에 실패했습니다. Client ID와 등록된 Web 서비스 URL을 확인하세요.');
+      setSdk(undefined);
+    };
+    window.addEventListener(MAP_AUTH_ERROR, authFailure);
+    void loadNaverMaps(clientId)
+      .then((maps) => {
+        if (active) setSdk(maps);
+      })
+      .catch((reason: Error) => {
+        if (active) setError(reason.message);
+      });
+    return () => {
+      active = false;
+      window.removeEventListener(MAP_AUTH_ERROR, authFailure);
+    };
+  }, [clientId, retry]);
+
   useEffect(() => {
     setSelected(undefined);
-    const maps = (window as Window & { naver?: { maps: Maps } }).naver?.maps;
-    const valid = sites.filter(
-      (s) =>
-        Number.isFinite(s.latitude) &&
-        Number.isFinite(s.longitude) &&
-        Math.abs(s.latitude) <= 90 &&
-        Math.abs(s.longitude) <= 180,
-    );
-    if (!maps || !container.current) return;
-    const markers: Marker[] = [];
+    if (!sdk || !container.current) return;
+    const element = container.current;
+    let map: MapInstance | undefined;
+    const markers: InstanceType<NaverMaps['Marker']>[] = [];
     const listeners: object[] = [];
+    let resize: ResizeObserver | undefined;
     try {
-      const map = new maps.Map(container.current, {
-        center: new maps.LatLng(valid[0]?.latitude ?? 35.8251, valid[0]?.longitude ?? 128.7414),
+      map = new sdk.Map(element, {
+        center: new sdk.LatLng(valid[0]?.latitude ?? 35.8251, valid[0]?.longitude ?? 128.7414),
         zoom: 13,
       });
-      valid.forEach((s) => {
-        const marker = new maps.Marker({
+      valid.forEach((site) => {
+        const marker = new sdk.Marker({
           map,
-          position: new maps.LatLng(s.latitude, s.longitude),
-          title: `${s.name} · ${s.managementNo}`,
+          position: new sdk.LatLng(site.latitude, site.longitude),
+          title: `${site.name} · ${site.managementNo}`,
         });
         markers.push(marker);
-        listeners.push(maps.Event.addListener(marker, 'click', () => setSelected(s)));
+        listeners.push(sdk.Event.addListener(marker, 'click', () => setSelected(site)));
       });
-      setState(`현재 페이지의 수용가 ${valid.length}건`);
+      if (valid.length > 1)
+        map.fitBounds(
+          valid.map((site) => new sdk.LatLng(site.latitude, site.longitude)),
+          { top: 32, right: 32, bottom: 32, left: 32, maxZoom: 16 },
+        );
+      resize = new ResizeObserver(() => map?.autoResize());
+      resize.observe(element);
     } catch {
-      setState('지도를 불러오지 못했습니다. 아래 수용가 목록을 이용하세요.');
+      setError('지도를 표시하지 못했습니다. 다시 시도하거나 아래 목록을 이용하세요.');
     }
     return () => {
-      listeners.forEach((l) => maps.Event.removeListener(l));
-      markers.forEach((m) => m.setMap(null));
-      container.current?.replaceChildren();
+      resize?.disconnect();
+      listeners.forEach((listener) => sdk.Event.removeListener(listener));
+      markers.forEach((marker) => marker.setMap(null));
+      map?.destroy();
+      element.replaceChildren();
     };
-  }, [sites]);
+  }, [sdk, valid, retry]);
+
   return (
     <section className="panel map-fallback">
-      <p role="status">{state}</p>
+      <p role="status">
+        {!clientId
+          ? '지도 설정이 필요합니다. frontend/.env.local에 VITE_NAVER_MAP_CLIENT_ID를 설정하고 서버를 재시작하세요. 아래 목록은 계속 이용할 수 있습니다.'
+          : error ||
+            (sdk ? `현재 페이지 마커 ${valid.length}건` : 'NAVER 지도를 불러오는 중입니다…')}
+      </p>
+      {error && (
+        <button className="outline-btn" onClick={() => setRetry((value) => value + 1)}>
+          지도 다시 시도
+        </button>
+      )}
+      <small>
+        지도와 아래 목록은 같은 조회 조건의 현재 페이지만 표시합니다. 전체 수용가 지도는 아닙니다.
+      </small>
+      {sites.length > valid.length && (
+        <p className="form-error">
+          좌표 누락·오류 {sites.length - valid.length}건은 마커에서 제외했습니다. 목록에서 상세를 열
+          수 있습니다.
+        </p>
+      )}
       <div
         ref={container}
-        className={sdkAvailable ? 'naver-map sdk-ready' : 'naver-map'}
+        className={`naver-map${sdk && !error ? ' sdk-ready' : ''}`}
         aria-label="NAVER 현장지도"
+        hidden={!sdk || !!error}
       />
-      {selected && (
+      {selected && !error && (
         <div className="map-selection">
           <b>
             {selected.name} · {selected.managementNo}
           </b>
           <p>{selected.address}</p>
+          <StatusBadge site={selected} />
           <button className="primary-btn" onClick={() => onSelect(selected.id)}>
             상세 검침으로 이동
           </button>

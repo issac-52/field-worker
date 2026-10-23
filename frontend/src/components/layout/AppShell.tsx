@@ -15,6 +15,7 @@ import {
 import { useWork } from '../../context/WorkContext';
 import { PAGE_TITLES } from '../../hooks/useHashRoute';
 import type { Page } from '../../hooks/useHashRoute';
+import type { Role } from '../../types';
 
 const WORK_NAV = [
   { page: 'home', label: '대시보드', Icon: LayoutDashboard },
@@ -64,7 +65,7 @@ function NavItem({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { page, role } = useWork();
+  const { page, role, switchDemoRole, switchingRole } = useWork();
   const admin = role === 'ADMIN';
   return (
     <div className="app-shell">
@@ -92,10 +93,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-bottom">
           <div className="side-profile">
-            <div className="avatar">{admin ? '관' : '김'}</div>
+            <div className="avatar">{__MOCKS_ENABLED__ ? (admin ? '관' : '김') : '?'}</div>
             <div>
-              <b>{admin ? '관리자' : '김민수'}</b>
-              <small>{admin ? '관리자' : '조사자'}</small>
+              <b>{__MOCKS_ENABLED__ ? (admin ? '관리자' : '김민수') : '로그인 연동 대기'}</b>
+              <small>{__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : '서버 인증 필요'}</small>
             </div>
           </div>
         </div>
@@ -110,14 +111,42 @@ export function AppShell({ children }: { children: ReactNode }) {
             <b>{PAGE_TITLES[page]}</b>
           </div>
           <div className="top-actions">
-            {import.meta.env.VITE_USE_MOCKS !== 'false' && <span className="demo-label">MOCK</span>}
+            {__MOCKS_ENABLED__ && <span className="demo-label">MOCK</span>}
             <span className="role-switch">
               <ShieldCheck size={15} />
-              {admin ? '관리자' : '조사자'}
+              {__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : '인증 연동 대기'}
             </span>
           </div>
         </header>
-        <main className="content">{children}</main>
+        <main className="content">
+          {__DEMO_SWITCH_ENABLED__ && (
+            <section className="demo-role-panel" aria-label="시연 전용 화면 전환">
+              <div>
+                <strong>시연 전용 · 실제 권한 인증 아님</strong>
+                <p>
+                  가상 데이터와 Mock API만 사용합니다. 실제 계정으로 로그인하지 않습니다.
+                  새로고침하면 작업자 화면과 초기 데이터로 돌아갑니다.
+                </p>
+              </div>
+              <label>
+                시연 화면
+                <select
+                  aria-label="시연 화면"
+                  value={role}
+                  disabled={switchingRole}
+                  onChange={(event) => void switchDemoRole(event.target.value as Role)}
+                >
+                  <option value="WORKER">작업자 화면 (Mock)</option>
+                  <option value="ADMIN">관리자 화면 (Mock)</option>
+                </select>
+              </label>
+            </section>
+          )}
+          {__MOCKS_ENABLED__ && (
+            <p className="demo-notice">가상 데이터 시연 · 저장 내용은 새로고침 시 초기화됩니다.</p>
+          )}
+          {children}
+        </main>
       </div>
       <nav className="bottom-nav" aria-label="주요 메뉴">
         <NavItem target="home" label="홈">

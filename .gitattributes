@@ -1,0 +1,2 @@
+# Match frontend Prettier endOfLine=lf on Windows checkouts as well.
+frontend/** text=auto eol=lf

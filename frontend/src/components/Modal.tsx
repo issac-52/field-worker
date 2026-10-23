@@ -20,11 +20,28 @@ export function Modal({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     panel.current
-      ?.querySelector<HTMLElement>('input:not([disabled]), textarea, select, button')
+      ?.querySelector<HTMLElement>(
+        'input:not([disabled]):not([hidden]), textarea, select:not([disabled]), button',
+      )
       ?.focus();
     return () => {
       document.body.style.overflow = previousOverflow;
       previous?.focus();
+    };
+  }, []);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const element = panel.current?.parentElement;
+    const update = () => {
+      element?.style.setProperty('--modal-height', `${viewport?.height ?? window.innerHeight}px`);
+      element?.style.setProperty('--modal-top', `${viewport?.offsetTop ?? 0}px`);
+    };
+    update();
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    return () => {
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
     };
   }, []);
   return (

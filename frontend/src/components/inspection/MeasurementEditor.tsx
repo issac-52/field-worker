@@ -18,12 +18,28 @@ export function MeasurementEditor({
 }) {
   const { role, users } = useWork();
   const availableWorkers = users.filter((user) => user.role === 'WORKER' && user.active);
-  const firstDate = phase === 'END' ? site.inspections.START?.date : undefined;
-  const [date, setDate] = useState(firstDate && firstDate > today() ? firstDate : today());
+  const year = phase === 'START' ? 2026 : 2027;
+  const firstDate = `${year}-01-01`;
+  const lastDate = `${year}-12-31`;
+  const currentDate = today();
+  const [date, setDate] = useState(
+    currentDate < firstDate ? firstDate : currentDate > lastDate ? lastDate : currentDate,
+  );
   const [reading, setReading] = useState('');
   const [workerId, setWorkerId] = useState(role === 'WORKER' ? 11 : (availableWorkers[0]?.id ?? 0));
   const { busy, error, save } = useSaveAction();
   async function submit() {
+    if (
+      !reading.trim() ||
+      !Number.isFinite(Number(reading)) ||
+      Number(reading) < 0 ||
+      !workerId ||
+      date < firstDate ||
+      date > lastDate ||
+      site.inspections[phase] ||
+      (phase === 'END' && !site.inspections.START)
+    )
+      return;
     const success = await save(
       () =>
         api.measurement(site.id, {
@@ -50,13 +66,18 @@ export function MeasurementEditor({
             #{site.managementNo} · {site.zone}
           </span>
         </p>
+        <p className="form-help">
+          {year}년 {PHASE_LABEL[phase]} · 저장 후 중복 등록할 수 없습니다.
+        </p>
         <label className="field">
           검침일자
           <input
             type="date"
             required
             min={firstDate}
+            max={lastDate}
             value={date}
+            onInput={(event) => setDate(event.currentTarget.value)}
             onChange={(event) => setDate(event.target.value)}
           />
         </label>
@@ -64,6 +85,7 @@ export function MeasurementEditor({
           계량지침
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             step="0.001"
             required
@@ -76,6 +98,7 @@ export function MeasurementEditor({
           <select
             required
             value={workerId || ''}
+            disabled={role === 'WORKER' || busy}
             onChange={(event) => setWorkerId(Number(event.target.value))}
           >
             <option value="" disabled>
@@ -93,7 +116,17 @@ export function MeasurementEditor({
             {error}
           </p>
         )}
-        <button className="primary-btn full" disabled={busy || !workerId} type="submit">
+        <button
+          className="primary-btn full modal-save"
+          disabled={
+            busy ||
+            !workerId ||
+            !reading.trim() ||
+            !Number.isFinite(Number(reading)) ||
+            Number(reading) < 0
+          }
+          type="submit"
+        >
           {busy ? '저장 중...' : '검침 저장'}
         </button>
       </form>

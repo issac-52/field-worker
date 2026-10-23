@@ -15,6 +15,7 @@
 ## 작업비
 
 - `GET/POST /api/fee-rules`: 향후 검침 등록에 적용하는 기간별 단계 단가. 기존 검침에는 소급하지 않는다.
+- `PATCH /api/fee-rules/:id`: `{ amount: number }` → `FeeRule`. 기존 규칙의 신규 검침용 정수 단가만 변경하며 단계·기간과 과거 검침 금액은 유지한다. 관리자 전용.
 - `POST /api/admin/fee-adjustments/preview`: `FeeAdjustmentRequest` → `FeeAdjustmentPreview` (targetCount/beforeTotal/afterTotal). 전체 조회 대상에 대해 MSW에서 계산한다.
 - `POST /api/admin/fee-adjustments`: `FeeAdjustmentRequest` → `FeeAdjustmentResult`. 단계, 날짜 범위, 정수 단가, 선택 블록, 변경 사유. 기존 검침 단가만 변경한다.
 - `GET /api/admin/fee-adjustments`: 요청과 결과의 Mock 메모리 감사 이력.
@@ -32,12 +33,24 @@
 
 ## 권한
 
-작업자 응답에서 검침 fee를 제외하며 users는 본인만 반환한다. 관리자 API/단가/정산은 403. 작업자 ID는 Mock의 11이며 다른 사람 명의 등록을 거부한다. 화면에서도 관리자 경로와 메뉴를 제한한다. `X-Demo-Role`과 DEV 전용 `VITE_DEMO_ROLE`은 시연용이며 보안 경계가 아니다. 운영은 서버 세션으로 사용자/권한을 결정해야 한다.
+작업자 응답에서 검침 fee를 제외하며 users는 본인만 반환한다. 관리자 API/단가/정산은 403. 작업자 ID는 Mock의 11이며 다른 사람 명의 등록을 거부한다. 화면에서도 관리자 경로와 메뉴를 제한한다. `X-Demo-Role`은 Mock 전용으로 실제 보안 경계가 아니다. 운영은 서버 세션으로 사용자/권한을 결정해야 한다.
+
+전용 `demo` 모드는 가상 데이터만 사용하는 역할 선택기를 제공한다. ADMIN/WORKER는 메모리 상태이며 새로고침 시 WORKER다. 전환 시 조회 취소·캐시 비우기·홈 이동으로 이전 관리자 화면을 정리한다. 운영 모드는 전환·MSW·Mock 역할 헤더를 포함하지 않는다. `.env.admin`/dev:admin과 고정 관리자 역할은 제거했다. 실제 `.env.local`/`.env.demo`는 Git 제외이며 운영은 파일을 로딩하지 않고 Pages Variables만 사용한다. 이전 `VITE_DEMO_ROLE=ADMIN` 설정이 운영 빌드에 남으면 거부한다. MSW에 없는 같은 출처 `/api/` 요청은 실제 API로 전달하지 않는다. 배포 시연과 운영은 별도 Pages 프로젝트·호스트명을 사용한다. 명령과 설정은 README.md를 참조한다.
 
 ## 지도와 출력
 
-`components/map/FieldMap.tsx`는 사전 주입 `window.naver.maps` 어댑터다. 자동 로더, 키/도메인 인증, 실제 지도 검증은 미완료다. SDK 없으면 안내와 페이지 목록을 표시한다. 임의 키와 외부 지도 이미지는 사용하지 않는다.
+`lib/naverMaps.ts`가 `VITE_NAVER_MAP_CLIENT_ID`를 읽는 지도 컴포넌트의 요청으로 NAVER JavaScript API v3을 로드한다. 공식 문서의 `ncpKeyId`와 비동기 callback을 사용한다. 공유 Promise, 15초 타임아웃, 네트워크 오류와 `navermap_authFailure`, 재시도를 처리한다. callback 선행 시 Map 준비를 같은 제한 시간 안에서 확인한다. 키가 없으면 SDK 요청을 하지 않는다. 2026-10-23 로컬 Client ID 설정으로 실제 타일/마커, 블록 변경, 카드 선택과 상세 이동을 검증했다. 운영/모바일 접속 주소 인증은 별도다.
+
+지도와 목록은 같은 `sites` 페이지 응답을 사용하며 현재 조회 범위/최대 20건을 표시한다. 유한한 위도·경도 범위 밖 또는 (0,0)은 건너뛰고 누락 건수를 안내한다. 좌표를 새로 생성하지 않는다. 지도 인스턴스·마커·이벤트·ResizeObserver는 페이지 변경/언마운트 시 정리한다. 대량 bounds 조회 계약은 `docs/MAP_QUERY_DESIGN.md`의 제안이며 구현된 API가 아니다.
+
+## 검침과 시연 이미지 (2026-10-23 보완)
+
+- `POST /api/sites/:id/measurements`: `{ phase, date, reading, workerId }` → 역할별 `Site`. START는 2026년, END는 2027년 날짜다. 실제 달력 날짜·유한한 0 이상 숫자·활성 작업자를 검사한다. END 선등록, 동일 단계 중복, 다른 작업자 명의 등록은 거부한다. 완료 시 React Query 조회를 무효화한다. 연도별 반복 회차 모델은 추가하지 않았다.
+- `PATCH /api/sites/:id/note`: `{ note: string }` → `Site`.
+- `POST /api/sites/:id/photos`: `{ photos: SitePhoto[] }` → `Site`. `SitePhoto`는 `{ slot, url }`, slot은 LOCATION_MAP/DISTANT/START_CLOSE/END_CLOSE다. 최대 4개, 영역별 최대 1개이며 삭제해도 다른 이미지의 의미가 이동하지 않는다. 빈 배열로 전체 삭제할 수 있다. LOCATION_MAP은 선택 사항이며 현장 촬영을 강제하지 않는다.
+- MSW 이미지 url은 JPEG/PNG/WebP base64 data URL만 허용하며 개당 문자열 길이는 최대 1,500,000자다. 클라이언트는 10MB 이하 파일의 실제 디코딩 성공을 확인하고 긴 변 최대 1600px JPEG로 축소한다. 축소 결과는 최대 1MiB다. 투명 배경은 흰색으로 합성하며 시연 품질을 위한 변환이다. 최종 보고서 원본 보관 정책은 별도다.
+- 편집 중 미리보기는 Blob URL을 사용하고 교체·삭제·닫기 시 해제한다. 시연 저장 직전에만 축소본을 data URL로 변환한다. 이미지/비밀번호/검침은 운영 서버나 R2에 저장하지 않는다. 새로고침 시 초기화된다.
 
 HWP 화면은 블록 조건과 전체 대상 건수만 표시하며 파일명을 나열하지 않는다. 생성 버튼은 비활성이다. 백엔드 생성 식별 기준은 경산시-소블록-관리번호이고 1만 건 이상 비동기 생성/ZIP 전달은 후속 작업이다.
 
-검증 재현: `npm run test:api`, `npm run format:check`, `npm run build`. 폴더 및 실행 안내는 README.md를 참조한다.
+검증 재현: `npm run test:api`, `npm run test:map`, `npm run format:check`, `npm run build`. `test:map`은 fake DOM에서만 SDK 로딩 오류/재시도를 검증하며 NAVER 실인증 테스트가 아니다. 폴더 및 실행 안내는 README.md를 참조한다.

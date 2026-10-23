@@ -7,6 +7,7 @@ import type {
   SiteFilter,
   SiteListItem,
   SiteSummary,
+  SitePhoto,
 } from '../types';
 import { call, json, query } from './client';
 
@@ -23,5 +24,5 @@ export const siteApi = {
     id: number,
     body: { phase: Phase; date: string; reading: number; workerId: number },
   ) => call<Site>(`/sites/${id}/measurements`, json(body)),
-  photos: (id: number, photos: string[]) => call<Site>(`/sites/${id}/photos`, json({ photos })),
+  photos: (id: number, photos: SitePhoto[]) => call<Site>(`/sites/${id}/photos`, json({ photos })),
 };

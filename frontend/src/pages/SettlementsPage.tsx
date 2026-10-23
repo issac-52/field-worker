@@ -50,11 +50,22 @@ export function SettlementsPage() {
         </label>
         <label>
           시작일
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input
+            type="date"
+            value={from}
+            onInput={(e) => setFrom(e.currentTarget.value)}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </label>
         <label>
           종료일
-          <input type="date" min={from} value={until} onChange={(e) => setUntil(e.target.value)} />
+          <input
+            type="date"
+            min={from}
+            value={until}
+            onInput={(e) => setUntil(e.currentTarget.value)}
+            onChange={(e) => setUntil(e.target.value)}
+          />
         </label>
       </div>
       {from && until && from > until && (

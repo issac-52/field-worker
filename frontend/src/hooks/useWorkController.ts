@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Phase, SiteFilter, SettlementFilter } from '../types';
-import { getDemoRole } from '../lib/auth';
+import { getDemoRole, setDemoRole, subscribeDemoRole } from '../lib/auth';
+import type { Role } from '../types';
 import { ADMIN_PAGES, useHashRoute } from './useHashRoute';
 import { usePagePosition } from './usePagePosition';
 import { useWorkData } from './useWorkData';
@@ -13,7 +15,21 @@ const STATUS_FILTERS: Record<string, SiteFilter['status']> = {
 
 export function useWorkController() {
   const route = useHashRoute();
-  const role = getDemoRole();
+  const role = useSyncExternalStore(subscribeDemoRole, getDemoRole, getDemoRole);
+  const client = useQueryClient();
+  const [switchingRole, setSwitchingRole] = useState(false);
+  async function switchDemoRole(nextRole: Role) {
+    if (!__DEMO_SWITCH_ENABLED__ || switchingRole || nextRole === role) return;
+    setSwitchingRole(true);
+    try {
+      await client.cancelQueries();
+      client.clear();
+      route.navigate('home');
+      setDemoRole(nextRole);
+    } finally {
+      setSwitchingRole(false);
+    }
+  }
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('전체');
@@ -87,6 +103,8 @@ export function useWorkController() {
     ...data,
     role,
     adminOnly: ADMIN_PAGES.includes(route.page),
+    switchDemoRole,
+    switchingRole,
     query,
     setQuery,
     filter,

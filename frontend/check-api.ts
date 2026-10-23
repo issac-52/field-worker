@@ -147,6 +147,104 @@ try {
   assert.equal(recorded.data.inspections.START.workerName, '수정 조사자');
   await update({ active: false });
   assert.equal((await call('/sites/5')).data.inspections.START.workerId, id);
+  const workerPost = async (path: string, body: unknown) => {
+    const response = await fetch('http://localhost/api' + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, ...(await response.json()) };
+  };
+  const measurement = { phase: 'START', date: '2026-11-05', reading: 12.345, workerId: 11 };
+  assert.equal(
+    (
+      await workerPost('/sites/6/measurements', {
+        ...measurement,
+        phase: 'END',
+        date: '2027-11-05',
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (await workerPost('/sites/6/measurements', { ...measurement, reading: -1 })).status,
+    400,
+  );
+  assert.equal(
+    (await workerPost('/sites/6/measurements', { ...measurement, date: '2026-02-30' })).status,
+    400,
+  );
+  assert.equal(
+    (await workerPost('/sites/6/measurements', { ...measurement, date: '2027-11-05' })).status,
+    400,
+  );
+  assert.equal(
+    (await workerPost('/sites/6/measurements', { ...measurement, workerId: 12 })).status,
+    403,
+  );
+  const saved = await workerPost('/sites/6/measurements', measurement);
+  assert.equal(saved.status, 200);
+  assert.equal(saved.data.inspections.START.workerId, 11);
+  assert(!('fee' in saved.data.inspections.START));
+  assert.equal((await workerPost('/sites/6/measurements', measurement)).status, 409);
+  assert.equal(
+    (
+      await workerPost('/sites/6/measurements', {
+        ...measurement,
+        phase: 'END',
+        date: '2027-11-05',
+      })
+    ).status,
+    200,
+  );
+  const imageUrl =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+  const photos = [
+    { slot: 'DISTANT', url: imageUrl },
+    { slot: 'END_CLOSE', url: imageUrl },
+  ];
+  assert.equal((await workerPost('/sites/6/photos', { photos })).status, 200);
+  const remaining = await workerPost('/sites/6/photos', { photos: [photos[1]] });
+  assert.deepEqual(
+    remaining.data.photos.map((photo: any) => photo.slot),
+    ['END_CLOSE'],
+  );
+  assert.equal(
+    (await workerPost('/sites/6/photos', { photos: [photos[1], photos[1]] })).status,
+    400,
+  );
+  assert.equal(
+    (
+      await workerPost('/sites/6/photos', {
+        photos: [{ slot: 'DISTANT', url: 'https://example.com/photo' }],
+      })
+    ).status,
+    400,
+  );
+  assert.equal((await workerPost('/sites/6/photos', { photos: [] })).data.photos.length, 0);
+  const feeRule = (await call('/fee-rules')).data[0];
+  const existingFee = (await call('/sites/5')).data.inspections.START.fee;
+  const ruleChange = await fetch(`http://localhost/api/fee-rules/${feeRule.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-Demo-Role': 'ADMIN' },
+    body: JSON.stringify({ amount: 4100 }),
+  });
+  assert.equal(ruleChange.status, 200);
+  assert.equal((await call('/sites/5')).data.inspections.START.fee, existingFee);
+  assert.equal((await call('/sites/7/measurements', measurement)).data.inspections.START.fee, 4100);
+  assert.equal(
+    (
+      await fetch(`http://localhost/api/fee-rules/${feeRule.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 1 }),
+      })
+    ).status,
+    403,
+  );
+  console.log(
+    'PASS: phase order/year/date/reading/identity validation, duplicate rejection, photo slot deletion and validation, future fee change preserves history',
+  );
   console.log(
     'PASS: investigator create/duplicate/update/reset/status, disabled recording denied, history retained',
   );

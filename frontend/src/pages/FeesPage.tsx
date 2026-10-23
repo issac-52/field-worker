@@ -4,12 +4,13 @@ import { useWork } from '../context/WorkContext';
 import { FeeEditor } from '../components/fees/FeeEditor';
 import { formatDate, formatWon } from '../lib/format';
 import { PHASE_LABEL } from '../types';
-import type { FeeAdjustmentResult } from '../types';
+import type { FeeAdjustmentResult, FeeRule } from '../types';
 
 export function FeesPage() {
   const { rules, navigate } = useWork();
   const [mode, setMode] = useState<'rule' | 'adjust'>();
   const [result, setResult] = useState<FeeAdjustmentResult>();
+  const [editingRule, setEditingRule] = useState<FeeRule>();
   return (
     <>
       <button className="back" onClick={() => navigate('admin')}>
@@ -35,7 +36,13 @@ export function FeesPage() {
             <h3>기본 단가 규칙</h3>
             <p className="muted">새로 등록하는 검침에 적용</p>
           </div>
-          <button className="primary-btn small" onClick={() => setMode('rule')}>
+          <button
+            className="primary-btn small"
+            onClick={() => {
+              setEditingRule(undefined);
+              setMode('rule');
+            }}
+          >
             <Plus size={16} />
             규칙 추가
           </button>
@@ -48,6 +55,7 @@ export function FeesPage() {
                 <th>시작일</th>
                 <th>종료일</th>
                 <th>건당 단가</th>
+                <th>변경</th>
               </tr>
             </thead>
             <tbody>
@@ -58,6 +66,17 @@ export function FeesPage() {
                   <td>{formatDate(rule.endDate)}</td>
                   <td>
                     <b>{formatWon(rule.amount)}</b>
+                  </td>
+                  <td>
+                    <button
+                      className="outline-btn"
+                      onClick={() => {
+                        setEditingRule(rule);
+                        setMode('rule');
+                      }}
+                    >
+                      {rule.phase} 단가 변경
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -89,7 +108,14 @@ export function FeesPage() {
           {formatWon(result.afterTotal)}
         </p>
       )}
-      {mode && <FeeEditor mode={mode} onClose={() => setMode(undefined)} onAdjusted={setResult} />}
+      {mode && (
+        <FeeEditor
+          mode={mode}
+          rule={mode === 'rule' ? editingRule : undefined}
+          onClose={() => setMode(undefined)}
+          onAdjusted={setResult}
+        />
+      )}
     </>
   );
 }

@@ -244,3 +244,40 @@
 .content {
   overflow-wrap: break-word;
 }
+.demo-role-panel {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 16px;
+  background: #fff5db;
+  border: 1px solid #d9b85b;
+  border-radius: 12px;
+  color: #634d13;
+}
+.demo-role-panel > div {
+  flex: 1;
+  min-width: 180px;
+}
+.demo-role-panel p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 6px;
+}
+.demo-role-panel label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.demo-role-panel select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #a58a47;
+  background: white;
+  color: #493b17;
+  font-size: 16px;
+}

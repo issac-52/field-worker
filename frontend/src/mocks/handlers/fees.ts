@@ -6,6 +6,15 @@ import type { Phase, FeeRule } from '../../types';
 
 export const feesHandlers = [
   http.get('/api/fee-rules', () => ok(store.feeRules)),
+  http.patch('/api/fee-rules/:id', async ({ params, request }) => {
+    const rule = store.feeRules.find((value) => value.id === Number(params.id));
+    if (!rule) return err('단가 규칙을 찾을 수 없습니다.', 404);
+    const body = (await request.json()) as { amount: number };
+    if (!Number.isSafeInteger(body.amount) || body.amount < 0)
+      return err('0 이상의 정수 단가를 입력하세요.');
+    rule.amount = body.amount;
+    return ok(rule);
+  }),
   http.post('/api/fee-rules', async ({ request }) => {
     const b = (await request.json()) as {
       phase: Phase;
@@ -18,7 +27,7 @@ export const feesHandlers = [
       !b.startDate ||
       !b.endDate ||
       b.startDate > b.endDate ||
-      !Number.isFinite(b.amount) ||
+      !Number.isSafeInteger(b.amount) ||
       b.amount < 0
     )
       return err('적용 기간 및 금액을 확인하세요');

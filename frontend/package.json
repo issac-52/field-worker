@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
+    "build:demo": "tsc -b && vite build --mode demo",
+    "dev:demo": "vite --host 0.0.0.0 --mode demo --port 5176 --strictPort",
+    "preview:demo": "vite preview --mode demo --outDir dist-demo --port 4174 --strictPort",
     "preview": "vite preview",
     "postinstall": "msw init public --save",
-    "format": "prettier --write src check-api.ts check-scale.ts index.html vite.config.ts tsconfig.json package.json",
-    "format:check": "prettier --check src check-api.ts check-scale.ts index.html vite.config.ts tsconfig.json package.json",
+    "format": "prettier --write src config check-api.ts check-scale.ts check-map.ts check-demo.ts index.html vite.config.ts tsconfig.json package.json",
+    "format:check": "prettier --check src config check-api.ts check-scale.ts check-map.ts check-demo.ts index.html vite.config.ts tsconfig.json package.json",
+    "test:demo": "esbuild check-demo.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-demo.js && node .checks/check-demo.js",
     "test:api": "esbuild check-api.ts check-scale.ts --bundle --platform=node --format=esm --packages=external --outdir=.checks && node .checks/check-api.js && node .checks/check-scale.js",
-    "dev:admin": "vite --host 0.0.0.0 --mode admin --port 5175 --strictPort"
+    "test:map": "esbuild check-map.ts --bundle --platform=node --format=esm --packages=external --outfile=.checks/check-map.js && node .checks/check-map.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
