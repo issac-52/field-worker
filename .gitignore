@@ -10,3 +10,7 @@
 **/.gradle/
 **/build/
 !**/.env.example
+
+*.log
+*.xlsx
+*.xls
