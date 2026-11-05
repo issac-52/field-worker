@@ -10,3 +10,7 @@
 **/.gradle/
 **/build/
 !**/.env.example
+# Customer workbooks and generated exports stay outside source control.
+*.xlsx
+*.xls
+private-data/
