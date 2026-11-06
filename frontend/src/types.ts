@@ -1,14 +1,17 @@
 export type Phase = 'START' | 'END';
 export type Role = 'ADMIN' | 'WORKER';
 export const PHOTO_SLOTS = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP', 'TEMPORARY'] as const;
-export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
+export const LIVE_PHOTO_SLOTS = [...PHOTO_SLOTS, 'EXTRA_1', 'EXTRA_2'] as const;
+export type PhotoSlot = (typeof LIVE_PHOTO_SLOTS)[number];
 export const PHOTO_LABEL: Record<PhotoSlot, string> = {
   OVERVIEW: '원경사진',
   START_CLOSEUP: 'START 근경사진',
   END_CLOSEUP: 'END 근경사진',
   TEMPORARY: '임시용 사진',
+  EXTRA_1: '추가 사진 1',
+  EXTRA_2: '추가 사진 2',
 };
-export type SitePhoto = { slot: PhotoSlot; url: string };
+export type SitePhoto = { id?: number; slot: PhotoSlot; url: string };
 export type Site = {
   id: number;
   middleBlockId: string;
@@ -21,7 +24,9 @@ export type Site = {
   waterNo: string;
   industry: string;
   meterNo: string;
-  sealed: boolean;
+  sealed: boolean | null;
+  consumerNumber?: string;
+  specialCondition?: { code: string; label: string; description: string };
   latitude: number | null;
   longitude: number | null;
   note: string;
@@ -134,6 +139,8 @@ export type SettlementFilter = BlockFilter & {
   endDate?: string;
 };
 export type SettlementRow = {
+  inspectionId?: number;
+  settlementStatus?: 'OPEN' | 'CONFIRMED' | 'PAID';
   siteId: number;
   managementNo: string;
   zone: string;

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { call } from '../api/client';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Wallet } from 'lucide-react';
@@ -21,7 +23,25 @@ export function SettlementsPage() {
     openSite,
     changeSettlementPage,
     loading,
+    refresh,
   } = useWork();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function transition(id: number, action: 'confirm' | 'pay') {
+    setBusy(true);
+    setError('');
+    try {
+      await call('/admin/settlements/' + action, {
+        method: 'POST',
+        body: JSON.stringify({ inspectionIds: [id] }),
+      });
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '정산 처리 실패');
+    } finally {
+      setBusy(false);
+    }
+  }
   const rows = settlementData?.items ?? [];
   return (
     <>
@@ -108,6 +128,7 @@ export function SettlementsPage() {
         <h3>검침별 상세 내역</h3>
         <span>{(settlementData?.total ?? 0).toLocaleString()}건</span>
       </section>
+      {error && <p role="alert">{error}</p>}
       <div className="panel settle-list">
         {rows.map((row) => (
           <Button
@@ -132,6 +153,36 @@ export function SettlementsPage() {
           <div className="empty">{loading ? '불러오는 중...' : '검침 기록이 없습니다.'}</div>
         )}
       </div>
+      {!__MOCKS_ENABLED__ && (
+        <section className="panel">
+          <h3>현재 페이지 정산 처리</h3>
+          {rows.map((row) => (
+            <div key={row.inspectionId}>
+              <span>
+                {row.workerName} · {PHASE_LABEL[row.phase]} ·{' '}
+                {row.settlementStatus === 'PAID'
+                  ? '지급 완료'
+                  : row.settlementStatus === 'CONFIRMED'
+                    ? '확정'
+                    : '미확정'}
+              </span>
+              {row.inspectionId && row.settlementStatus !== 'PAID' && (
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void transition(
+                      row.inspectionId!,
+                      row.settlementStatus === 'OPEN' ? 'confirm' : 'pay',
+                    )
+                  }
+                >
+                  {row.settlementStatus === 'OPEN' ? '정산 확정' : '지급 완료 처리'}
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
       <Pagination data={settlementData} onChange={changeSettlementPage} />
     </>
   );

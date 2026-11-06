@@ -139,7 +139,7 @@ export const sitesHandlers = [
       b.photos.some(
         (photo) =>
           !photo ||
-          !PHOTO_SLOTS.includes(photo.slot) ||
+          !PHOTO_SLOTS.some((slot) => slot === photo.slot) ||
           typeof photo.url !== 'string' ||
           photo.url.length > 1500000 ||
           !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(photo.url),

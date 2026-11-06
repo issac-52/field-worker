@@ -1,3 +1,4 @@
+import { request, query } from '../api/client';
 import { Button } from '../components/ui/button';
 import { Download, FileText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -32,6 +33,23 @@ export function ReportsPage() {
       blocks.find((block) => block.id === middle)?.name ??
       '전체 수용가';
     try {
+      if (!__MOCKS_ENABLED__) {
+        const response = await request(
+          '/exports/sites.xlsx' +
+            query({ middleBlockId: middle || undefined, smallBlockId: small || undefined }),
+          { signal: controller.signal },
+        );
+        const blob = await response.blob();
+        controller.signal.throwIfAborted();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = '검침데이터.xlsx';
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        setProgress('Excel 다운로드를 시작했습니다.');
+        return;
+      }
       const records = await collectExportSites(
         (page) =>
           api.exportSites(

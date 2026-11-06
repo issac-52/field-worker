@@ -16,7 +16,15 @@ export default defineConfig(({ mode, command }) => {
     plugins: [react(), tailwindcss()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     envDir: production ? false : undefined,
-    server: { port: 5173 },
+    server: {
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: processEnv.BACKEND_ORIGIN ?? 'http://127.0.0.1:8080',
+          changeOrigin: true,
+        },
+      },
+    },
     build: { outDir: policy.demo ? 'dist-demo' : 'dist' },
     define: {
       __DEMO_SWITCH_ENABLED__: JSON.stringify(policy.demo),

@@ -1,3 +1,4 @@
+import { useSession } from '../context/session';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Phase, SiteFilter, SettlementFilter } from '../types';
@@ -15,7 +16,10 @@ const STATUS_FILTERS: Record<string, SiteFilter['status']> = {
 
 export function useWorkController() {
   const route = useHashRoute();
-  const role = useSyncExternalStore(subscribeDemoRole, getDemoRole, getDemoRole);
+  const demoRole = useSyncExternalStore(subscribeDemoRole, getDemoRole, getDemoRole);
+  const { user: currentUser } = useSession();
+  const role = __MOCKS_ENABLED__ ? demoRole : currentUser!.role;
+  const currentUserId = __MOCKS_ENABLED__ ? (role === 'WORKER' ? 11 : 1) : currentUser!.id;
   const client = useQueryClient();
   const [switchingRole, setSwitchingRole] = useState(false);
   async function switchDemoRole(nextRole: Role) {
@@ -102,6 +106,7 @@ export function useWorkController() {
     ...route,
     ...data,
     role,
+    currentUserId,
     adminOnly: ADMIN_PAGES.includes(route.page),
     switchDemoRole,
     switchingRole,
