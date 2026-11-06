@@ -85,7 +85,7 @@ export function createExportWorkbook(
       site.waterNo,
       site.industry,
       site.meterNo,
-      site.sealed ? '봉인' : '미봉인',
+      site.sealed == null ? '미확인' : site.sealed ? '봉인' : '미봉인',
       site.supplyArea,
       site.latitude,
       site.longitude,

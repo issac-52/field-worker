@@ -20,7 +20,7 @@ export function MeasurementEditor({
   onClose: () => void;
   inline?: boolean;
 }) {
-  const { role, users, refresh } = useWork();
+  const { role, users, refresh, currentUserId } = useWork();
   const availableWorkers = users.filter((user) => user.role === 'WORKER' && user.active);
   const year = phase === 'START' ? 2026 : 2027;
   const firstDate = `${year}-01-01`;
@@ -34,7 +34,7 @@ export function MeasurementEditor({
   );
   const [reading, setReading] = useState(measurement ? String(measurement.reading) : '');
   const [workerId, setWorkerId] = useState(
-    measurement?.workerId ?? (role === 'WORKER' ? 11 : (availableWorkers[0]?.id ?? 0)),
+    measurement?.workerId ?? (role === 'WORKER' ? currentUserId : (availableWorkers[0]?.id ?? 0)),
   );
   const [expectedUpdatedAt] = useState(measurement?.updatedAt ?? measurement?.recordedAt);
   const { busy, error, save } = useSaveAction();
@@ -45,8 +45,7 @@ export function MeasurementEditor({
       Number(reading) < 0 ||
       !workerId ||
       date < firstDate ||
-      date > lastDate ||
-      (phase === 'END' && !site.inspections.START)
+      date > lastDate
     )
       return;
     const success = await save(

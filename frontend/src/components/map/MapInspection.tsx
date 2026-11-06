@@ -19,7 +19,7 @@ export function MapInspection({
   initialPhase: Phase;
   onClose: () => void;
 }) {
-  const { role } = useWork();
+  const { role, currentUserId } = useWork();
   const [phase, setPhase] = useState(initialPhase);
   const [editingPhase, setEditingPhase] = useState<Phase>();
   const result = useQuery({
@@ -61,12 +61,13 @@ export function MapInspection({
             </summary>
             <dl className="info-grid">
               {Object.entries({
+                수용가번호: site.consumerNumber ?? '—',
                 급수전번호: site.waterNo,
                 계량기번호: site.meterNo,
                 소블록: site.zone,
                 업종: site.industry,
                 급수구역: site.supplyArea,
-                봉인: site.sealed ? '봉인' : '미봉인',
+                봉인: site.sealed == null ? '미확인' : site.sealed ? '봉인' : '미봉인',
               }).map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
@@ -101,7 +102,7 @@ export function MapInspection({
                 <b>{site.inspections[phase]!.reading.toLocaleString()}</b> ·{' '}
                 {site.inspections[phase]!.workerName}
               </p>
-              {(role === 'ADMIN' || site.inspections[phase]!.workerId === 11) && (
+              {(role === 'ADMIN' || site.inspections[phase]!.workerId === currentUserId) && (
                 <Button
                   variant="outline"
                   className="outline-btn"
@@ -111,8 +112,6 @@ export function MapInspection({
                 </Button>
               )}
             </>
-          ) : phase === 'END' && !site.inspections.START ? (
-            <p>시작검침을 먼저 등록하세요.</p>
           ) : (
             <MeasurementEditor
               key={`${id}-${phase}`}

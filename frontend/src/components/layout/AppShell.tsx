@@ -1,3 +1,4 @@
+import { useSession } from '../../context/session';
 import { Button } from '../ui/button';
 import type { ReactNode } from 'react';
 import {
@@ -68,6 +69,7 @@ function NavItem({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { page, role, switchDemoRole, switchingRole } = useWork();
+  const { user, logout, changePassword } = useSession();
   const admin = role === 'ADMIN';
   return (
     <div className="app-shell">
@@ -97,8 +99,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="side-profile">
             <div className="avatar">{__MOCKS_ENABLED__ ? (admin ? '관' : '김') : '?'}</div>
             <div>
-              <b>{__MOCKS_ENABLED__ ? (admin ? '관리자' : '김민수') : '로그인 연동 대기'}</b>
-              <small>{__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : '서버 인증 필요'}</small>
+              <b>{__MOCKS_ENABLED__ ? (admin ? '관리자' : '김민수') : user?.name}</b>
+              <small>
+                {__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : admin ? '관리자' : '조사자'}
+              </small>
             </div>
           </div>
         </div>
@@ -113,10 +117,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             <b>{PAGE_TITLES[page]}</b>
           </div>
           <div className="top-actions">
+            {!__MOCKS_ENABLED__ && (
+              <>
+                <button onClick={changePassword}>비밀번호 변경</button>
+                <button onClick={() => void logout().catch(() => window.location.reload())}>
+                  로그아웃
+                </button>
+              </>
+            )}
             {__MOCKS_ENABLED__ && <span className="demo-label">MOCK</span>}
             <span className="role-switch">
               <ShieldCheck size={15} />
-              {__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : '인증 연동 대기'}
+              {__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : admin ? '관리자' : '조사자'}
             </span>
           </div>
         </header>

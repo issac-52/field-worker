@@ -1,3 +1,4 @@
+import { useWork } from '../../context/work';
 import { Button } from '../ui/button';
 import { Check, Clock3, Plus } from 'lucide-react';
 import type { Phase, Site } from '../../types';
@@ -17,6 +18,7 @@ export function InspectionPanel({
   admin: boolean;
   onMeasure: () => void;
 }) {
+  const { currentUserId } = useWork();
   const measurement = site.inspections[phase];
   return (
     <section className="panel reading-panel">
@@ -67,7 +69,7 @@ export function InspectionPanel({
               </div>
             )}
           </div>
-          {(admin || measurement.workerId === 11) && (
+          {(admin || measurement.workerId === currentUserId) && (
             <Button variant="outline" className="outline-btn" onClick={onMeasure}>
               검침 수정
             </Button>
@@ -79,15 +81,12 @@ export function InspectionPanel({
           <Button
             variant="default"
             className="primary-btn"
-            disabled={phase === 'END' && !site.inspections.START}
+
             onClick={onMeasure}
           >
             <Plus size={17} />
             {PHASE_LABEL[phase]} 입력
           </Button>
-          {phase === 'END' && !site.inspections.START && (
-            <p className="hint">시작단계 검침을 먼저 등록하세요.</p>
-          )}
         </>
       )}
       {site.inspections.START && site.inspections.END && (

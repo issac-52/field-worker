@@ -24,6 +24,6 @@ export function environmentPolicy(mode: string, command: string, env: Environmen
   }
   return {
     demo,
-    mocks: demo || (mode !== 'production' && command === 'serve' && env.VITE_USE_MOCKS !== 'false'),
+    mocks: demo || (mode !== 'production' && command === 'serve' && env.VITE_USE_MOCKS === 'true'),
   };
 }
