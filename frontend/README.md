@@ -1,5 +1,8 @@
 # 프론트엔드 개발·시연
 
+> 2026-11-05: 일반 dev/build는 실제 백엔드 연결을 기본으로 사용합니다. 로그인·CSRF·사진 multipart 등 전환 안내는 [실제 연결 안내](../docs/FRONTEND_LIVE_CONNECTION.md)를 참고하세요. 아래 MSW 시연 안내는 demo 모드에 해당합니다.
+
+
 업데이트: 2026-10-23. React/Vite/TypeScript + React Query + MSW. shadcn/ui 방식의 Button/Input/Badge/Card 소스와 Tailwind v4를 사용하며 기존 CSS와 함께 관리한다.
 
 ## 실행과 환경

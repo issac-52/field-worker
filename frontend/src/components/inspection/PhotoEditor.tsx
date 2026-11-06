@@ -1,10 +1,11 @@
+import { call } from '../../api/client';
 import { Button } from '../ui/button';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import { useSaveAction } from '../../hooks/useSaveAction';
 import type { PhotoSlot, Site, SitePhoto } from '../../types';
-import { PHOTO_LABEL, PHOTO_SLOTS } from '../../types';
+import { PHOTO_LABEL, PHOTO_SLOTS, LIVE_PHOTO_SLOTS } from '../../types';
 import { preparePhoto, photoDataUrl } from '../../lib/photos';
 import { Modal } from '../Modal';
 
@@ -18,6 +19,7 @@ export function PhotoEditor({
   onClose: () => void;
   inline?: boolean;
 }) {
+  const [baseline, setBaseline] = useState(site.photos);
   const [images, setImages] = useState<DraftPhoto[]>(site.photos);
   const [reading, setReading] = useState(false);
   const [fileError, setFileError] = useState('');
@@ -74,8 +76,8 @@ export function PhotoEditor({
     <>
       {!inline && (
         <p className="form-help">
-          시연용 이미지입니다. R2 업로드는 하지 않으며 새로고침하면 초기화됩니다. JPG·PNG·WebP, 한
-          장당 10MB 이하. 미리보기는 최대 1600px로 축소됩니다.
+          현장당 최대 6장. JPG·PNG·WebP를 JPEG로 변환해 저장합니다. 한 장당 10MB 이하. 미리보기는
+          최대 1600px로 축소됩니다.
         </p>
       )}
       <input
@@ -94,7 +96,7 @@ export function PhotoEditor({
         onChange={(event) => void addFile(event.target.files?.[0])}
       />
       <div className={inline ? 'photo-editor-grid inline-photos' : 'photo-editor-grid'}>
-        {PHOTO_SLOTS.map((slot) => {
+        {(__MOCKS_ENABLED__ ? PHOTO_SLOTS : LIVE_PHOTO_SLOTS).map((slot) => {
           const image = images.find((value) => value.slot === slot);
           return (
             <section className="photo-editor-slot" key={slot}>
@@ -168,23 +170,48 @@ export function PhotoEditor({
         className="primary-btn full modal-save"
         disabled={busy || reading}
         onClick={async () => {
-          const success = await save(async () => {
-            const photos: SitePhoto[] = [];
-            for (const image of images)
-              photos.push({
-                slot: image.slot,
-                url: image.blob ? await photoDataUrl(image.blob) : image.url,
-              });
-            await api.photos(site.id, photos);
-          }, '시연 이미지를 저장했습니다. 새로고침하면 초기화됩니다.');
+          const success = await save(
+            async () => {
+              if (!__MOCKS_ENABLED__) {
+                let latest = site;
+                try {
+                  for (const old of baseline)
+                    if (old.id && !images.some((image) => image.slot === old.slot))
+                      latest = await call<Site>(`/sites/${site.id}/photos/${old.id}`, {
+                        method: 'DELETE',
+                      });
+                  for (const image of images)
+                    if (image.blob) {
+                      const old = baseline.find((value) => value.slot === image.slot);
+                      const body = new FormData();
+                      body.append('file', image.blob, 'photo.jpg');
+                      body.append('slot', image.slot);
+                      latest = await call<Site>(
+                        `/sites/${site.id}/photos${old?.id ? `/${old.id}` : ''}`,
+                        { method: old?.id ? 'PUT' : 'POST', body },
+                      );
+                    }
+                } finally {
+                  latest = await api.site(site.id);
+                  setBaseline(latest.photos);
+                  setImages(latest.photos);
+                }
+                return;
+              }
+              const photos: SitePhoto[] = [];
+              for (const image of images)
+                photos.push({
+                  slot: image.slot,
+                  url: image.blob ? await photoDataUrl(image.blob) : image.url,
+                });
+              await api.photos(site.id, photos);
+            },
+            __MOCKS_ENABLED__ ? '시연 이미지를 저장했습니다.' : '사진을 저장했습니다.',
+          );
           if (success) onClose();
         }}
       >
-        {reading
-          ? '이미지 준비 중…'
-          : busy
-            ? '시연 저장 중…'
-            : `이미지 ${images.length}개 시연 저장`}
+        {reading ? '이미지 준비 중…' : busy ? '저장 중…' : `이미지 ${images.length}개 저장`}
       </Button>
     </>
   );

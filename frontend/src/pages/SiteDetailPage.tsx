@@ -20,10 +20,11 @@ export function SiteDetailPage() {
     ['관리번호', site.managementNo],
     ['소블록', site.zone],
     ['성명', site.name],
+    ['수용가번호', site.consumerNumber ?? '—'],
     ['급수전번호', site.waterNo],
     ['업종', site.industry],
     ['계량기번호', site.meterNo],
-    ['봉인여부', site.sealed ? '봉인' : '미봉인'],
+    ['봉인여부', site.sealed == null ? '미확인' : site.sealed ? '봉인' : '미봉인'],
     ['급수구역', site.supplyArea],
     ['위치', site.address],
   ];

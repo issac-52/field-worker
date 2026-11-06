@@ -1,3 +1,4 @@
+import { ImportPanel } from '../components/ImportPanel';
 import { useState } from 'react';
 import { Button } from '../components/ui/button';
 import { ArrowRight, Coins, FileText, Users, Wallet } from 'lucide-react';
@@ -44,6 +45,7 @@ export function AdminPage() {
   return (
     <>
       <h1 className="sr-only">관리자 메뉴</h1>
+      {!__MOCKS_ENABLED__ && <ImportPanel />}
       <div className="admin-grid">
         {CARDS.map(({ page, label, description, color, Icon }) => (
           <Button variant="ghost" className="admin-card" key={page} onClick={() => navigate(page)}>

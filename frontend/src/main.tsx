@@ -28,5 +28,5 @@ async function bootstrap() {
 bootstrap().catch((error) => {
   console.error('앱 시작 실패:', error);
   document.getElementById('root')!.textContent =
-    '앱을 시작하지 못했습니다. MSW 서비스 워커 설치를 확인해주세요.';
+    '앱을 시작하지 못했습니다. 연결 상태를 확인하고 새로고침하세요.';
 });

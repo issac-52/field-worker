@@ -1,5 +1,8 @@
 # 백엔드 구현 계획
 
+> 2026-11-05: 현재 백엔드 구현/검증은 [MVP 기록](BACKEND_MVP_PROGRESS.md)과 [실행 안내](BACKEND_RUNBOOK.md)를 우선한다. 최신 요구는 전체 수용가 Import, 사진 총6장, 독립 START/END(END<START 오류), 정산 확정/지급 금액 보존, HWP 제외다. 아래 2026-10-23 설계/상태는 이 업데이트 이전 기록이다.
+
+
 업데이트: 2026-10-23. **설계 후보이며 실제 구현된 API는 GET /api/health뿐이다.** 현재 프론트가 호출하는 MSW 계약은 [API_CONTRACT.md](../frontend/API_CONTRACT.md)에 별도로 둔다.
 
 ## 현재 출발점

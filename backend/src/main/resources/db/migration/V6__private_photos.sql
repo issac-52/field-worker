@@ -1,0 +1,11 @@
+CREATE TABLE photos (
+ id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ site_id BIGINT NOT NULL REFERENCES worksites(id),
+ slot TEXT NOT NULL CHECK(slot IN ('OVERVIEW','START_CLOSEUP','END_CLOSEUP','TEMPORARY','EXTRA_1','EXTRA_2')),
+ object_key TEXT NOT NULL UNIQUE,
+ content_type TEXT NOT NULL, size_bytes BIGINT NOT NULL CHECK(size_bytes>0 AND size_bytes<=10485760),
+ uploaded_by BIGINT NOT NULL REFERENCES users(id),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(site_id,slot)
+);
+CREATE TABLE photo_deletions (object_key TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
