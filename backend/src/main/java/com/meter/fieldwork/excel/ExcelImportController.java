@@ -13,7 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class ExcelImportController {
   private final ExcelImportService imports;
 
-  public ExcelImportController(ExcelImportService imports) {
+  private final ExcelRepairService repairs;
+
+  public ExcelImportController(ExcelImportService imports, ExcelRepairService repairs) {
+    this.repairs = repairs;
     this.imports = imports;
   }
 
@@ -22,6 +25,14 @@ public class ExcelImportController {
       throws IOException {
     try (var stream = file.getInputStream()) {
       return ApiResult.ok(imports.importWorkbook(stream, actor == null ? null : actor.id()));
+    }
+  }
+
+  @PostMapping(value = "/repair", consumes = "multipart/form-data")
+  ApiResult<?> repair(@RequestParam MultipartFile file, @AuthenticationPrincipal SessionUser actor)
+      throws IOException {
+    try (var stream = file.getInputStream()) {
+      return ApiResult.ok(repairs.repair(stream, actor.id()));
     }
   }
 
