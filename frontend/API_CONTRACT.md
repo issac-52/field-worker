@@ -72,3 +72,7 @@ HWP 생성/작업 상태/ZIP 다운로드 API는 아직 없다. [HWP 사전 생�
 실제 백엔드 연결 모드의 관리자 지도 화면에서 `POST /api/admin/geocoding`을 사용한다. 요청은 `{afterId, throughId?, region}`이며 응답 data는 `{nextId, throughId, done, rows:[{id,consumerNumber,status}]}`다. 전체 미등록 좌표 중 최대 5건을 처리하고 기존 좌표는 보존한다. 상태는 UPDATED/EMPTY_ADDRESS/NO_UNIQUE_MATCH/CHANGED_OR_ALREADY_SET다. 인증·ADMIN·CSRF가 필요하며 API 호출 오류는 반복을 중단한다. 클라이언트는 반환한 상한과 커서를 후속 요청에 전달한다.
 
 Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessName`, `sourceReader`, `regularReadingDay`, `meterPresenceRaw`를 제공한다. 상세 조회에는 `sourceMonthlyValues:[{month,groupA,groupB,groupC}]`가 추가된다. 원본 월별 값은 문자열/null이고 신규 START/END와 분리한다. 빈 이름/정보는 원본 미기재로 표시한다.
+
+## 빈 기본정보 보완 (2026-11-07)
+
+`POST /api/admin/imports/repair` multipart file: 기존 수용가번호의 빈 기본정보만 보완한다. 신규 등록은 하지 않으며 기존 값과 업무 데이터는 유지한다. ADMIN/CSRF 필수. 응답 data: `{jobId,totalRows,updated,unchanged,duplicateInFile,notFound,invalid,rows:[{sheet,rowNumber,consumerNumber,reason,fields}]}`. reason은 UPDATED/UNCHANGED/DUPLICATE_IN_FILE/NOT_FOUND/INVALID_CONSUMER_NUMBER이며 fields는 실제 보완된 기본 필드/원본 셀이다. 일반 `/api/admin/imports`의 신규 등록 동작은 변경하지 않는다.

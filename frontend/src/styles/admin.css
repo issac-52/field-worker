@@ -342,3 +342,27 @@
     font-size: 32px;
   }
 }
+
+.import-panel {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.import-panel .field {
+  max-width: 480px;
+  margin: 0;
+}
+.import-panel p {
+  line-height: 1.6;
+}
+.import-panel form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.import-panel input[type='file'] {
+  min-width: 0;
+  max-width: 100%;
+}
