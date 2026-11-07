@@ -30,7 +30,7 @@ export function MapInspection({
   return (
     <section className="panel map-inspection" aria-label="선택 수용가 현장 입력">
       <div className="panel-title">
-        <h2>{site ? `${site.name} · ${site.managementNo}` : '수용가 정보'}</h2>
+        <h2>{site ? `${site.name || '성명 미기재'} · ${site.managementNo}` : '수용가 정보'}</h2>
         <Button
           variant="ghost"
           className="map-icon-button"
@@ -64,14 +64,23 @@ export function MapInspection({
                 수용가번호: site.consumerNumber ?? '—',
                 급수전번호: site.waterNo,
                 계량기번호: site.meterNo,
+                중블록: site.middleBlockId,
                 소블록: site.zone,
+                성명: site.name,
+                기존주소: site.oldAddress,
+                상호: site.businessName,
+                구경: site.meterDiameter,
+                가구수: site.householdCount,
+                '계량기 유무 (원본)': site.meterPresenceRaw,
+                기존검침담당: site.sourceReader,
+                정례검침일: site.regularReadingDay,
                 업종: site.industry,
                 급수구역: site.supplyArea,
                 봉인: site.sealed == null ? '미확인' : site.sealed ? '봉인' : '미봉인',
               }).map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
-                  <dd>{value}</dd>
+                  <dd>{value || '미기재'}</dd>
                 </div>
               ))}
             </dl>

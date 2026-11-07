@@ -1,3 +1,4 @@
+import { GeocodingPanel } from '../components/map/GeocodingPanel';
 import { useWork } from '../context/work';
 import { FieldMap } from '../components/map/FieldMap';
 import { Pagination } from '../components/Pagination';
@@ -7,11 +8,12 @@ import { useState } from 'react';
 import { MapInspection } from '../components/map/MapInspection';
 
 export function MapPage() {
-  const { sites, sitePage, changeListPage, loading } = useWork();
+  const { sites, sitePage, changeListPage, loading, role } = useWork();
   const [selected, setSelected] = useState<number>();
   return (
     <>
       <h1 className="sr-only">현장 지도</h1>
+      {role === 'ADMIN' && !__MOCKS_ENABLED__ && <GeocodingPanel />}
       <SiteSearch />
       <FieldMap sites={sites} onSelect={setSelected} />
       {selected !== undefined && (

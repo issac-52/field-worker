@@ -66,3 +66,9 @@ Mock url은 JPEG/PNG/WebP base64 data URL만 허용하며 최대 1,500,000자다
 exports 응답은 기본정보·검침·특이사항·photoSlots를 포함하고 사진 바이너리/URL은 제외한다. 클라이언트는 전 페이지를 수집해 35열 XLSX를 생성한다. 중복/전체 건수 변경은 거부하나 같은 건수 내 데이터 변경의 일관된 스냅샷은 보장하지 않는다.
 
 HWP 생성/작업 상태/ZIP 다운로드 API는 아직 없다. [HWP 사전 생성 설계](../docs/HWP_EXPORT_DESIGN.md)에 따라 개발자가 실제 계약을 정한다. 프론트의 HWP 버튼은 비활성이다.
+
+## 주소 좌표 자동 변환 및 원본 상세 필드 (2026-11-06)
+
+실제 백엔드 연결 모드의 관리자 지도 화면에서 `POST /api/admin/geocoding`을 사용한다. 요청은 `{afterId, throughId?, region}`이며 응답 data는 `{nextId, throughId, done, rows:[{id,consumerNumber,status}]}`다. 전체 미등록 좌표 중 최대 5건을 처리하고 기존 좌표는 보존한다. 상태는 UPDATED/EMPTY_ADDRESS/NO_UNIQUE_MATCH/CHANGED_OR_ALREADY_SET다. 인증·ADMIN·CSRF가 필요하며 API 호출 오류는 반복을 중단한다. 클라이언트는 반환한 상한과 커서를 후속 요청에 전달한다.
+
+Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessName`, `sourceReader`, `regularReadingDay`, `meterPresenceRaw`를 제공한다. 상세 조회에는 `sourceMonthlyValues:[{month,groupA,groupB,groupC}]`가 추가된다. 원본 월별 값은 문자열/null이고 신규 START/END와 분리한다. 빈 이름/정보는 원본 미기재로 표시한다.

@@ -27,7 +27,7 @@ BACKEND_ORIGIN은 EC2 앞의 HTTPS origin이다. /api 경로를 붙이지 않는
 ```dotenv
 SPRING_PROFILES_ACTIVE=prod
 DB_URL=jdbc:postgresql://127.0.0.1:5432/fieldwork
-DB_USER=fieldwork
+DB_USER=fieldwork_app
 DB_PASSWORD=YOUR_DATABASE_PASSWORD
 PORT=8080
 ALLOWED_ORIGINS=https://app.example.com

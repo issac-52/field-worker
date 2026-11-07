@@ -35,6 +35,22 @@ class ManualExcelImportTest extends PostgresIntegrationTest {
         .isEqualTo(19795);
     assertThat(jdbc.queryForObject("select count(*) from source_monthly_values", Integer.class))
         .isEqualTo(178155);
+    // Compare normalized fields against retained source cells without logging personal values.
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from worksites where name is distinct from"
+                    + " coalesce(source_cells->>'D','') or address is distinct from"
+                    + " coalesce(source_cells->>'E','') or meter_number is distinct from"
+                    + " coalesce(source_cells->>'G','')",
+                Integer.class))
+        .isZero();
+    System.out.printf(
+        "PRIVATE_MAPPING_SUMMARY missingNames=%d sourceNames=%d%n",
+        jdbc.queryForObject(
+            "select count(*) from worksites where coalesce(name,'')=''", Integer.class),
+        jdbc.queryForObject(
+            "select count(*) from worksites where coalesce(source_cells->>'D','')<>''",
+            Integer.class));
     long firstMillis = (System.nanoTime() - start) / 1_000_000;
     start = System.nanoTime();
     try (var stream = Files.newInputStream(Path.of(path))) {

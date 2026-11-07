@@ -28,7 +28,7 @@ public class WorksiteController {
 
   @GetMapping("/api/sites/{id}")
   ApiResult<?> detail(@PathVariable long id, @AuthenticationPrincipal SessionUser actor) {
-    return ApiResult.ok(sites.detail(id, admin(actor)));
+    return ApiResult.ok(sites.detailWithSource(id, admin(actor)));
   }
 
   @GetMapping("/api/blocks")

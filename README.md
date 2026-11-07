@@ -63,7 +63,7 @@ $env:SPRING_PROFILES_ACTIVE='local'
 .\gradlew.bat bootRun
 ```
 
-- local: localhost:5432/fieldwork, DB 사용자 fieldwork, 비밀번호는 DB_PASSWORD.
+- local: localhost:5432/fieldwork, DB 사용자 fieldwork_app, 비밀번호는 DB_PASSWORD.
 - prod: DB_URL/DB_USER/DB_PASSWORD를 외부에서 주입한다.
 - GET /api/health만 공개하며 나머지는 SecurityConfig에서 거부한다. health는 고정 응답으로 DB 상태 진단이 아니다.
 - Lombok import/annotationProcessor를 수정하고 Java 21 + Gradle 9.6.0에서 clean test 및 assemble을 확인했다. 현재 테스트는 health 단위 테스트 1개이며 DB/JPA 통합 검증은 별도다.
