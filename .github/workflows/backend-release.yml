@@ -1,0 +1,80 @@
+name: Backend Release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - 'deploy/**'
+      - '.github/workflows/backend-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Test and build JAR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test deployment rollback
+        run: python3 -m unittest discover -s deploy/tests -v
+      - name: PostgreSQL integration tests and executable JAR
+        working-directory: backend
+        run: bash ./gradlew test bootJar --no-daemon
+      - name: Package release
+        run: |
+          mkdir -p release
+          cp backend/build/libs/fieldwork-backend-0.1.0-SNAPSHOT.jar release/fieldwork.jar
+          cp deploy/install-release.sh release/install-release.sh
+          tar -czf backend-release.tar.gz -C release fieldwork.jar install-release.sh
+          sha256sum backend-release.tar.gz > backend-release.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ github.sha }}
+          path: |
+            backend-release.tar.gz
+            backend-release.tar.gz.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to EC2 via SSM
+    needs: build
+    if: github.ref == 'refs/heads/master' && vars.EC2_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET }}
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ github.sha }}
+      - name: Validate deployment configuration
+        run: python3 deploy/ssm_deploy.py validate
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: fieldwork-${{ github.run_id }}
+      - name: Upload verified release and wait for EC2 deployment
+        run: python3 deploy/ssm_deploy.py deploy

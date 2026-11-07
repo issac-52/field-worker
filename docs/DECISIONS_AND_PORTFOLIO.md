@@ -118,3 +118,10 @@
 - 사용자 요청에 따라 파일 좌표 업로드 대신 등록된 주소의 자동 변환을 구현했다. 관리자만 실행하며, 서버 전용 NAVER Geocoding 키·지역명·5건 단위 커서를 사용한다. 기존 좌표 보존 및 변경 이력을 적용했다.
 - 원본 셀에 남아 있으나 API/화면에 연결되지 않은 상세 항목과 월별 자료를 노출했다. 이름·주소·계량기번호 전수 대조에서 불일치 0건을 확인했고, 원본 이름 공란 51건은 값 생성 없이 미기재로 표시한다.
 - 운영 URL 접근은 네트워크 정책으로 차단됐다. 임시 PostgreSQL 및 합성 브라우저 검증과 운영 확인을 구분한다. 배포/실제 Geocoding 호출은 아직 하지 않았다. 자세한 설정과 제한은 GEOCODING_AND_SOURCE_DETAILS.md를 따른다.
+
+## 2026-11-07 — GitHub Actions 기반 EC2 배포
+
+- 사용자 요청으로 회사 PC의 PEM 없이 JAR 빌드/배포할 수 있도록 GitHub 호스팅 빌드 + 비공개 S3 + OIDC/SSM을 선택했다. EC2 SSH 전체 개방이나 장기 AWS 키를 요구하지 않는다.
+- master 빌드 아티팩트와 선택적 production 배포 job을 분리했다. AWS 설정 전에는 JAR 빌드만 실행하고, repository variable EC2_DEPLOY_ENABLED=true 이후 배포한다.
+- 버전별 번들 체크섬, JAR 백업/원자적 교체, health 실패 시 이전 JAR 복구 시도와 동시 배포 잠금을 구현했다. DB 롤백/무중단 배포/Cloudflare Tunnel 주소 갱신은 포함하지 않는다.
+- AWS 역할/버킷 CloudFormation 템플릿과 단계별 설정 문서를 제공한다. 실제 AWS 리소스를 생성하거나 EC2에 적용하지 않았다. 로컬 대역 테스트와 실제 OIDC/SSM 검증을 구분한다.

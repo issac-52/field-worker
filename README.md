@@ -71,3 +71,8 @@ $env:SPRING_PROFILES_ACTIVE='local'
 - Flyway 변경 전 각 DB 적용 이력을 확인한다. 적용된 마이그레이션을 수정하거나 DB 볼륨을 삭제하지 않는다.
 
 실제 환경파일·인증정보·고객 원본·사진은 Git과 공개 자료에 넣지 않는다. 작업 규칙은 [AGENTS.md](AGENTS.md)를 따른다.
+
+## EC2 자동 배포
+
+[GitHub Actions JAR 빌드·OIDC/SSM 배포 설정](docs/EC2_AUTOMATIC_DEPLOYMENT.md)을 따른다.
+`Backend Release`는 master에서 테스트 후 JAR 아티팩트를 만들며, AWS 설정과 `EC2_DEPLOY_ENABLED=true` 적용 후 EC2 배포도 수행한다.

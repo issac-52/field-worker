@@ -6,10 +6,12 @@ on:
     branches:
       - develop
       - main
+      - master
   pull_request:
     branches:
       - develop
       - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -73,6 +75,10 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Test deployment scripts
+        working-directory: .
+        run: python3 -m unittest discover -s deploy/tests -v
 
       - name: Run JUnit tests
         run: bash ./gradlew test --no-daemon
