@@ -18,6 +18,7 @@ export function SiteDetailPage() {
   if (!site) return <p className="loading">불러오는 중...</p>;
   const info = [
     ['관리번호', site.managementNo],
+    ['중블록', site.middleBlockId],
     ['소블록', site.zone],
     ['성명', site.name],
     ['수용가번호', site.consumerNumber ?? '—'],
@@ -26,7 +27,17 @@ export function SiteDetailPage() {
     ['계량기번호', site.meterNo],
     ['봉인여부', site.sealed == null ? '미확인' : site.sealed ? '봉인' : '미봉인'],
     ['급수구역', site.supplyArea],
-    ['위치', site.address],
+    ['도로명주소', site.address],
+    ['기존 주소', site.oldAddress],
+    ['상호', site.businessName],
+    ['구경', site.meterDiameter],
+    ['가구수', site.householdCount],
+    ['계량기 유무 (원본)', site.meterPresenceRaw],
+    ['하 (원본)', site.sewerRaw],
+    ['기존 검침담당', site.sourceReader],
+    ['정례검침일', site.regularReadingDay],
+    ['위도', site.latitude == null ? '미등록' : String(site.latitude)],
+    ['경도', site.longitude == null ? '미등록' : String(site.longitude)],
   ];
   return (
     <>
@@ -37,7 +48,7 @@ export function SiteDetailPage() {
       <section className="detail-head">
         <div>
           <h1>
-            {site.name} <StatusBadge site={site} />
+            {site.name || '성명 미기재'} <StatusBadge site={site} />
           </h1>
           <p>
             <MapPin size={15} />
@@ -63,12 +74,42 @@ export function SiteDetailPage() {
               {info.map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
-                  <dd>{value}</dd>
+                  <dd>{value || '미기재'}</dd>
                 </div>
               ))}
             </dl>
           </section>
 
+          {!!site.sourceMonthlyValues?.length && (
+            <section className="panel info-panel">
+              <h3>원본 Excel 월별 자료</h3>
+              <p className="form-help">
+                기존 Excel의 세 그룹을 원본대로 표시합니다. 새 START/END 검침과는 별도입니다.
+              </p>
+              <div style={{ overflowX: 'auto' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">월</th>
+                      <th scope="col">그룹 A (M:U)</th>
+                      <th scope="col">그룹 B (Y:AG)</th>
+                      <th scope="col">그룹 C (AK:AS)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {site.sourceMonthlyValues.map((row) => (
+                      <tr key={row.month}>
+                        <th scope="row">{row.month}</th>
+                        <td>{row.groupA ?? '미기재'}</td>
+                        <td>{row.groupB ?? '미기재'}</td>
+                        <td>{row.groupC ?? '미기재'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
           <section className="panel photos-panel">
             <div className="panel-title">
               <h3>현장 사진</h3>

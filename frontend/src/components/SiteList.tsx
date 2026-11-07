@@ -25,7 +25,7 @@ export function SiteList({
             onClick={() => onSelect(site.id)}
           >
             <SiteStatusIcon site={site} phase={phase} />
-            <strong className="site-name">{site.name}</strong>
+            <strong className="site-name">{site.name || '성명 미기재'}</strong>
             <span className="mini-index">#{site.managementNo}</span>
             <span className="site-zone">{site.zone}</span>
             <span className="site-address" title={site.address}>

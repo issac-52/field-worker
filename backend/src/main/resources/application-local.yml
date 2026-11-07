@@ -1,7 +1,7 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/fieldwork
-    username: fieldwork
+    username: fieldwork_app
     password: ${DB_PASSWORD}
 
 app:

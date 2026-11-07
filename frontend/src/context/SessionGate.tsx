@@ -51,17 +51,28 @@ export function SessionGate({ children }: { children: ReactNode }) {
   if (__MOCKS_ENABLED__) return children;
   if (loading)
     return (
-      <main className="content">
-        <p role="status">계정 확인 중…</p>
+      <main className="auth-page">
+        <p className="auth-card auth-loading" role="status">
+          계정 확인 중…
+        </p>
       </main>
     );
   if (!user || user.mustChangePassword || changing)
     return (
-      <main className="content">
-        <section className="panel" style={{ maxWidth: 440, margin: '48px auto' }}>
-          <h1>{user ? '비밀번호 변경' : '수도관리 로그인'}</h1>
-          {user?.mustChangePassword && <p>업무를 시작하려면 임시 비밀번호를 변경하세요.</p>}
+      <main className="auth-page">
+        <section className="auth-card" aria-labelledby="auth-title">
+          <header className="auth-heading">
+            <h1 id="auth-title">{user ? '비밀번호 변경' : '수도관리 로그인'}</h1>
+            <p>
+              {user?.mustChangePassword
+                ? '업무를 시작하려면 임시 비밀번호를 변경하세요.'
+                : user
+                  ? '현재 비밀번호와 새 비밀번호를 입력하세요.'
+                  : '발급받은 계정으로 로그인하세요.'}
+            </p>
+          </header>
           <form
+            className="auth-form"
             onSubmit={async (event) => {
               event.preventDefault();
               setBusy(true);
@@ -130,15 +141,26 @@ export function SessionGate({ children }: { children: ReactNode }) {
                 />
               </label>
             )}
-            {error && <p role="alert">{error}</p>}
-            <button className="primary-btn" disabled={busy}>
-              {busy ? '처리 중…' : user ? '비밀번호 변경' : '로그인'}
-            </button>
-            {user && !user.mustChangePassword && (
-              <button type="button" onClick={() => setChanging(false)}>
-                취소
-              </button>
+            {error && (
+              <p className="auth-message" role="alert">
+                {error}
+              </p>
             )}
+            <div className="auth-actions">
+              <button type="submit" className="primary-btn" disabled={busy}>
+                {busy ? '처리 중…' : user ? '비밀번호 변경' : '로그인'}
+              </button>
+              {user && !user.mustChangePassword && (
+                <button
+                  className="auth-cancel"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setChanging(false)}
+                >
+                  취소
+                </button>
+              )}
+            </div>
           </form>
         </section>
       </main>
