@@ -89,10 +89,26 @@ public class WorksiteService {
     return where.toString();
   }
 
+  public Map<String, Object> detailWithSource(long id, boolean admin) {
+    var site = detail(id, admin);
+    site.put(
+        "sourceMonthlyValues",
+        db.queryForList(
+            "select to_char(month,'YYYY-MM') as month,group_a as \"groupA\",group_b as"
+                + " \"groupB\",group_c as \"groupC\" from source_monthly_values where site_id=:id"
+                + " order by month",
+            Map.of("id", id)));
+    return site;
+  }
+
   public Map<String, Object> detail(long id, boolean admin) {
     var rows =
         db.queryForList(
-            "select *,source_cells->>'AZ' as supply_number from worksites where id=:id",
+            "select *,source_cells->>'AZ' as supply_number,source_cells->>'J' as"
+                + " meter_diameter,source_cells->>'K' as household_count,source_cells->>'L' as"
+                + " sewer_raw,source_cells->>'AX' as business_name,source_cells->>'BC' as"
+                + " source_reader,source_cells->>'BD' as regular_reading_day from worksites where"
+                + " id=:id",
             Map.of("id", id));
     if (rows.isEmpty()) throw new ApiException(404, "SITE_NOT_FOUND", "수용가를 찾을 수 없습니다.");
     var row = rows.getFirst();
@@ -108,7 +124,14 @@ public class WorksiteService {
     site.put("zone", text(row, "small_block"));
     site.put("industry", text(row, "industry"));
     site.put("meterNo", text(row, "meter_number"));
-    site.put("supplyArea", "");
+    site.put("supplyArea", ""); // Not present in the supplied workbook; do not invent a mapping.
+    site.put("oldAddress", text(row, "old_address"));
+    site.put("meterDiameter", text(row, "meter_diameter"));
+    site.put("householdCount", text(row, "household_count"));
+    site.put("sewerRaw", text(row, "sewer_raw"));
+    site.put("businessName", text(row, "business_name"));
+    site.put("sourceReader", text(row, "source_reader"));
+    site.put("regularReadingDay", text(row, "regular_reading_day"));
     site.put("sealed", null);
     site.put("meterPresenceRaw", text(row, "meter_presence_raw"));
     site.put("latitude", row.get("latitude"));
@@ -271,6 +294,32 @@ public class WorksiteService {
     var after = detail(id, admin);
     audit(id, actor, before, after);
     return after;
+  }
+
+  @Transactional
+  public boolean saveCoordinates(
+      long id,
+      long actor,
+      String expectedAddress,
+      String expectedOldAddress,
+      java.math.BigDecimal latitude,
+      java.math.BigDecimal longitude) {
+    lock(id);
+    var before = detail(id, true);
+    if (before.get("latitude") != null && before.get("longitude") != null) return false;
+    if (!Objects.equals(before.get("address"), expectedAddress)
+        || !Objects.equals(before.get("oldAddress"), expectedOldAddress)) return false;
+    if (latitude == null
+        || longitude == null
+        || latitude.abs().compareTo(java.math.BigDecimal.valueOf(90)) > 0
+        || longitude.abs().compareTo(java.math.BigDecimal.valueOf(180)) > 0)
+      throw new IllegalArgumentException();
+    db.update(
+        "update worksites set latitude=:lat,longitude=:lon,updated_at=clock_timestamp() where"
+            + " id=:id",
+        Map.of("lat", latitude, "lon", longitude, "id", id));
+    audit(id, actor, before, detail(id, true));
+    return true;
   }
 
   private void lock(long id) {

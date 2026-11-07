@@ -236,3 +236,26 @@
   padding: 5px;
   min-height: 32px;
 }
+
+.geocoding-panel {
+  padding: 24px;
+  margin-bottom: 24px;
+  display: grid;
+  gap: 16px;
+}
+.geocoding-panel p {
+  line-height: 1.6;
+  font-size: 14px;
+}
+.geocoding-panel .field {
+  margin: 0;
+  max-width: 480px;
+}
+.geocoding-panel li {
+  overflow-wrap: anywhere;
+}
+.geocoding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}

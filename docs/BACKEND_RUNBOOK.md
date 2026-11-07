@@ -15,7 +15,7 @@ set +a
 bash gradlew test bootJar --no-daemon
 ```
 
-Spring은 `.env`를 자동으로 읽지 않는다. Windows는 같은 값을 PowerShell `$env:...`로 설정한다. 기본 local DB는 localhost:5432/fieldwork, 사용자 fieldwork이며 `.env.example` 비밀번호는 기존 로컬 Compose와 맞춘 개발용 값이다.
+Spring은 `.env`를 자동으로 읽지 않는다. Windows는 같은 값을 PowerShell `$env:...`로 설정한다. 기본 local DB는 localhost:5432/fieldwork, 사용자 fieldwork_app이며 `.env.example` 비밀번호는 기존 로컬 Compose와 맞춘 개발용 값이다.
 
 최초 ADMIN은 HTTP 회원가입 대신 별도 명령으로 만든다. 아래 세 값을 환경변수로 주입한 상태에서 실행한다. 실제 비밀번호를 명령행 인자·Git·로그에 기록하지 않는다.
 
