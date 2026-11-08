@@ -76,3 +76,7 @@ Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessNa
 ## 빈 기본정보 보완 (2026-11-07)
 
 `POST /api/admin/imports/repair` multipart file: 기존 수용가번호의 빈 기본정보만 보완한다. 신규 등록은 하지 않으며 기존 값과 업무 데이터는 유지한다. ADMIN/CSRF 필수. 응답 data: `{jobId,totalRows,updated,unchanged,duplicateInFile,notFound,invalid,rows:[{sheet,rowNumber,consumerNumber,reason,fields}]}`. reason은 UPDATED/UNCHANGED/DUPLICATE_IN_FILE/NOT_FOUND/INVALID_CONSUMER_NUMBER이며 fields는 실제 보완된 기본 필드/원본 셀이다. 일반 `/api/admin/imports`의 신규 등록 동작은 변경하지 않는다.
+
+## 원본 월별 자료 제거 (2026-11-08)
+
+위 과거 sourceMonthlyValues 계약은 폐기한다. 상세 API는 해당 필드를 반환하지 않으며 화면과 타입에서도 제거한다. 신규/보완 Excel 업로드는 M:AW 월별 값·합계 및 월별 헤더를 무시한다. 기본정보 열 위치는 기존 양식대로 유지한다. 신규 START/END와 그 변경 이력은 유지한다.
