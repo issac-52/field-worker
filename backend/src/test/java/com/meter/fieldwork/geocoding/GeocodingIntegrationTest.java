@@ -26,7 +26,7 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
   @MockitoBean AddressGeocoder geocoder;
 
   @Test
-  void batchPreservesCoordinatesSkipsAmbiguousAndAuditsSuccessfulChanges() {
+  void hundredRowBatchPreservesCoordinatesReportsNoMatchAndAuditsChanges() {
     long actor =
         db.queryForObject(
             "insert into users(login_id,nickname,password,role) values(?,'Test','unused','ADMIN')"
@@ -36,26 +36,47 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
     UUID job = UUID.randomUUID();
     db.update("insert into import_jobs(id) values(?)", job);
     long after = db.queryForObject("select coalesce(max(id),0) from worksites", Long.class);
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 102; i++)
       db.update(
           "insert into"
-              + " worksites(consumer_number,address,source_cells,source_sheet,source_row,import_job_id)"
-              + " values(?,?,'{}','Test',3,?)",
+              + " worksites(consumer_number,address,middle_block,source_cells,source_sheet,source_row,import_job_id)"
+              + " values(?,?,'Test block','{}','Test',3,?)",
           UUID.randomUUID().toString(),
           "Test road " + i,
           job);
     long last = db.queryForObject("select max(id) from worksites", Long.class);
     db.update("update worksites set latitude=35,longitude=128 where id=?", last);
+    var active = new java.util.concurrent.atomic.AtomicInteger();
+    var peak = new java.util.concurrent.atomic.AtomicInteger();
+    var concurrent = new java.util.concurrent.CountDownLatch(2);
     when(geocoder.find(anyString()))
-        .thenReturn(
-            new AddressGeocoder.Match(new BigDecimal("36.1"), new BigDecimal("128.2"), "Test"));
-    when(geocoder.find("Test region Test road 1")).thenReturn(null);
-    var first = service.run(new GeocodingService.Request(after, last, "Test region"), actor);
-    assertThat(first.rows()).hasSize(5);
+        .thenAnswer(
+            invocation -> {
+              int count = active.incrementAndGet();
+              peak.accumulateAndGet(count, Math::max);
+              try {
+                concurrent.countDown();
+                assertThat(concurrent.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                return new AddressGeocoder.Match(
+                    new BigDecimal("36.1"), new BigDecimal("128.2"), "Test");
+              } finally {
+                active.decrementAndGet();
+              }
+            });
+    doReturn(null).when(geocoder).find("Test region Test road 1");
+    var first =
+        service.run(
+            new GeocodingService.Request(after, last, "Test region", "Test block", null, null),
+            actor);
+    assertThat(first.rows()).hasSize(100);
+    assertThat(peak.get()).isBetween(2, 10);
     assertThat(first.done()).isFalse();
-    assertThat(first.rows().get(1).status()).isEqualTo("NO_UNIQUE_MATCH");
+    assertThat(first.rows().get(1).status()).isEqualTo("NO_MATCH");
     var second =
-        service.run(new GeocodingService.Request(first.nextId(), last, "Test region"), actor);
+        service.run(
+            new GeocodingService.Request(
+                first.nextId(), last, "Test region", "Test block", null, null),
+            actor);
     assertThat(second.rows()).hasSize(1);
     assertThat(second.done()).isTrue();
     assertThat(
@@ -64,11 +85,86 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
     assertThat(
             db.queryForObject(
                 "select count(*) from worksite_edits where actor_id=?", Integer.class, actor))
-        .isEqualTo(5);
-    verify(geocoder, never()).find("Test region Test road 6");
+        .isEqualTo(100);
+    verify(geocoder, never()).find("Test region Test road 101");
     long id = first.rows().getFirst().id();
     assertThat(sites.saveCoordinates(id, actor, "Test road 0", "", BigDecimal.ONE, BigDecimal.ONE))
         .isFalse();
+  }
+
+  @Test
+  void filtersBlockAndKoreanRegistrationDayIncludingBothBoundaries() {
+    UUID job = UUID.randomUUID();
+    db.update("insert into import_jobs(id) values(?)", job);
+    String block = UUID.randomUUID().toString();
+    long after = db.queryForObject("select coalesce(max(id),0) from worksites", Long.class);
+    String[] times = {
+      "2026-11-06T14:59:59Z",
+      "2026-11-06T15:00:00Z",
+      "2026-11-07T14:59:59Z",
+      "2026-11-07T15:00:00Z",
+      "2026-11-07T00:00:00Z"
+    };
+    for (int i = 0; i < times.length; i++)
+      db.update(
+          "insert into"
+              + " worksites(consumer_number,middle_block,address,source_cells,source_sheet,source_row,import_job_id,created_at)"
+              + " values(?,?,?,'{}','Test',3,?,?::timestamptz)",
+          UUID.randomUUID().toString(),
+          i == 4 ? "Other block" : block,
+          "Filter road " + i,
+          job,
+          times[i]);
+    when(geocoder.find(anyString())).thenReturn(null);
+    var date = java.time.LocalDate.of(2026, 11, 7);
+    var result =
+        service.run(new GeocodingService.Request(after, null, "Test region", block, date, date), 1);
+    assertThat(result.rows()).hasSize(2).allMatch(row -> row.status().equals("NO_MATCH"));
+    assertThat(result.done()).isTrue();
+    var dateOnly =
+        service.run(
+            new GeocodingService.Request(
+                after,
+                db.queryForObject("select max(id) from worksites", Long.class),
+                "Test region",
+                null,
+                date,
+                date),
+            1);
+    assertThat(dateOnly.rows()).hasSize(3);
+    verify(geocoder, times(2)).find("Test region Filter road 1");
+    verify(geocoder, times(2)).find("Test region Filter road 2");
+    verify(geocoder, never()).find("Test region Filter road 0");
+    verify(geocoder, never()).find("Test region Filter road 3");
+    verify(geocoder).find("Test region Filter road 4");
+    assertThat(
+            db.queryForObject(
+                "select count(*) from worksites where import_job_id=? and latitude is not null",
+                Integer.class,
+                job))
+        .isZero();
+  }
+
+  @Test
+  void requiresFilterAndRejectsReversedDatesBeforeProviderCall() {
+    assertThatThrownBy(
+            () ->
+                service.run(
+                    new GeocodingService.Request(0, null, "Test region", "", null, null), 1))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                service.run(
+                    new GeocodingService.Request(
+                        0,
+                        null,
+                        "Test region",
+                        "",
+                        java.time.LocalDate.of(2026, 11, 8),
+                        java.time.LocalDate.of(2026, 11, 7)),
+                    1))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(geocoder);
   }
 
   @Test
