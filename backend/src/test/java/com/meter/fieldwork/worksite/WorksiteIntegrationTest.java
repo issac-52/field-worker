@@ -53,10 +53,6 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   @Test
   void preservedExcelDetailsAreAvailableWithoutReimport() throws Exception {
     jdbc.update(
-        "insert into source_monthly_values(site_id,month,group_a,group_b,group_c)"
-            + " values(?,'2026-01-01','0012','0',null)",
-        site);
-    jdbc.update(
         "update worksites set source_cells=?::jsonb,old_address=? where id=?",
         "{\"J\":\"15\",\"K\":\"3\",\"L\":\"O\",\"AX\":\"Test shop\",\"AZ\":\"00012\",\"BC\":\"Test"
             + " reader\",\"BD\":\"11\"}",
@@ -71,9 +67,7 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
         .andExpect(jsonPath("$.data.waterNo").value("00012"))
         .andExpect(jsonPath("$.data.sourceReader").value("Test reader"))
         .andExpect(jsonPath("$.data.regularReadingDay").value("11"))
-        .andExpect(jsonPath("$.data.sourceMonthlyValues[0].groupA").value("0012"))
-        .andExpect(jsonPath("$.data.sourceMonthlyValues[0].groupB").value("0"))
-        .andExpect(jsonPath("$.data.sourceMonthlyValues[0].groupC").isEmpty());
+        .andExpect(jsonPath("$.data.sourceMonthlyValues").doesNotExist());
   }
 
   @Test

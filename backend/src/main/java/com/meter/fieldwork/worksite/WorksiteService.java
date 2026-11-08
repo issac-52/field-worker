@@ -89,18 +89,6 @@ public class WorksiteService {
     return where.toString();
   }
 
-  public Map<String, Object> detailWithSource(long id, boolean admin) {
-    var site = detail(id, admin);
-    site.put(
-        "sourceMonthlyValues",
-        db.queryForList(
-            "select to_char(month,'YYYY-MM') as month,group_a as \"groupA\",group_b as"
-                + " \"groupB\",group_c as \"groupC\" from source_monthly_values where site_id=:id"
-                + " order by month",
-            Map.of("id", id)));
-    return site;
-  }
-
   public Map<String, Object> detail(long id, boolean admin) {
     var rows =
         db.queryForList(

@@ -57,8 +57,7 @@ public class ExcelRows {
   }
 
   private static ApiException invalid() {
-    return new ApiException(
-        400, "INVALID_WORKBOOK", "지원하는 XLSX 파일과 2행 기본정보/2026.01~09 월 헤더를 확인하세요.");
+    return new ApiException(400, "INVALID_WORKBOOK", "지원하는 XLSX 파일과 2행 기본정보 헤더를 확인하세요.");
   }
 
   private static class RowsHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
@@ -78,6 +77,7 @@ public class ExcelRows {
 
     public void cell(String reference, String value, XSSFComment comment) {
       int col = new CellReference(reference).getCol();
+      if (col >= 12 && col <= 48) return; // Ignore M:AW (original monthly data and totals).
       if (col >= 57 || value.length() > 10000) throw invalid();
       if (!value.isEmpty()) cells.put(CellReference.convertNumToColString(col), value);
     }
@@ -88,15 +88,6 @@ public class ExcelRows {
             "수용가번호".equals(cells.get("C"))
                 && "수용가명".equals(cells.get("D"))
                 && "새주소".equals(cells.get("E"));
-        for (int groupStart : new int[] {12, 24, 36}) {
-          for (int month = 1; month <= 9; month++) {
-            String expected = String.format(Locale.ROOT, "2026.%02d.", month);
-            header =
-                header
-                    && expected.equals(
-                        cells.get(CellReference.convertNumToColString(groupStart + month - 1)));
-          }
-        }
         if (!header) throw invalid();
       }
       if (rowNum > 1 && !cells.isEmpty()) {

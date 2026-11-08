@@ -86,7 +86,7 @@ curl -b cookies.txt -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
   -F 'file=@/private/path/input.xlsx' http://localhost:8080/api/admin/imports
 ```
 
-- 첨부 최종 파일의 2행 헤더, C/D/E 및 M:U/Y:AG/AK:AS의 2026.01~09 헤더를 검증한다. 다른 레이아웃은 조용히 잘못 매핑하지 않고 거부한다.
+- 첨부 최종 파일의 2행 C/D/E 기본정보 헤더를 검증한다. 월별 M:AW 영역은 헤더와 값 모두 무시한다. 다른 레이아웃은 조용히 잘못 매핑하지 않고 거부한다.
 - 모든 시트를 파일 순서로 처리한다. 각 시트는 같은 헤더/레이아웃을 가져야 한다.
 - 500행 배치, 최대50,000행, 파일25MB. 전체 Import는 한 트랜잭션이다.
 - 수용가번호는 표시 문자열 그대로 보존한다. 파일 안 최초 행 우선, DB 기존 값 유지, UNIQUE + ON CONFLICT로 동시 중복 방어.
@@ -94,7 +94,7 @@ curl -b cookies.txt -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
 - `jobId/totalRows/inserted/duplicateInFile/alreadyExists/invalid/skippedRows`를 반환한다. 제외 행에 sheet/rowNumber/consumerNumber/reason/firstSheet/firstRowNumber 포함.
 - 파일 전체 오류/DB 장애는 롤백한다. 정상 행과 행 단위 중복/누락은 함께 처리한다. 재시도해도 기존 수용가를 덮어쓰지 않는다.
 - `reWriteBatchedInserts`를 켜지 않는다. 드라이버의 정확한 행별 갱신 건수를 중복 보고에 사용한다.
-- 원본 월별 세 그룹의 업무상 의미는 아직 확인되지 않았으므로 A/B/C로 보존한다. 원본 셀 값·시트·행과 신규 START/END를 분리한다. 수식 재계산은 하지 않으며 캐시된 표시값을 읽는다.
+- 원본 Excel 월별 자료는 저장하지 않는다. M:AW를 제외한 기본정보 원본 셀과 출처 시트·행만 보존한다. Excel 열 위치는 기존 양식을 유지한다. 수식 재계산은 하지 않으며 캐시된 표시값을 읽는다.
 
 ## 사진과 R2
 
