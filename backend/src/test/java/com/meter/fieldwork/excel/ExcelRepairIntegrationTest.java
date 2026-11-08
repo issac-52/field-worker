@@ -62,8 +62,8 @@ class ExcelRepairIntegrationTest extends PostgresIntegrationTest {
         db.queryForObject(
             "insert into"
                 + " worksites(consumer_number,name,address,latitude,longitude,note,source_cells,source_sheet,source_row,import_job_id)"
-                + " values(?,'  ','Keep address',35,128,'Keep"
-                + " note','{\"D\":\"\",\"M\":\"123\"}','Original',3,?) returning id",
+                + " values(?,'  ','Keep address',35,128,'Keep note','{\"D\":\"\",\"AX\":\"Keep"
+                + " shop\"}','Original',3,?) returning id",
             Long.class,
             number,
             job);
@@ -77,13 +77,13 @@ class ExcelRepairIntegrationTest extends PostgresIntegrationTest {
     var row =
         db.queryForMap(
             "select name,address,latitude,longitude,note,source_cells->>'J' as"
-                + " diameter,source_cells->>'M' as original_month from worksites where id=?",
+                + " diameter,source_cells->>'AX' as business_name from worksites where id=?",
             site);
     assertThat(row.get("name")).isEqualTo("Recovered name");
     assertThat(row.get("address")).isEqualTo("Keep address");
     assertThat(row.get("note")).isEqualTo("Keep note");
     assertThat(row.get("diameter")).isEqualTo("15");
-    assertThat(row.get("original_month")).isEqualTo("123");
+    assertThat(row.get("business_name")).isEqualTo("Keep shop");
     assertThat(((java.math.BigDecimal) row.get("latitude"))).isEqualByComparingTo("35");
     mvc.perform(multipart("/api/admin/imports/repair").file(file).with(user(actor)).with(csrf()))
         .andExpect(status().isOk())

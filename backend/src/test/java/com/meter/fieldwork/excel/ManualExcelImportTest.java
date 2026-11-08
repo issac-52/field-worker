@@ -33,8 +33,15 @@ class ManualExcelImportTest extends PostgresIntegrationTest {
     assertThat(first.alreadyExists()).isZero();
     assertThat(jdbc.queryForObject("select count(*) from worksites", Integer.class))
         .isEqualTo(19795);
-    assertThat(jdbc.queryForObject("select count(*) from source_monthly_values", Integer.class))
-        .isEqualTo(178155);
+    assertThat(
+            jdbc.queryForObject(
+                "select to_regclass('public.source_monthly_values')::text", String.class))
+        .isNull();
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from worksites where source_cells ?| array['M','Y','AK']",
+                Integer.class))
+        .isZero();
     // Compare normalized fields against retained source cells without logging personal values.
     assertThat(
             jdbc.queryForObject(

@@ -26,12 +26,6 @@ export type Site = {
   meterNo: string;
   sealed: boolean | null;
   consumerNumber?: string;
-  sourceMonthlyValues?: {
-    month: string;
-    groupA: string | null;
-    groupB: string | null;
-    groupC: string | null;
-  }[];
   oldAddress?: string;
   meterDiameter?: string;
   householdCount?: string;
