@@ -69,10 +69,14 @@ HWP 생성/작업 상태/ZIP 다운로드 API는 아직 없다. [HWP 사전 생�
 
 ## 주소 좌표 자동 변환 및 원본 상세 필드 (2026-11-06)
 
-실제 백엔드 연결 모드의 관리자 지도 화면에서 `POST /api/admin/geocoding`을 사용한다. 요청은 `{afterId, throughId?, region}`이며 응답 data는 `{nextId, throughId, done, rows:[{id,consumerNumber,status}]}`다. 전체 미등록 좌표 중 최대 5건을 처리하고 기존 좌표는 보존한다. 상태는 UPDATED/EMPTY_ADDRESS/NO_UNIQUE_MATCH/CHANGED_OR_ALREADY_SET다. 인증·ADMIN·CSRF가 필요하며 API 호출 오류는 반복을 중단한다. 클라이언트는 반환한 상한과 커서를 후속 요청에 전달한다.
+실제 백엔드 연결 모드의 관리자 지도 화면에서 `POST /api/admin/geocoding`을 사용한다. 요청은 `{afterId, throughId?, region, middleBlock?, registeredFrom?, registeredTo?}`이며 응답 data는 `{nextId, throughId, done, rows:[{id,consumerNumber,status}]}`다. 중블록 또는 최초 등록일 조건이 필수이며 함께 입력하면 AND로 적용한다. 등록일은 한국 시간 기준 양 끝 날짜를 포함한다. 선택 조건의 미등록 좌표 중 최대 100건을 처리하고 기존 좌표는 보존한다. 느린 공급자 응답에서는 100건 미만으로 반환할 수 있다. 상태는 UPDATED/EMPTY_ADDRESS/NO_MATCH/CHANGED_OR_ALREADY_SET다. 인증·ADMIN·CSRF가 필요하며 API 호출 오류는 반복을 중단한다. 클라이언트는 반환한 상한과 커서 및 같은 필터를 후속 요청에 전달한다. 여러 검색 결과 중 NAVER의 첫 번째 결과를 사용한다. 같은 서버의 중복 배치는 GEOCODING_BUSY(409)로 거절한다.
 
 Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessName`, `sourceReader`, `regularReadingDay`, `meterPresenceRaw`를 제공한다. 상세 조회에는 `sourceMonthlyValues:[{month,groupA,groupB,groupC}]`가 추가된다. 원본 월별 값은 문자열/null이고 신규 START/END와 분리한다. 빈 이름/정보는 원본 미기재로 표시한다.
 
 ## 빈 기본정보 보완 (2026-11-07)
 
 `POST /api/admin/imports/repair` multipart file: 기존 수용가번호의 빈 기본정보만 보완한다. 신규 등록은 하지 않으며 기존 값과 업무 데이터는 유지한다. ADMIN/CSRF 필수. 응답 data: `{jobId,totalRows,updated,unchanged,duplicateInFile,notFound,invalid,rows:[{sheet,rowNumber,consumerNumber,reason,fields}]}`. reason은 UPDATED/UNCHANGED/DUPLICATE_IN_FILE/NOT_FOUND/INVALID_CONSUMER_NUMBER이며 fields는 실제 보완된 기본 필드/원본 셀이다. 일반 `/api/admin/imports`의 신규 등록 동작은 변경하지 않는다.
+
+## 원본 월별 자료 제거 (2026-11-08)
+
+위 과거 sourceMonthlyValues 계약은 폐기한다. 상세 API는 해당 필드를 반환하지 않으며 화면과 타입에서도 제거한다. 신규/보완 Excel 업로드는 M:AW 월별 값·합계 및 월별 헤더를 무시한다. 기본정보 열 위치는 기존 양식대로 유지한다. 신규 START/END와 그 변경 이력은 유지한다.

@@ -43,7 +43,7 @@ public class NaverAddressGeocoder implements AddressGeocoder {
                   b ->
                       b.path("/map-geocode/v2/geocode")
                           .queryParam("query", address)
-                          .queryParam("count", 2)
+                          .queryParam("count", 1)
                           .build())
               .header("x-ncp-apigw-api-key-id", key)
               .header("x-ncp-apigw-api-key", secret)
@@ -62,8 +62,7 @@ public class NaverAddressGeocoder implements AddressGeocoder {
   static Match parse(JsonNode body) {
     if (body == null || !"OK".equals(body.path("status").asText()))
       throw new ApiException(502, "GEOCODING_UNAVAILABLE", "주소 변환 서비스 응답을 확인할 수 없습니다.");
-    if (body.path("meta").path("totalCount").asInt() != 1 || body.path("addresses").size() != 1)
-      return null;
+    if (body.path("addresses").isEmpty()) return null;
     var item = body.path("addresses").get(0);
     var lat = new java.math.BigDecimal(item.path("y").asText());
     var lon = new java.math.BigDecimal(item.path("x").asText());

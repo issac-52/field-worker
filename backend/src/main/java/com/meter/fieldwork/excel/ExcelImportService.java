@@ -94,7 +94,6 @@ public class ExcelImportService {
             context.id
           });
     int[] counts = jdbc.batchUpdate(sql, arguments);
-    List<Object[]> monthly = new ArrayList<>();
     for (int i = 0; i < counts.length; i++) {
       var row = context.batch.get(i);
       if (counts[i] == 0) {
@@ -105,24 +104,7 @@ public class ExcelImportService {
         throw new IllegalStateException(
             "JDBC driver must return exact insert counts; disable reWriteBatchedInserts");
       context.inserted++;
-      for (int month = 1; month <= 9; month++) {
-        monthly.add(
-            new Object[] {
-              java.sql.Date.valueOf(java.time.LocalDate.of(2026, month, 1)),
-              row.cells()
-                  .get(org.apache.poi.ss.util.CellReference.convertNumToColString(11 + month)),
-              row.cells()
-                  .get(org.apache.poi.ss.util.CellReference.convertNumToColString(23 + month)),
-              row.cells()
-                  .get(org.apache.poi.ss.util.CellReference.convertNumToColString(35 + month)),
-              row.cell("C")
-            });
-      }
     }
-    jdbc.batchUpdate(
-        "insert into source_monthly_values(site_id,month,group_a,group_b,group_c) select id,?,?,?,?"
-            + " from worksites where consumer_number=?",
-        monthly);
     context.batch.clear();
   }
 

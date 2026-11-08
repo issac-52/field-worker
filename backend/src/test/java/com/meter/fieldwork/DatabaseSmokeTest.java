@@ -20,7 +20,7 @@ class DatabaseSmokeTest extends PostgresIntegrationTest {
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from information_schema.columns where table_name='users' and"
-                    + " column_name='login_id'",
+                    + " column_name='login_id' and table_schema=current_schema()",
                 Integer.class))
         .isEqualTo(1);
   }

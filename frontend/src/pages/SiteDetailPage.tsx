@@ -80,36 +80,6 @@ export function SiteDetailPage() {
             </dl>
           </section>
 
-          {!!site.sourceMonthlyValues?.length && (
-            <section className="panel info-panel">
-              <h3>원본 Excel 월별 자료</h3>
-              <p className="form-help">
-                기존 Excel의 세 그룹을 원본대로 표시합니다. 새 START/END 검침과는 별도입니다.
-              </p>
-              <div style={{ overflowX: 'auto' }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">월</th>
-                      <th scope="col">그룹 A (M:U)</th>
-                      <th scope="col">그룹 B (Y:AG)</th>
-                      <th scope="col">그룹 C (AK:AS)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {site.sourceMonthlyValues.map((row) => (
-                      <tr key={row.month}>
-                        <th scope="row">{row.month}</th>
-                        <td>{row.groupA ?? '미기재'}</td>
-                        <td>{row.groupB ?? '미기재'}</td>
-                        <td>{row.groupC ?? '미기재'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
           <section className="panel photos-panel">
             <div className="panel-title">
               <h3>현장 사진</h3>

@@ -82,10 +82,10 @@ class ExcelImportIntegrationTest extends PostgresIntegrationTest {
         .andExpect(jsonPath("$.data.duplicateInFile").value(1));
     assertThat(
             jdbc.queryForObject(
-                "select count(*) from source_monthly_values where site_id in (select id from"
-                    + " worksites where consumer_number in ('00001','00002'))",
+                "select count(*) from worksites where consumer_number in ('00001','00002') and"
+                    + " source_cells ?| array['M','Y','AK']",
                 Integer.class))
-        .isEqualTo(18);
+        .isZero();
   }
 
   @Test
@@ -183,7 +183,7 @@ class ExcelImportIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
-  void rejectsChangedMonthlyHeadersInsteadOfAssigningWrongYear() throws Exception {
+  void ignoresMonthlyHeadersAndValues() throws Exception {
     byte[] data;
     try (var book = new XSSFWorkbook(new java.io.ByteArrayInputStream(workbook("wrong-year")));
         var out = new ByteArrayOutputStream()) {
@@ -191,8 +191,13 @@ class ExcelImportIntegrationTest extends PostgresIntegrationTest {
       book.write(out);
       data = out.toByteArray();
     }
-    org.assertj.core.api.Assertions.assertThatThrownBy(
-            () -> imports.importWorkbook(new java.io.ByteArrayInputStream(data), null))
-        .isInstanceOf(com.meter.fieldwork.global.ApiException.class);
+    var result = imports.importWorkbook(new java.io.ByteArrayInputStream(data), null);
+    assertThat(result.inserted()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select source_cells ?| array['M','Y','AK'] from worksites where"
+                    + " consumer_number='wrong-year'",
+                Boolean.class))
+        .isFalse();
   }
 }
