@@ -259,3 +259,12 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+
+.geocoding-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.geocoding-dates .field {
+  flex: 1 1 200px;
+}

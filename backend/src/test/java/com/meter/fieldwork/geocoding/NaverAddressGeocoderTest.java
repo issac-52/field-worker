@@ -10,7 +10,7 @@ class NaverAddressGeocoderTest {
   ObjectMapper json = new ObjectMapper();
 
   @Test
-  void ambiguousAndMissingResultsAreNeverAssigned() throws Exception {
+  void missingResultsStayUnconvertedAndMultipleResultsUseFirst() throws Exception {
     assertThat(
             NaverAddressGeocoder.parse(
                 json.readTree("{\"status\":\"OK\",\"meta\":{\"totalCount\":0},\"addresses\":[]}")))
@@ -18,8 +18,9 @@ class NaverAddressGeocoderTest {
     assertThat(
             NaverAddressGeocoder.parse(
                 json.readTree(
-                    "{\"status\":\"OK\",\"meta\":{\"totalCount\":2},\"addresses\":[{},{}]}")))
-        .isNull();
+                    "{\"status\":\"OK\",\"meta\":{\"totalCount\":2},\"addresses\":[{\"x\":\"128.7\",\"y\":\"35.8\"},{\"x\":\"129\",\"y\":\"36\"}]}")))
+        .extracting(AddressGeocoder.Match::latitude)
+        .isEqualTo(new java.math.BigDecimal("35.8"));
   }
 
   @Test
