@@ -80,3 +80,8 @@ Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessNa
 ## 원본 월별 자료 제거 (2026-11-08)
 
 위 과거 sourceMonthlyValues 계약은 폐기한다. 상세 API는 해당 필드를 반환하지 않으며 화면과 타입에서도 제거한다. 신규/보완 Excel 업로드는 M:AW 월별 값·합계 및 월별 헤더를 무시한다. 기본정보 열 위치는 기존 양식대로 유지한다. 신규 START/END와 그 변경 이력은 유지한다.
+
+
+## 지도 영역 조회 (2026-11-09)
+
+`GET /api/map-sites?south=35.81&north=35.83&west=128.73&east=128.75&zoom=16` — 인증 필요. 목록 검색·블록 필터·페이지와 독립적으로 전체 수용가 중 영역 안 좌표를 조회한다. 확대 수준 16~22 및 각 축 범위 0.05도 이하만 허용하고 잘못된 범위는 400이다. 응답 data는 `{items:[{id,latitude,longitude,status}],truncated}`이며 status는 TODO/IN_PROGRESS/DONE이다. 이름·주소·사진·전체 검침 상세는 포함하지 않는다. 500건 이하는 전체 반환하며 500건 초과면 items를 비우고 truncated=true로 더 확대하도록 안내한다. 경계는 포함하며 좌표 미등록/0,0은 제외한다. 지도 이동 종료 후 조회하며 검색 목록의 페이지 변경과 좌표 변환 배치 완료마다 갱신하지 않는다.
