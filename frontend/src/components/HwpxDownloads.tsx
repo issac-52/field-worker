@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { call } from '../api/client';
+import { call, ApiError } from '../api/client';
 import { Button } from './ui/button';
 
 type Job = {
@@ -18,6 +18,8 @@ const labels: Record<string, string> = {
   RUNNING: '생성 중',
   READY: '완료',
   FAILED: '실패',
+  CANCELLED: '취소됨',
+  DELETING: '삭제 중',
 };
 export function HwpxDownloads({
   siteId,
@@ -36,13 +38,21 @@ export function HwpxDownloads({
   const history = useQuery({
     queryKey: ['document-jobs'],
     queryFn: () => call<History[]>('/exports/cards'),
+    refetchInterval: (q) =>
+      q.state.data?.some((item) => ['QUEUED', 'RUNNING', 'DELETING'].includes(item.status))
+        ? 2000
+        : false,
   });
   const job = useQuery({
     queryKey: ['document-job', jobId],
     queryFn: () => call<Job>(`/exports/cards/${jobId}`),
     enabled: !!jobId,
     refetchInterval: (q) =>
-      ['QUEUED', 'RUNNING'].includes(q.state.data?.status ?? '') ? 2000 : false,
+      q.state.error instanceof ApiError && q.state.error.status === 404
+        ? false
+        : ['QUEUED', 'RUNNING', 'DELETING'].includes(q.state.data?.status ?? '')
+          ? 2000
+          : false,
   });
   async function create() {
     setBusy(true);
@@ -61,6 +71,29 @@ export function HwpxDownloads({
       await client.invalidateQueries({ queryKey: ['document-jobs'] });
     } catch (e) {
       setError(e instanceof Error ? e.message : '문서 생성 요청 실패');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function manage(id: string, action: 'cancel' | 'delete') {
+    if (
+      action === 'delete' &&
+      !window.confirm(
+        '이 작업과 생성 결과를 삭제할까요? 진행 중이면 취소하며 다른 작업이 사용하는 문서는 유지합니다.',
+      )
+    )
+      return;
+    setBusy(true);
+    setError('');
+    try {
+      await call(`/exports/cards/${id}${action === 'cancel' ? '/cancel' : ''}`, {
+        method: action === 'cancel' ? 'POST' : 'DELETE',
+      });
+      if (action === 'delete' && jobId === id) setJobId(undefined);
+      await client.invalidateQueries({ queryKey: ['document-jobs'] });
+      await client.invalidateQueries({ queryKey: ['document-job', id] });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '작업 변경 실패');
     } finally {
       setBusy(false);
     }
@@ -121,6 +154,32 @@ export function HwpxDownloads({
             {labels[job.data.status] ?? job.data.status} · {job.data.completed.toLocaleString()} /{' '}
             {job.data.total.toLocaleString()}건
           </p>
+          <div className="hwpx-parts">
+            {['QUEUED', 'RUNNING'].includes(job.data.status) && (
+              <Button
+                variant="outline"
+                className="outline-btn"
+                disabled={busy}
+                onClick={() => void manage(job.data!.id, 'cancel')}
+              >
+                생성 취소
+              </Button>
+            )}
+            {job.data.status !== 'DELETING' && (
+              <Button
+                variant="outline"
+                className="outline-btn"
+                disabled={busy}
+                onClick={() => void manage(job.data!.id, 'delete')}
+              >
+                생성 결과 삭제
+              </Button>
+            )}
+          </div>
+          <p className="form-help">
+            취소는 처리 중인 한 건이 끝난 뒤 멈춥니다. 결과 삭제는 다른 작업이 사용하는 문서를
+            보존하며 저장소 삭제는 순차 처리됩니다.
+          </p>
           {job.data.error && <p className="form-error">{job.data.error}</p>}
           <Button
             variant="outline"
@@ -139,8 +198,29 @@ export function HwpxDownloads({
             <li key={item.id}>
               <Button variant="ghost" className="text-btn" onClick={() => setJobId(item.id)}>
                 {new Date(item.createdAt).toLocaleString('ko-KR')} · {item.total.toLocaleString()}건
-                보기
+                보기 · {labels[item.status] ?? item.status} · {item.completed.toLocaleString()}건
+                처리
               </Button>
+              {['QUEUED', 'RUNNING'].includes(item.status) && (
+                <Button
+                  variant="outline"
+                  className="outline-btn"
+                  disabled={busy}
+                  onClick={() => void manage(item.id, 'cancel')}
+                >
+                  생성 취소
+                </Button>
+              )}
+              {item.status !== 'DELETING' && (
+                <Button
+                  variant="outline"
+                  className="outline-btn"
+                  disabled={busy}
+                  onClick={() => void manage(item.id, 'delete')}
+                >
+                  결과 삭제
+                </Button>
+              )}
             </li>
           ))}
         </ul>

@@ -86,9 +86,76 @@ public class DocumentService {
         });
   }
 
+  public void cancel(UUID id, long actor) {
+    job(id, actor);
+    int changed =
+        db.update(
+            "update document_jobs set status='CANCELLED',error=null where id=? and status in"
+                + " ('QUEUED','RUNNING') and not delete_requested",
+            id);
+    if (changed == 0 && !"CANCELLED".equals(job(id, actor).get("status")))
+      throw new ApiException(409, "EXPORT_NOT_RUNNING", "이미 완료된 작업은 결과 삭제를 이용하세요.");
+  }
+
+  public void requestDelete(UUID id, long actor) {
+    job(id, actor);
+    db.update(
+        "update document_jobs set delete_requested=true,status='CANCELLED',error=null where id=?",
+        id);
+  }
+
+  private boolean cancelled(UUID id) {
+    return db.queryForObject(
+            "select count(*) from document_jobs where id=? and status in ('QUEUED','RUNNING') and"
+                + " not delete_requested",
+            Integer.class,
+            id)
+        == 0;
+  }
+
+  private void purgeRequestedJobs() {
+    for (UUID id :
+        db.queryForList("select id from document_jobs where delete_requested", UUID.class)) {
+      tx.executeWithoutResult(
+          status -> {
+            var keys =
+                new ArrayList<>(
+                    db.queryForList(
+                        "select object_key from document_parts where job_id=?", String.class, id));
+            String unshared =
+                "site_id in (select site_id from document_job_items where job_id=?) and not"
+                    + " exists(select 1 from document_job_items i join document_jobs j on"
+                    + " j.id=i.job_id where i.site_id=document_cache.site_id and j.id<>? and not"
+                    + " j.delete_requested and j.expires_at>now())";
+            keys.addAll(
+                db.queryForList(
+                    "select object_key from document_cache where " + unshared,
+                    String.class,
+                    id,
+                    id));
+            db.update("delete from document_cache where " + unshared, id, id);
+            db.update("delete from document_jobs where id=?", id);
+            for (String key : keys) {
+              int removed =
+                  db.update(
+                      "delete from document_artifacts a where object_key=? and not exists(select 1"
+                          + " from document_cache c where c.object_key=a.object_key) and not"
+                          + " exists(select 1 from document_parts p where"
+                          + " p.object_key=a.object_key)",
+                      key);
+              if (removed > 0)
+                db.update(
+                    "insert into photo_deletions(object_key) values(?) on conflict do nothing",
+                    key);
+            }
+          });
+    }
+  }
+
   public List<Map<String, Object>> list(long actor) {
     return db.queryForList(
-        "select id,title,status,total,completed,error,created_at as \"createdAt\",expires_at as"
+        "select id,title,case when delete_requested then 'DELETING' else status end as"
+            + " status,total,completed,error,created_at as \"createdAt\",expires_at as"
             + " \"expiresAt\" from document_jobs where created_by=? and expires_at>now() order by"
             + " created_at desc limit 20",
         actor);
@@ -111,7 +178,7 @@ public class DocumentService {
         "id",
         id,
         "status",
-        job.get("status"),
+        Boolean.TRUE.equals(job.get("delete_requested")) ? "DELETING" : job.get("status"),
         "title",
         job.get("title"),
         "total",
@@ -258,6 +325,8 @@ jsonb_build_object('site',to_jsonb(s),
 
   public byte[] download(UUID id, int part, long actor) {
     var job = job(id, actor);
+    if (Boolean.TRUE.equals(job.get("delete_requested")))
+      throw new ApiException(409, "EXPORT_DELETING", "결과 삭제 중입니다.");
     var parts =
         db.queryForList(
             "select p.* from document_parts p join document_artifacts a using(object_key) where"
@@ -290,6 +359,14 @@ jsonb_build_object('site',to_jsonb(s),
 
   // A database session lock serializes generation/cleanup across process restarts and instances.
   public void tick() {
+    tick(true);
+  }
+
+  public void maintain() {
+    tick(false);
+  }
+
+  private void tick(boolean generate) {
     db.execute(
         (ConnectionCallback<Void>)
             connection -> {
@@ -299,7 +376,9 @@ jsonb_build_object('site',to_jsonb(s),
                 if (!result.getBoolean(1)) return null;
               }
               try {
+                purgeRequestedJobs();
                 cleanup();
+                if (!generate) return null;
                 var jobs =
                     db.queryForList(
                         "select * from document_jobs where status in ('QUEUED','RUNNING') and"
@@ -318,7 +397,11 @@ jsonb_build_object('site',to_jsonb(s),
     UUID id = (UUID) job.get("id");
     String title = (String) job.get("title");
     int completed = ((Number) job.get("completed")).intValue();
-    db.update("update document_jobs set status='RUNNING',error=null where id=?", id);
+    if (db.update(
+            "update document_jobs set status='RUNNING',error=null where id=? and status in"
+                + " ('QUEUED','RUNNING') and not delete_requested",
+            id)
+        == 0) return;
     try {
       var candidates =
           db.queryForList(
@@ -330,6 +413,7 @@ jsonb_build_object('site',to_jsonb(s),
       int last = completed;
       try (var zip = new ZipOutputStream(out)) {
         for (var row : candidates) {
+          if (cancelled(id)) return;
           long site = ((Number) row.get("site_id")).longValue();
           JsonNode snap = snapshot(site);
           String hash = fingerprint(snap, title);
@@ -350,34 +434,49 @@ jsonb_build_object('site',to_jsonb(s),
           if (out.size() >= 16 * 1024 * 1024) break;
         }
       }
+      if (cancelled(id)) return;
       if (last == completed) throw new IllegalStateException("Empty job");
       String key = artifact(out.toByteArray(), "application/zip");
       int end = last;
-      tx.executeWithoutResult(
-          status -> {
-            int part =
-                db.queryForObject(
-                    "select coalesce(max(part),0)+1 from document_parts where job_id=?",
-                    Integer.class,
+      boolean published =
+          tx.execute(
+              status -> {
+                String state =
+                    db.queryForObject(
+                        "select status from document_jobs where id=? for update", String.class, id);
+                if ("CANCELLED".equals(state)) return false;
+                int part =
+                    db.queryForObject(
+                        "select coalesce(max(part),0)+1 from document_parts where job_id=?",
+                        Integer.class,
+                        id);
+                db.update(
+                    "insert into document_parts(job_id,part,object_key,first_ordinal,last_ordinal)"
+                        + " values(?,?,?,?,?)",
+                    id,
+                    part,
+                    key,
+                    completed + 1,
+                    end);
+                db.update(
+                    "update document_jobs set completed=?,status=case when total=? then 'READY'"
+                        + " else 'QUEUED' end where id=?",
+                    end,
+                    end,
                     id);
-            db.update(
-                "insert into document_parts(job_id,part,object_key,first_ordinal,last_ordinal)"
-                    + " values(?,?,?,?,?)",
-                id,
-                part,
-                key,
-                completed + 1,
-                end);
-            db.update(
-                "update document_jobs set completed=?,status=case when total=? then 'READY' else"
-                    + " 'QUEUED' end where id=?",
-                end,
-                end,
-                id);
-          });
+                return true;
+              });
+      if (!published)
+        tx.executeWithoutResult(
+            status -> {
+              db.update(
+                  "insert into photo_deletions(object_key) values(?) on conflict do nothing", key);
+              db.update("delete from document_artifacts where object_key=?", key);
+            });
     } catch (Exception ex) {
       db.update(
-          "update document_jobs set status='FAILED',error=? where id=?",
+          "update document_jobs set status='FAILED',error=? where id=? and status in"
+              + " ('QUEUED','RUNNING')",
           "문서 생성 중 오류가 발생했습니다. 사진/정보 변경 또는 저장소 연결을 확인하고 다시 요청하세요.",
           id);
       org.slf4j.LoggerFactory.getLogger(DocumentService.class)

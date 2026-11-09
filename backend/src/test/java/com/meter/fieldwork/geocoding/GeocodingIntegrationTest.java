@@ -25,8 +25,18 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
   @Autowired MockMvc mvc;
   @MockitoBean AddressGeocoder geocoder;
 
-  @Test
-  void providerFailurePreservesSuccessfulRowsAndPausesWithoutCallingNextChunk() {
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(
+      strings = {
+        "GEOCODING_UNAVAILABLE",
+        "GEOCODING_RATE_LIMITED",
+        "GEOCODING_ACCESS_DENIED",
+        "ALL_UNAVAILABLE"
+      })
+  void isolatedFailureContinuesButAccountWideFailurePauses(String code) {
+    boolean all = code.equals("ALL_UNAVAILABLE");
+    boolean pause = !code.equals("GEOCODING_UNAVAILABLE");
+    String reportedCode = all ? "GEOCODING_UNAVAILABLE" : code;
     long actor =
         db.queryForObject(
             "insert into users(login_id,nickname,password,role) values(?,'Test','unused','ADMIN')"
@@ -48,26 +58,25 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
           job);
     when(geocoder.find(anyString()))
         .thenReturn(new AddressGeocoder.Match(BigDecimal.ONE, BigDecimal.ONE, "Test"));
-    doThrow(
-            new com.meter.fieldwork.global.ApiException(
-                502, "GEOCODING_UNAVAILABLE", "Test provider failure"))
+    doThrow(new com.meter.fieldwork.global.ApiException(502, reportedCode, "Test provider failure"))
         .when(geocoder)
-        .find("Test region Failure road 1");
+        .find(all ? anyString() : eq("Test region Failure road 1"));
     var result =
         service.run(
             new GeocodingService.Request(after, null, "Test region", block, null, null), actor);
-    assertThat(result.rows()).hasSize(10);
+    assertThat(result.rows()).hasSize(pause ? 10 : 12);
     assertThat(result.rows().stream().filter(r -> r.status().equals("UPDATED")).count())
-        .isEqualTo(9);
+        .isEqualTo(all ? 0 : pause ? 9 : 11);
     assertThat(result.rows().get(1).status()).isEqualTo("SERVICE_ERROR");
-    assertThat(result.done()).isFalse();
-    verify(geocoder, never()).find("Test region Failure road 10");
+    assertThat(result.done()).isEqualTo(!pause);
+    assertThat(result.errorCode()).isEqualTo(pause ? reportedCode : null);
+    verify(geocoder, times(pause ? 0 : 1)).find("Test region Failure road 10");
     assertThat(
             db.queryForObject(
                 "select count(*) from worksites where import_job_id=? and latitude is not null",
                 Integer.class,
                 job))
-        .isEqualTo(9);
+        .isEqualTo(all ? 0 : pause ? 9 : 11);
   }
 
   @Test

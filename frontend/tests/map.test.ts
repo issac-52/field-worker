@@ -190,7 +190,8 @@ describe('viewport request limits', () => {
   it('requires sufficient zoom and bounded visible area', () => {
     const area = { south: 35.81, north: 35.83, west: 128.73, east: 128.75, zoom: 16 };
     expect(validViewport(area)).toBe(true);
-    expect(validViewport({ ...area, zoom: 15 })).toBe(false);
+    expect(validViewport({ ...area, zoom: 15, north: 35.89, east: 128.81 })).toBe(true);
+    expect(validViewport({ ...area, zoom: 14 })).toBe(false);
     expect(validViewport({ ...area, north: 36 })).toBe(false);
     expect(validViewport({ ...area, east: 130 })).toBe(false);
     expect(validViewport({ ...area, south: NaN })).toBe(false);
