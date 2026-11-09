@@ -22,8 +22,8 @@ public class NaverAddressGeocoder implements AddressGeocoder {
     this.secret = secret;
     var factory =
         new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
-    factory.setReadTimeout(Duration.ofSeconds(8));
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
+    factory.setReadTimeout(Duration.ofSeconds(5));
     client =
         RestClient.builder()
             .requestFactory(factory)
@@ -52,11 +52,28 @@ public class NaverAddressGeocoder implements AddressGeocoder {
       return parse(body);
     } catch (ApiException ex) {
       throw ex;
+    } catch (org.springframework.web.client.RestClientResponseException ex) {
+      throw providerError(ex.getStatusCode().value());
     } catch (Exception ex) {
       // Provider exceptions can contain the personal address/credentials; do not expose them.
       throw new ApiException(
           502, "GEOCODING_UNAVAILABLE", "주소 변환 서비스 호출에 실패했습니다. API 권한·할당량·연결을 확인하세요.");
     }
+  }
+
+  static ApiException providerError(int status) {
+    return switch (status) {
+      case 401, 403 ->
+          new ApiException(502, "GEOCODING_ACCESS_DENIED", "NAVER Geocoding 키 또는 API 권한을 확인하세요.");
+      case 429 ->
+          new ApiException(
+              502,
+              "GEOCODING_RATE_LIMITED",
+              "NAVER Geocoding 호출 한도에 도달했습니다. 할당량을 확인하고 잠시 후 다시 실행하세요.");
+      default ->
+          new ApiException(
+              502, "GEOCODING_UNAVAILABLE", "NAVER Geocoding 연결 또는 응답에 문제가 있습니다. 잠시 후 다시 실행하세요.");
+    };
   }
 
   static Match parse(JsonNode body) {

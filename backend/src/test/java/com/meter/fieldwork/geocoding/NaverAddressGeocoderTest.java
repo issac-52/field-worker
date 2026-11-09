@@ -10,6 +10,13 @@ class NaverAddressGeocoderTest {
   ObjectMapper json = new ObjectMapper();
 
   @Test
+  void providerErrorsSeparatePermissionQuotaAndUnavailableWithoutLeakingResponse() {
+    assertThat(NaverAddressGeocoder.providerError(403).code).isEqualTo("GEOCODING_ACCESS_DENIED");
+    assertThat(NaverAddressGeocoder.providerError(429).code).isEqualTo("GEOCODING_RATE_LIMITED");
+    assertThat(NaverAddressGeocoder.providerError(503).code).isEqualTo("GEOCODING_UNAVAILABLE");
+  }
+
+  @Test
   void missingResultsStayUnconvertedAndMultipleResultsUseFirst() throws Exception {
     assertThat(
             NaverAddressGeocoder.parse(

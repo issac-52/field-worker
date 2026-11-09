@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { siteApi } from '../../api/sites';
-import { call } from '../../api/client';
+import { geocodingBatch } from '../../lib/geocodingBatch';
+import type { GeocodingRow as Row } from '../../lib/geocodingBatch';
 import { Button } from '../ui/button';
 
-type Row = { id: number; consumerNumber: string; status: string };
-type Result = { nextId: number; throughId: number; done: boolean; rows: Row[] };
 const labels: Record<string, string> = {
   UPDATED: '좌표 등록',
+  SERVICE_ERROR: '변환 중단 (주소 검색 서비스 오류)',
   EMPTY_ADDRESS: '변환 안 됨 (주소 없음)',
   NO_MATCH: '변환 안 됨 (검색 결과 없음)',
   CHANGED_OR_ALREADY_SET: '주소 변경 또는 좌표 등록됨',
@@ -41,20 +41,27 @@ export function GeocodingPanel() {
     let throughId: number | undefined;
     try {
       while (!stop.current) {
-        const result = await call<Result>('/admin/geocoding', {
-          method: 'POST',
-          body: JSON.stringify({
+        const result = await geocodingBatch(
+          {
             afterId: cursor,
             throughId,
             region: region.trim(),
             middleBlock: middleBlock || undefined,
             registeredFrom: registeredFrom || undefined,
             registeredTo: registeredTo || undefined,
-          }),
-        });
+          },
+          undefined,
+          () => setMessage('연결 오류로 잠시 후 재시도합니다. 이미 저장된 좌표는 유지됩니다.'),
+        );
         setRows((previous) => [...previous, ...result.rows]);
         cursor = result.nextId;
         throughId = result.throughId;
+        if (result.errorCode) {
+          setMessage(
+            `${result.errorMessage || '주소 검색 서비스 오류로 중단했습니다.'} 이미 등록한 좌표는 유지됩니다.`,
+          );
+          break;
+        }
         if (result.done) {
           setMessage('주소 변환이 완료됐습니다. 등록된 위치를 지도에서 확인하세요.');
           break;

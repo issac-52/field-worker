@@ -26,6 +26,51 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
   @MockitoBean AddressGeocoder geocoder;
 
   @Test
+  void providerFailurePreservesSuccessfulRowsAndPausesWithoutCallingNextChunk() {
+    long actor =
+        db.queryForObject(
+            "insert into users(login_id,nickname,password,role) values(?,'Test','unused','ADMIN')"
+                + " returning id",
+            Long.class,
+            UUID.randomUUID().toString());
+    UUID job = UUID.randomUUID();
+    String block = UUID.randomUUID().toString();
+    db.update("insert into import_jobs(id) values(?)", job);
+    long after = db.queryForObject("select coalesce(max(id),0) from worksites", Long.class);
+    for (int i = 0; i < 12; i++)
+      db.update(
+          "insert into"
+              + " worksites(consumer_number,middle_block,address,source_cells,source_sheet,source_row,import_job_id)"
+              + " values(?,?,?,'{}','Test',3,?)",
+          UUID.randomUUID().toString(),
+          block,
+          "Failure road " + i,
+          job);
+    when(geocoder.find(anyString()))
+        .thenReturn(new AddressGeocoder.Match(BigDecimal.ONE, BigDecimal.ONE, "Test"));
+    doThrow(
+            new com.meter.fieldwork.global.ApiException(
+                502, "GEOCODING_UNAVAILABLE", "Test provider failure"))
+        .when(geocoder)
+        .find("Test region Failure road 1");
+    var result =
+        service.run(
+            new GeocodingService.Request(after, null, "Test region", block, null, null), actor);
+    assertThat(result.rows()).hasSize(10);
+    assertThat(result.rows().stream().filter(r -> r.status().equals("UPDATED")).count())
+        .isEqualTo(9);
+    assertThat(result.rows().get(1).status()).isEqualTo("SERVICE_ERROR");
+    assertThat(result.done()).isFalse();
+    verify(geocoder, never()).find("Test region Failure road 10");
+    assertThat(
+            db.queryForObject(
+                "select count(*) from worksites where import_job_id=? and latitude is not null",
+                Integer.class,
+                job))
+        .isEqualTo(9);
+  }
+
+  @Test
   void hundredRowBatchPreservesCoordinatesReportsNoMatchAndAuditsChanges() {
     long actor =
         db.queryForObject(

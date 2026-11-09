@@ -31,15 +31,42 @@ public class GeocodingService {
       LocalDate registeredFrom,
       LocalDate registeredTo) {}
 
-  public record Row(long id, String consumerNumber, String status) {}
+  public record Row(
+      long id, String consumerNumber, String status, String errorCode, String errorMessage) {
+    public Row(long id, String number, String status) {
+      this(id, number, status, null, null);
+    }
+  }
 
-  public record Result(long nextId, long throughId, boolean done, List<Row> rows) {}
+  public record Result(
+      long nextId,
+      long throughId,
+      boolean done,
+      List<Row> rows,
+      String errorCode,
+      String errorMessage) {}
 
   public Result run(Request request, long actor) {
     if (!batchLock.tryLock())
       throw new ApiException(409, "GEOCODING_BUSY", "다른 주소 변환이 진행 중입니다. 잠시 후 다시 실행하세요.");
+    long started = System.nanoTime();
+    var log = org.slf4j.LoggerFactory.getLogger(GeocodingService.class);
+    log.info("Geocoding batch started");
     try {
-      return batch(request, actor);
+      var result = batch(request, actor);
+      log.info(
+          "Geocoding batch finished rows={} updated={} errorCode={} elapsedMs={}",
+          result.rows().size(),
+          result.rows().stream().filter(row -> row.status().equals("UPDATED")).count(),
+          result.errorCode(),
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
+      return result;
+    } catch (RuntimeException ex) {
+      log.warn(
+          "Geocoding batch failed errorType={} elapsedMs={}",
+          ex.getClass().getSimpleName(),
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
+      throw ex;
     } finally {
       batchLock.unlock();
     }
@@ -91,7 +118,7 @@ public class GeocodingService {
             params);
     var result = new ArrayList<Row>();
     // Bound provider concurrency and return early on slow batches, keeping the cursor contiguous.
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
     try (var executor = Executors.newFixedThreadPool(10)) {
       for (int start = 0; start < candidates.size(); start += 10) {
         if (start > 0 && System.nanoTime() >= deadline) break;
@@ -108,13 +135,21 @@ public class GeocodingService {
             throw ex;
           }
         }
+        if (result.stream().anyMatch(row -> row.errorCode() != null)) break;
       }
     }
     long cursor = result.isEmpty() ? request.afterId() : result.getLast().id();
     params.put("after", cursor);
     boolean done =
         db.queryForObject("select count(*) from worksites" + where, params, Long.class) == 0;
-    return new Result(cursor, limit, done, List.copyOf(result));
+    var failure = result.stream().filter(row -> row.errorCode() != null).findFirst().orElse(null);
+    return new Result(
+        cursor,
+        limit,
+        done && failure == null,
+        List.copyOf(result),
+        failure == null ? null : failure.errorCode(),
+        failure == null ? null : failure.errorMessage());
   }
 
   private Row convert(Map<String, Object> row, String region, long actor) {
@@ -123,7 +158,17 @@ public class GeocodingService {
     if (raw.isBlank()) raw = Objects.toString(row.get("old_address"), "").strip();
     String status = "EMPTY_ADDRESS";
     if (!raw.isBlank()) {
-      var match = geocoder.find(raw.startsWith(region) ? raw : region + " " + raw);
+      AddressGeocoder.Match match;
+      try {
+        match = geocoder.find(raw.startsWith(region) ? raw : region + " " + raw);
+      } catch (ApiException ex) {
+        return new Row(
+            id,
+            Objects.toString(row.get("consumer_number")),
+            "SERVICE_ERROR",
+            ex.code,
+            ex.getMessage());
+      }
       status =
           match == null
               ? "NO_MATCH"
