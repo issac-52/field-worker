@@ -8,13 +8,13 @@
 
 ## 삭제 범위
 
-사용자 확정 요구: **현재 파일에서 보이는 수용가번호만 DB에 남기고 나머지 기존 수용가는 전부 삭제**한다. 숨긴 행뿐 아니라 파일에 아예 없는 수용가도 대상이다. 사진·검침도 함께 삭제하되 확정·지급 정산이 있는 대상이 하나라도 있으면 삭제 전체를 차단한다. 업로드 자체는 삭제하지 않는다.
+최신 사용자 확정 요구: **현재 파일에서 숨긴 행의 수용가번호와 일치하는 기존 DB 수용가만 삭제**한다. 파일에 없는 DB 수용가는 유지한다. 같은 번호가 보이는 행에도 있으면 삭제하지 않는다. 이전의 보이는 번호 외 전체 삭제 정책은 폐기한다. 사진·검침도 함께 삭제하되 확정·지급 정산이 있는 대상이 하나라도 있으면 삭제 전체를 차단한다. 업로드 자체는 삭제하지 않는다.
 
 1. 필터 적용 후 저장한 파일을 선택해 보이는 행을 업로드한다.
 2. 별도 **삭제 대상 미리보기**에서 유지/삭제 건수, 연결 사진/검침, 무효화할 문서 작업과 대상 예시(최대50건)를 확인한다.
 3. 표시된 `N건 삭제` 문구를 입력해 **확인한 DB 수용가 영구 삭제**를 실행한다.
 
-보이는 번호가 비었거나 누락됐거나 DB에 없는 번호가 포함되면 미리보기를 차단한다. DB에 없는 번호는 먼저 신규 등록한다. 확인 계획은 15분간 유효하고 요청한 ADMIN만 실행할 수 있으며, POST/CSRF가 필요하다. 미리보기 뒤 수용가·사진·검침 또는 문서 작업 ID 목록이 바뀌면 계획을 무효화한다. 취소/삭제 작업의 진행률 변화만으로는 새 작업 ID가 생기지 않는다.
+보이는 행의 번호 누락이나 DB 미등록 번호는 숨김 번호 삭제를 차단하지 않는다. 숨김 행의 번호 누락·DB 미등록·보이는 행과 번호 중복은 제외하고 미리보기에 집계한다. 보이는 유효 번호가 전혀 없거나 파일에 숨김 행이 없거나 DB 전체가 삭제되는 경우는 차단한다. 확인 계획은 15분간 유효하고 요청한 ADMIN만 실행할 수 있으며, POST/CSRF가 필요하다. 미리보기 뒤 수용가·사진·검침 또는 문서 작업 ID 목록이 바뀌면 계획을 무효화한다. 취소/삭제 작업의 진행률 변화만으로는 새 작업 ID가 생기지 않는다.
 
 ## 함께 정리되는 데이터
 
@@ -27,7 +27,7 @@
 ## API 및 스키마
 
 - POST `/api/admin/imports`, `/api/admin/imports/repair`: multipart `file`, `visibleOnly=false|true`. 결과에 hiddenRows 추가.
-- POST `/api/admin/imports/prune/preview`: multipart `file`. 현재 보이는 행만 유지 대상으로 해석. `{planId,keepCount,deleteCount,photoCount,inspectionCount,protectedCount,documentJobCount,sample,confirmation,hiddenRows,expiresInMinutes}`.
+- POST `/api/admin/imports/prune/preview`: multipart `file`. 숨김 행의 번호만 삭제 대상으로 해석하고 파일 밖/보이는 번호는 유지. `{planId,keepCount,deleteCount,photoCount,inspectionCount,protectedCount,documentJobCount,sample,confirmation,hiddenRows,expiresInMinutes}`.
 - POST `/api/admin/imports/prune/{id}/execute`: `{confirmation:"N건 삭제"}`. 결과 `{deleted,photoCount,inspectionCount,documentJobCount}`.
 
 V11에 확인 계획/실행 결과 테이블을 추가한다. V1~V10은 수정하지 않았다. 파일 원본은 서버에 저장하거나 커밋하지 않는다. 실행한 계획은 중복 실행할 수 없다. 운영 DB에 이 기능으로 삭제를 실행하지 않았다.
@@ -37,3 +37,10 @@ V11에 확인 계획/실행 결과 테이블을 추가한다. V1~V10은 수정�
 PostgreSQL의 독립 스키마에서 숨김 행 제외/첫 보이는 행 우선/기본정보 보완, 미리보기 후 전체 DB 보존, 정확한 범위의 사진·미확정 검침 삭제, 혼합 한글 작업 무효화, 확정/지급 보호, 확인 문구·소유권·만료·빈 보이는 집합·미등록 번호·데이터 변경 거부를 검증했다. HTTP 관리자/CSRF 및 multipart 옵션도 확인했다.
 
 실제 Excel 프로그램 필터 UI와 운영 2만 건 삭제 시간·R2 정리는 미검증이다. Chromium 합성 API 390/1440px에서 옵션, 숨김 집계, 미리보기/확인 문구, 정산 차단 및 가로 넘침 없음을 확인했다. 운영 배포/삭제는 실행하지 않았다.
+
+
+## 제외 행 표시
+
+신규 등록 화면의 제외 행 표는 INVALID_CONSUMER_NUMBER와 DUPLICATE_IN_FILE만 표시한다. ALREADY_EXISTS 및 HIDDEN_ROW는 표에서 제외하며 신규 등록 요약의 기존 건수도 숨긴다. 숨김 제외 건수는 요약에서 유지한다. 서버의 원본 행별 보고서는 그대로 보관한다.
+
+기존 전체 DB 정리 정책의 미실행 미리보기는 scope 표시가 없어 PRUNE_SCOPE_CHANGED로 차단한다. 새 미리보기에서 HIDDEN_ROWS 범위를 저장해 실행해야 한다. 스키마 변경 없이 기존 확인 계획 테이블을 사용한다.

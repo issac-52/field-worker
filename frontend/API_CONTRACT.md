@@ -113,3 +113,7 @@ ADMIN + 요청자 소유권 + CSRF POST `/api/exports/cards/{id}/cancel`, DELETE
 ### Excel 보이는 행과 DB 정리
 
 기존 등록/보완 multipart에 visibleOnly(boolean, 기본 false) 추가. true면 저장된 hidden 행을 HIDDEN_ROW로 제외하고 hiddenRows를 보고한다. 삭제는 별도 `/api/admin/imports/prune/preview` 및 `/{planId}/execute`로만 수행한다. 보이는 수용가 외 기존 전체 DB가 대상이며 사진/미확정 검침도 삭제하되 확정/지급 정산 대상이 있으면 전체 차단한다. 미리보기/유효기간/입력 확인/권한/상태 변경 검사 및 상세 API는 docs/VISIBLE_EXCEL_AND_PRUNE.md 참고.
+
+### 숨김 행만 삭제 및 제외 행 간소화
+
+prune/preview는 이제 숨김 행의 번호와 일치하는 DB 수용가만 대상으로 한다. 파일 밖 DB와 보이는 행에도 존재하는 번호는 유지한다. 보이는 번호 누락은 차단하지 않으며 hiddenRowsWithoutNumber/visibleRowsWithoutNumber/visibleDuplicateNumbers/unmatchedHiddenNumbers 및 scope=HIDDEN_ROWS를 보고한다. 기존 넓은 범위 계획은 PRUNE_SCOPE_CHANGED로 재확인한다. 신규 등록 제외 행 UI에는 오류·파일 중복만 표시하고 ALREADY_EXISTS/HIDDEN_ROW는 숨기며 서버 원본 보고서는 유지한다.

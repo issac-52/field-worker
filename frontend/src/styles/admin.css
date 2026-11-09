@@ -393,3 +393,18 @@
   margin: 0 8px 0 0;
   vertical-align: middle;
 }
+.import-panel > * {
+  min-width: 0;
+}
+.import-panel details {
+  max-width: 100%;
+}
+.import-panel form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.import-panel input[type='file'] {
+  max-width: 100%;
+  min-width: 0;
+}

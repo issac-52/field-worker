@@ -114,6 +114,34 @@ class VisibleImportPruneTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void deletesOnlyHiddenNumbersAndKeepsVisibleDuplicatesAndRowsOutsideTheWorkbook()
+      throws Exception {
+    seed();
+    db.update(
+        "insert into worksites(consumer_number,source_cells,source_sheet,source_row,import_job_id)"
+            + " select 'outside','{}','Test',3,import_job_id from worksites where id=?",
+        keep);
+    byte[] input;
+    try (var book = new XSSFWorkbook(new ByteArrayInputStream(file("keep", "drop")));
+        var out = new ByteArrayOutputStream()) {
+      book.getSheetAt(0).createRow(4).createCell(3).setCellValue("Visible row without number");
+      var duplicate = book.getSheetAt(0).createRow(5);
+      duplicate.createCell(2).setCellValue("keep");
+      duplicate.setZeroHeight(true);
+      book.write(out);
+      input = out.toByteArray();
+    }
+    var plan = preview(input);
+    assertThat(((Number) plan.get("deleteCount")).intValue()).isEqualTo(1);
+    assertThat(((Number) plan.get("hiddenRows")).intValue()).isEqualTo(2);
+    execute(plan);
+    assertThat(
+            db.queryForList(
+                "select consumer_number from worksites order by consumer_number", String.class))
+        .containsExactly("keep", "outside");
+  }
+
+  @Test
   void confirmationOwnershipExpiryAndEmptyVisibilityPreventDeletion() throws Exception {
     seed();
     var plan = preview(file("keep", "drop"));
@@ -129,6 +157,11 @@ class VisibleImportPruneTest extends PostgresIntegrationTest {
                             actor + 10000,
                             (String) plan.get("confirmation"))))
         .isInstanceOf(ApiException.class);
+    db.update("update excel_prune_plans set result=null");
+    assertThatThrownBy(() -> execute(plan))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("범위");
+    db.update("update excel_prune_plans set result='{\"scope\":\"HIDDEN_ROWS\"}'");
     db.update("update excel_prune_plans set expires_at=now()-interval '1 second'");
     assertThatThrownBy(() -> execute(plan)).isInstanceOf(ApiException.class);
     byte[] allHidden;
@@ -236,8 +269,6 @@ class VisibleImportPruneTest extends PostgresIntegrationTest {
         .hasMessageContaining("변경");
     assertThat(db.queryForObject("select count(*) from worksites", Integer.class)).isEqualTo(2);
     byte[] unknown = file("unknown", "drop");
-    assertThatThrownBy(() -> preview(unknown))
-        .isInstanceOf(ApiException.class)
-        .hasMessageContaining("먼저");
+    assertThat(((Number) preview(unknown).get("deleteCount")).intValue()).isEqualTo(1);
   }
 }
