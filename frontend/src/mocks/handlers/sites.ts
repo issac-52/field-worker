@@ -3,12 +3,51 @@ import { store } from '../store';
 import { ok, err, isAdmin, publicSite, feeFor } from '../http';
 import { filterSites, paginate, summarize } from '../queries';
 import type { Phase, SitePhoto } from '../../types';
-import { validViewport } from '../../lib/mapViewport';
+import { validViewport, validMapArea } from '../../lib/mapViewport';
 import { hasCoordinates } from '../../lib/coordinates';
 import { statusOf, PHOTO_SLOTS } from '../../types';
 import { blocks } from '../data';
 
 export const sitesHandlers = [
+  http.get('/api/map-clusters', ({ request }) => {
+    const p = new URL(request.url).searchParams;
+    const v = {
+      south: Number(p.get('south')),
+      north: Number(p.get('north')),
+      west: Number(p.get('west')),
+      east: Number(p.get('east')),
+      zoom: Number(p.get('zoom')),
+    };
+    if (!validMapArea(v)) return err('지도 영역을 확인하세요.', 400);
+    const groups = new Map<
+      string,
+      { x: number; y: number; count: number; latitude: number; longitude: number }
+    >();
+    for (const site of store.sites.filter(hasCoordinates)) {
+      if (
+        site.latitude < v.south ||
+        site.latitude > v.north ||
+        site.longitude < v.west ||
+        site.longitude > v.east
+      )
+        continue;
+      const x = Math.floor((site.longitude - v.west) / ((v.east - v.west) / 12)),
+        y = Math.floor((site.latitude - v.south) / ((v.north - v.south) / 12));
+      const key = `${x}:${y}`;
+      const group = groups.get(key) ?? { x, y, count: 0, latitude: 0, longitude: 0 };
+      group.count++;
+      group.latitude += site.latitude;
+      group.longitude += site.longitude;
+      groups.set(key, group);
+    }
+    const clusters = [...groups.values()].map((g) => ({
+      ...g,
+      latitude: g.latitude / g.count,
+      longitude: g.longitude / g.count,
+    }));
+    return ok({ clusters, total: clusters.reduce((n, g) => n + g.count, 0) });
+  }),
+
   http.get('/api/map-sites', ({ request }) => {
     const p = new URL(request.url).searchParams;
     const v = {

@@ -94,6 +94,30 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
         .andExpect(jsonPath("$.data.truncated").value(true));
   }
 
+  @Test
+  void zoomedOutMapReturnsBoundedClustersAndCountsOnlyRegisteredCoordinates() throws Exception {
+    jdbc.update("update worksites set latitude=29.12,longitude=126.12 where id=?", site);
+    String url = "/api/map-clusters?south=29&north=30&west=126&east=127&zoom=10";
+    mvc.perform(get(url)).andExpect(status().isUnauthorized());
+    mvc.perform(get(url).with(user(actor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(1))
+        .andExpect(jsonPath("$.data.clusters[0].count").value(1))
+        .andExpect(jsonPath("$.data.clusters[0].latitude").value(29.12))
+        .andExpect(jsonPath("$.data.clusters[0].name").doesNotExist());
+    jdbc.update(
+        "insert into"
+            + " worksites(consumer_number,source_cells,source_sheet,source_row,import_job_id,latitude,longitude)"
+            + " select ?,'{}','Test',3,import_job_id,29.121,126.121 from worksites where id=?",
+        UUID.randomUUID().toString(),
+        site);
+    mvc.perform(get(url).with(user(actor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(2))
+        .andExpect(jsonPath("$.data.clusters.length()").value(1))
+        .andExpect(jsonPath("$.data.clusters[0].count").value(2));
+  }
+
   @BeforeEach
   void setup() {
     String key = UUID.randomUUID().toString();
