@@ -1,4 +1,4 @@
-export const MAP_MIN_ZOOM = 16;
+export const MAP_MIN_ZOOM = 15;
 export type MapViewport = {
   south: number;
   north: number;
@@ -51,7 +51,7 @@ export function validViewport(v: MapViewport) {
     v.east <= 180 &&
     v.south < v.north &&
     v.west < v.east &&
-    v.north - v.south <= 0.05 &&
-    v.east - v.west <= 0.05
+    v.north - v.south <= 0.1 &&
+    v.east - v.west <= 0.1
   );
 }

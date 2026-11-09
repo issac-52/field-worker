@@ -31,8 +31,8 @@ export const sitesHandlers = [
         site.longitude > v.east
       )
         continue;
-      const x = Math.floor((site.longitude - v.west) / ((v.east - v.west) / 12)),
-        y = Math.floor((site.latitude - v.south) / ((v.north - v.south) / 12));
+      const x = Math.floor((site.longitude - v.west) / ((v.east - v.west) / 6)),
+        y = Math.floor((site.latitude - v.south) / ((v.north - v.south) / 6));
       const key = `${x}:${y}`;
       const group = groups.get(key) ?? { x, y, count: 0, latitude: 0, longitude: 0 };
       group.count++;
