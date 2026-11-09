@@ -105,3 +105,7 @@ Geocoding Result/Row에 optional errorCode/errorMessage 추가. 공급자 오류
 ### 개별 주소 오류 후 계속 진행
 
 Row.errorCode가 있는 SERVICE_ERROR 한 건은 실패 목록에 표시하고 다음 묶음을 진행할 수 있다. 전체 중단 여부는 최상위 Result.errorCode로만 결정한다. 키/권한/할당량 및 한 묶음 전부 실패에서만 최상위 오류를 반환한다. 단건 오류 때문에 같은 초기 커서에서 반복 재시작하지 않는다.
+
+### HWPX 작업 취소·삭제
+
+ADMIN + 요청자 소유권 + CSRF POST `/api/exports/cards/{id}/cancel`, DELETE `/api/exports/cards/{id}`. 취소는 CANCELLED, 삭제 요청은 DELETING 상태로 보인다. DELETING은 처리 완료 후 목록에서 사라지며 조회는 404다. 화면에서 기존 요청별 취소·삭제와 상태/진행률을 제공한다. 삭제된 작업의 404는 반복 polling하지 않는다. 공유 캐시·원본 데이터 보존 및 실제 저장소 정리는 docs/HWPX_EXPORT.md 참고.
