@@ -268,3 +268,23 @@
 .geocoding-dates .field {
   flex: 1 1 200px;
 }
+
+.region-cluster {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 3px solid white;
+  background: #0f766e;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px #0003;
+  cursor: pointer;
+}
+.cluster-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}

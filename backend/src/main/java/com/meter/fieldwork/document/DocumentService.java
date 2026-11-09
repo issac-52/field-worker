@@ -127,18 +127,86 @@ public class DocumentService {
             id));
   }
 
-  JsonNode snapshot(long id) throws Exception {
-    String raw =
-        db.queryForObject(
-            """
-            select jsonb_build_object('site',to_jsonb(s),
+  private static final String SNAPSHOT =
+"""
+jsonb_build_object('site',to_jsonb(s),
             'inspections',coalesce((select jsonb_agg(to_jsonb(i) order by phase) from inspections i where i.site_id=s.id),'[]'::jsonb),
             'photos',coalesce((select jsonb_agg(to_jsonb(p) order by slot) from photos p where p.site_id=s.id and slot in ('OVERVIEW','START_CLOSEUP','END_CLOSEUP')),'[]'::jsonb))::text
-            from worksites s where s.id=?
-            """,
-            String.class,
+""";
+
+  JsonNode snapshot(long id) throws Exception {
+    return json.readTree(
+        db.queryForObject(
+            "select " + SNAPSHOT + " from worksites s where s.id=?", String.class, id));
+  }
+
+  public void checkWholeDownload(UUID id, long actor) {
+    var job = job(id, actor);
+    if (!"READY".equals(job.get("status")))
+      throw new ApiException(409, "EXPORT_NOT_READY", "전체 문서 생성이 끝난 후 다운로드하세요.");
+    var coverage =
+        db.queryForMap(
+            "select coalesce(sum(last_ordinal-first_ordinal+1),0) as total, count(*) filter(where"
+                + " a.expires_at<=now()) as expired from document_parts p join document_artifacts a"
+                + " using(object_key) where job_id=?",
             id);
-    return json.readTree(raw);
+    if (((Number) coverage.get("total")).intValue() != ((Number) job.get("total")).intValue()
+        || ((Number) coverage.get("expired")).intValue() > 0)
+      throw new ApiException(410, "EXPORT_EXPIRED", "파일이 만료됐습니다. 다시 생성해 주세요.");
+    // One cursor query validates all sources without one DB round trip per document.
+    tx.executeWithoutResult(
+        status ->
+            db.query(
+                connection -> {
+                  var statement =
+                      connection.prepareStatement(
+                          "select j.fingerprint,"
+                              + SNAPSHOT
+                              + " as snapshot from document_job_items j join worksites s on"
+                              + " s.id=j.site_id where j.job_id=? order by j.ordinal");
+                  statement.setObject(1, id);
+                  statement.setFetchSize(200);
+                  return statement;
+                },
+                (org.springframework.jdbc.core.RowCallbackHandler)
+                    row -> {
+                      try {
+                        if (!fingerprint(
+                                json.readTree(row.getString("snapshot")), (String) job.get("title"))
+                            .equals(row.getString("fingerprint")))
+                          throw new ApiException(
+                              409, "EXPORT_STALE", "사진 또는 수용가 정보가 변경됐습니다. 문서 생성을 다시 요청하세요.");
+                      } catch (ApiException ex) {
+                        throw ex;
+                      } catch (Exception ex) {
+                        throw new IllegalStateException("Document validation failed", ex);
+                      }
+                    }));
+  }
+
+  public void writeWholeZip(UUID id, long actor, OutputStream output) throws IOException {
+    checkWholeDownload(id, actor);
+    var parts =
+        db.queryForList(
+            "select object_key from document_parts where job_id=? order by part", String.class, id);
+    // Flatten the existing batches: the final ZIP contains HWPX files, not nested ZIPs.
+    try (var zip = new ZipOutputStream(output)) {
+      for (String key : parts) {
+        try (var input = new ZipInputStream(new ByteArrayInputStream(storage.get(key)))) {
+          for (ZipEntry entry; (entry = input.getNextEntry()) != null; ) {
+            if (!entry.getName().matches("site-[0-9]+\\.hwpx"))
+              throw new IOException("Invalid document entry");
+            zip.putNextEntry(new ZipEntry(entry.getName()));
+            input.transferTo(zip);
+            zip.closeEntry();
+          }
+        }
+        zip.flush();
+        output.flush();
+      }
+      zip.finish();
+      zip.flush();
+    }
   }
 
   String fingerprint(JsonNode node, String title) throws Exception {

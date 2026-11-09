@@ -89,3 +89,15 @@ Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessNa
 ## HWPX 검침카드 (2026-11-09)
 
 ADMIN + CSRF POST `/api/exports/cards`에 `{siteId?,middleBlock?,smallBlock?,title}`로 생성 요청. `{id}`를 받아 GET `/api/exports/cards/{id}`를 진행 중 2초마다 조회한다. 상태 및 ZIP 목록, 만료/변경 검사와 다운로드는 `docs/HWPX_EXPORT.md` 참고. GET `/api/exports/cards`는 본인 최근 20개 작업이다. 위치도는 생성하지 않고 원경·START·END 근경만 넣는다. Excel 다운로드와 별도 기능이다.
+
+### 전체 HWPX ZIP 다운로드
+
+READY 작업에서 GET `/api/exports/cards/{id}/download-check`로 완료·만료·원본 변경 검사 후, `/api/exports/cards/{id}/download`를 브라우저 기본 다운로드로 연다. 결과는 전체 HWPX 파일이 직접 포함된 ZIP 하나다. 화면에 50건 묶음 버튼을 노출하지 않으며 전체 ZIP을 fetch/blob으로 메모리에 담지 않는다. 이전 생성 완료 작업도 지원한다.
+
+### 지오코딩 부분 실패
+
+Geocoding Result/Row에 optional errorCode/errorMessage 추가. 공급자 오류 행은 SERVICE_ERROR이며 NO_MATCH와 구분한다. 최상위 errorCode가 있으면 결과 행을 먼저 반영한 뒤 반복을 멈춘다. Cloudflare HTML 502/503/504 및 BACKEND_UNAVAILABLE에 한해 같은 요청으로 최대 두 번 재시도하며 다른 애플리케이션 오류는 반복하지 않는다.
+
+### 축소 지도 집계 마커
+
+인증 GET `/api/map-clusters?south&north&west&east&zoom`는 zoom 1~22에서 `{clusters:[{x,y,count,latitude,longitude}],total}`을 반환한다. 현재 화면을 12×12 격자로 집계하며 경계 포함 최대 169개 묶음이다. 대표 위치는 해당 묶음 좌표 평균이며 좌표 없는 수용가는 제외한다. 목록 필터/페이지와 무관하다. 프론트는 축소/넓은 화면 또는 개별 조회 500건 초과일 때 집계를 사용하고, 클릭 시 건수 및 확대 버튼을 표시한다.

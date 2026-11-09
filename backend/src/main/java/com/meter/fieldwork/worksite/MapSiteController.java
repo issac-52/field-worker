@@ -13,6 +13,51 @@ public class MapSiteController {
     this.db = db;
   }
 
+  @GetMapping("/api/map-clusters")
+  ApiResult<?> clusters(
+      @RequestParam double south,
+      @RequestParam double north,
+      @RequestParam double west,
+      @RequestParam double east,
+      @RequestParam int zoom) {
+    if (!Double.isFinite(south)
+        || !Double.isFinite(north)
+        || !Double.isFinite(west)
+        || !Double.isFinite(east)
+        || south < -90
+        || north > 90
+        || west < -180
+        || east > 180
+        || south >= north
+        || west >= east
+        || zoom < 1
+        || zoom > 22) throw new IllegalArgumentException("지도 영역을 확인하세요.");
+    var clusters =
+        db.queryForList(
+            """
+            select floor((longitude-:west)/:dx)::int as x, floor((latitude-:south)/:dy)::int as y,
+              count(*) as count,avg(latitude) as latitude,avg(longitude) as longitude
+            from worksites where latitude between :south and :north and longitude between :west and :east
+              and not(latitude=0 and longitude=0)
+            group by x,y order by x,y
+            """,
+            Map.of(
+                "south",
+                south,
+                "north",
+                north,
+                "west",
+                west,
+                "east",
+                east,
+                "dx",
+                (east - west) / 12.0,
+                "dy",
+                (north - south) / 12.0));
+    long total = clusters.stream().mapToLong(row -> ((Number) row.get("count")).longValue()).sum();
+    return ApiResult.ok(Map.of("clusters", clusters, "total", total));
+  }
+
   @GetMapping("/api/map-sites")
   ApiResult<?> markers(
       @RequestParam double south,

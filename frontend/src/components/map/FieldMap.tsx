@@ -2,8 +2,8 @@ import { Button } from '../ui/button';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { call, query } from '../../api/client';
-import { validViewport, MAP_MIN_ZOOM } from '../../lib/mapViewport';
-import type { MapViewport, MapSites } from '../../lib/mapViewport';
+import { validViewport, validMapArea, MAP_MIN_ZOOM } from '../../lib/mapViewport';
+import type { MapViewport, MapSites, MapCluster } from '../../lib/mapViewport';
 import { mapMarkerForStatus } from '../../lib/mapMarker';
 import { loadNaverMaps, MAP_AUTH_ERROR } from '../../lib/naverMaps';
 import type { MapInstance, NaverMaps } from '../../lib/naverMaps';
@@ -25,19 +25,31 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
   const centeredOnPosition = useRef(false);
 
   const markerCleanups = useRef(new Set<() => void>());
+  const [clusterSelection, setClusterSelection] = useState<MapCluster>();
   const [viewport, setViewport] = useState<MapViewport>();
   const [viewportNotice, setViewportNotice] = useState(
     '지도를 확대하면 이 지역 수용가가 표시됩니다.',
   );
   const markersQuery = useQuery({
     queryKey: ['map-sites', viewport],
-    queryFn: ({ signal }) => call<MapSites>('/map-sites' + query(viewport!), { signal }),
+    queryFn: async ({ signal }) => {
+      if (validViewport(viewport!)) {
+        const sites = await call<MapSites>('/map-sites' + query(viewport!), { signal });
+        if (!sites.truncated) return sites;
+      }
+      const clusters = await call<{ clusters: MapCluster[]; total: number }>(
+        '/map-clusters' + query(viewport!),
+        { signal },
+      );
+      return { items: [], truncated: false, ...clusters };
+    },
     enabled: !!viewport,
     gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
   });
   const valid = markersQuery.data?.items;
+  const clusters = markersQuery.data?.clusters;
 
   useEffect(() => {
     setViewport(undefined);
@@ -56,18 +68,19 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
           east: ne.lng(),
           zoom: map.getZoom(),
         };
-        if (validViewport(next)) {
+        if (validMapArea(next)) {
           setViewportNotice('');
           setViewport(next);
         } else {
           setViewport(undefined);
-          setViewportNotice('지도를 더 확대하면 이 지역 수용가가 표시됩니다.');
+          setViewportNotice('지도 영역을 확인해 주세요.');
         }
       }, 250);
     };
     const moving = sdk.Event.addListener(map, 'bounds_changed', () => {
       clearTimeout(timer);
       setViewport(undefined);
+      setClusterSelection(undefined);
       setViewportNotice('지도 이동 후 이 지역 수용가를 조회합니다.');
     });
     const idle = sdk.Event.addListener(map, 'idle', update);
@@ -140,6 +153,22 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
     };
     markerCleanups.current.add(dispose);
     try {
+      clusters?.forEach((cluster) => {
+        const count = Number(cluster.count);
+        const marker = new sdk.Marker({
+          map,
+          position: new sdk.LatLng(cluster.latitude, cluster.longitude),
+          title: `이 지역 수용가 ${count.toLocaleString()}건`,
+          icon: {
+            content: `<button type="button" class="region-cluster" aria-label="이 지역 수용가 ${count}건">${count.toLocaleString()}</button>`,
+            size: { width: 52, height: 52 },
+            anchor: { x: 26, y: 26 },
+          },
+          zIndex: 400,
+        });
+        markers.push(marker);
+        listeners.push(sdk.Event.addListener(marker, 'click', () => setClusterSelection(cluster)));
+      });
       valid?.forEach((site) => {
         const appearance = mapMarkerForStatus(site.status);
         const marker = new sdk.Marker({
@@ -162,7 +191,7 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
       setError('수용가 마커를 표시하지 못했습니다. 아래 목록을 이용하세요.');
     }
     return dispose;
-  }, [sdk, map, valid]);
+  }, [sdk, map, valid, clusters]);
 
   useEffect(() => {
     if (!sdk || !map || !location.position) return;
@@ -226,8 +255,39 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
                 ? '이 지역 수용가를 불러오는 중…'
                 : markersQuery.data?.truncated
                   ? '이 지역에 수용가가 500건을 초과합니다. 지도를 더 확대해 주세요.'
-                  : `현재 지도 영역의 수용가 ${valid?.length ?? 0}건 · 목록 검색 조건과 무관하게 표시됩니다.`)}
+                  : clusters
+                    ? `현재 지도 영역의 수용가 ${markersQuery.data?.total?.toLocaleString() ?? 0}건 · 지역 점을 누르면 건수를 확인할 수 있습니다.`
+                    : `현재 지도 영역의 수용가 ${valid?.length ?? 0}건 · 목록 검색 조건과 무관하게 표시됩니다.`)}
         </p>
+      )}
+      {clusterSelection && (
+        <div className="cluster-summary" aria-live="polite">
+          <strong>
+            이 지역에 좌표가 등록된 수용가 {clusterSelection.count.toLocaleString()}건
+          </strong>
+          <Button
+            variant="outline"
+            className="outline-btn"
+            onClick={() => {
+              if (sdk && map) {
+                map.setCenter(
+                  new sdk.LatLng(clusterSelection.latitude, clusterSelection.longitude),
+                );
+                map.setZoom(Math.min(22, map.getZoom() + 2));
+              }
+              setClusterSelection(undefined);
+            }}
+          >
+            이 지역 확대
+          </Button>
+          <Button
+            variant="ghost"
+            className="text-btn"
+            onClick={() => setClusterSelection(undefined)}
+          >
+            닫기
+          </Button>
+        </div>
       )}
       <div className="map-canvas-wrap">
         <div

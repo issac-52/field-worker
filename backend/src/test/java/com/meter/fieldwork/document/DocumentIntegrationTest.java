@@ -119,6 +119,9 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
     assertThatThrownBy(() -> service.download(job, 1, actor))
         .isInstanceOf(ApiException.class)
         .hasMessageContaining("변경");
+    assertThatThrownBy(() -> service.checkWholeDownload(job, actor))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("변경");
     cleanup.cleanup();
     assertThatThrownBy(() -> storage.get(key)).isInstanceOf(RuntimeException.class);
     assertThat(
@@ -133,7 +136,7 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
-  void splitsJobsAndExpiresArtifacts() {
+  void splitsJobsAndExpiresArtifacts() throws Exception {
     db.update(
         "insert into"
             + " worksites(consumer_number,middle_block,source_cells,source_sheet,source_row,import_job_id)"
@@ -144,12 +147,28 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
     UUID job = service.create(new DocumentService.Request(null, block, null, "가상군"), actor);
     service.tick();
     assertThat(service.status(job, actor).get("completed")).isEqualTo(50);
+    assertThatThrownBy(() -> service.checkWholeDownload(job, actor))
+        .isInstanceOf(ApiException.class);
     assertThat(service.status(job, actor).get("status")).isEqualTo("QUEUED");
     // RUNNING is resumable after an interrupted process; committed parts are not repeated.
     db.update("update document_jobs set status='RUNNING' where id=?", job);
     service.tick();
     assertThat(service.status(job, actor).get("completed")).isEqualTo(51);
     assertThat((List<?>) service.status(job, actor).get("parts")).hasSize(2);
+    var combined = new ByteArrayOutputStream();
+    service.writeWholeZip(job, actor, combined);
+    assertThat(unzip(combined.toByteArray()))
+        .hasSize(51)
+        .allSatisfy(
+            (name, bytes) -> {
+              assertThat(name).endsWith(".hwpx");
+              assertThat(bytes).startsWith((byte) 'P', (byte) 'K');
+            });
+    mvc.perform(get("/api/exports/cards/" + job + "/download").with(user(principal)))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Content-Type", "application/zip"))
+        .andExpect(header().string("Cache-Control", "no-store"));
+
     db.update("update document_jobs set expires_at=now()-interval '1 second' where id=?", job);
     db.update(
         "update document_artifacts set expires_at=now()-interval '1 second' where object_key in"
