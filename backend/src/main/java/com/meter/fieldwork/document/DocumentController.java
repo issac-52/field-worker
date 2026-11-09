@@ -32,6 +32,25 @@ public class DocumentController {
     return ApiResult.ok(service.status(id, actor.id()));
   }
 
+  @GetMapping("/{id}/download-check")
+  ApiResult<?> check(@PathVariable UUID id, @AuthenticationPrincipal SessionUser actor) {
+    service.checkWholeDownload(id, actor.id());
+    return ApiResult.ok(Map.of("ready", true));
+  }
+
+  @GetMapping("/{id}/download")
+  void whole(
+      @PathVariable UUID id,
+      @AuthenticationPrincipal SessionUser actor,
+      jakarta.servlet.http.HttpServletResponse response)
+      throws java.io.IOException {
+    response.setContentType("application/zip");
+    response.setHeader(
+        "Content-Disposition", "attachment; filename=inspection-cards-" + id + ".zip");
+    response.setHeader("Cache-Control", "no-store");
+    service.writeWholeZip(id, actor.id(), response.getOutputStream());
+  }
+
   @GetMapping("/{id}/parts/{part}")
   ResponseEntity<byte[]> download(
       @PathVariable UUID id, @PathVariable int part, @AuthenticationPrincipal SessionUser actor) {
