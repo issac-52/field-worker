@@ -1,5 +1,10 @@
 export type MapPoint = object;
 export type MapInstance = {
+  getZoom(): number;
+  getBounds(): {
+    getSW(): { lat(): number; lng(): number };
+    getNE(): { lat(): number; lng(): number };
+  };
   destroy(): void;
   autoResize(): void;
   fitBounds(points: MapPoint[], options?: object): void;

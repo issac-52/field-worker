@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
+import { validViewport } from '../src/lib/mapViewport';
 import { mapMarker } from '../src/lib/mapMarker';
 import { watchCurrentLocation } from '../src/lib/currentLocation';
 import { seedSites } from '../src/mocks/data';
@@ -182,5 +183,17 @@ describe('map without network', () => {
     const rejected = expect(retryAfterAuth).rejects.toThrow(/내려받지/);
     scripts[0].onerror!();
     await rejected;
+  });
+});
+
+describe('viewport request limits', () => {
+  it('requires sufficient zoom and bounded visible area', () => {
+    const area = { south: 35.81, north: 35.83, west: 128.73, east: 128.75, zoom: 16 };
+    expect(validViewport(area)).toBe(true);
+    expect(validViewport({ ...area, zoom: 15 })).toBe(false);
+    expect(validViewport({ ...area, north: 36 })).toBe(false);
+    expect(validViewport({ ...area, east: 130 })).toBe(false);
+    expect(validViewport({ ...area, south: NaN })).toBe(false);
+    expect(validViewport({ ...area, north: 35 })).toBe(false);
   });
 });

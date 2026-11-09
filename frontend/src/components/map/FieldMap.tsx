@@ -1,20 +1,16 @@
 import { Button } from '../ui/button';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { SiteListItem } from '../../types';
-import { mapMarker } from '../../lib/mapMarker';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { call, query } from '../../api/client';
+import { validViewport, MAP_MIN_ZOOM } from '../../lib/mapViewport';
+import type { MapViewport, MapSites } from '../../lib/mapViewport';
+import { mapMarkerForStatus } from '../../lib/mapMarker';
 import { loadNaverMaps, MAP_AUTH_ERROR } from '../../lib/naverMaps';
 import type { MapInstance, NaverMaps } from '../../lib/naverMaps';
 import { LocateFixed } from 'lucide-react';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
-import { hasCoordinates } from '../../lib/coordinates';
 
-export function FieldMap({
-  sites,
-  onSelect,
-}: {
-  sites: SiteListItem[];
-  onSelect: (id: number) => void;
-}) {
+export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
   const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID?.trim() ?? '';
   const container = useRef<HTMLDivElement>(null);
   const [sdk, setSdk] = useState<NaverMaps>();
@@ -27,9 +23,61 @@ export function FieldMap({
   }, [onSelect]);
   const location = useCurrentLocation(!!sdk);
   const centeredOnPosition = useRef(false);
-  const fallbackFramed = useRef(false);
+
   const markerCleanups = useRef(new Set<() => void>());
-  const valid = useMemo(() => sites.filter(hasCoordinates), [sites]);
+  const [viewport, setViewport] = useState<MapViewport>();
+  const [viewportNotice, setViewportNotice] = useState(
+    '지도를 확대하면 이 지역 수용가가 표시됩니다.',
+  );
+  const markersQuery = useQuery({
+    queryKey: ['map-sites', viewport],
+    queryFn: ({ signal }) => call<MapSites>('/map-sites' + query(viewport!), { signal }),
+    enabled: !!viewport,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const valid = markersQuery.data?.items;
+
+  useEffect(() => {
+    setViewport(undefined);
+    if (!sdk || !map) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const update = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const bounds = map.getBounds();
+        const sw = bounds.getSW();
+        const ne = bounds.getNE();
+        const next = {
+          south: sw.lat(),
+          north: ne.lat(),
+          west: sw.lng(),
+          east: ne.lng(),
+          zoom: map.getZoom(),
+        };
+        if (validViewport(next)) {
+          setViewportNotice('');
+          setViewport(next);
+        } else {
+          setViewport(undefined);
+          setViewportNotice('지도를 더 확대하면 이 지역 수용가가 표시됩니다.');
+        }
+      }, 250);
+    };
+    const moving = sdk.Event.addListener(map, 'bounds_changed', () => {
+      clearTimeout(timer);
+      setViewport(undefined);
+      setViewportNotice('지도 이동 후 이 지역 수용가를 조회합니다.');
+    });
+    const idle = sdk.Event.addListener(map, 'idle', update);
+    update();
+    return () => {
+      clearTimeout(timer);
+      sdk.Event.removeListener(moving);
+      sdk.Event.removeListener(idle);
+    };
+  }, [sdk, map]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -64,7 +112,7 @@ export function FieldMap({
     try {
       instance = new sdk.Map(element, { center: new sdk.LatLng(35.8251, 128.7414), zoom: 13 });
       centeredOnPosition.current = false;
-      fallbackFramed.current = false;
+
       setMap(instance);
       resize = new ResizeObserver(() => instance?.autoResize());
       resize.observe(element);
@@ -80,7 +128,7 @@ export function FieldMap({
     };
   }, [sdk, retry]);
 
-  // Filter updates replace only work markers, preserving the user's map viewport.
+  // Fetch only the visible area; list pagination and search never affect these markers.
   useEffect(() => {
     if (!sdk || !map) return;
     const markers: InstanceType<NaverMaps['Marker']>[] = [];
@@ -92,12 +140,12 @@ export function FieldMap({
     };
     markerCleanups.current.add(dispose);
     try {
-      valid.forEach((site) => {
-        const appearance = mapMarker(site);
+      valid?.forEach((site) => {
+        const appearance = mapMarkerForStatus(site.status);
         const marker = new sdk.Marker({
           map,
           position: new sdk.LatLng(site.latitude, site.longitude),
-          title: `${site.name} · ${site.managementNo} · ${appearance.label}`,
+          title: `수용가 ${site.id} · ${appearance.label}`,
           icon: {
             content: appearance.content,
             size: { width: 32, height: 32 },
@@ -133,7 +181,7 @@ export function FieldMap({
     });
     if (!centeredOnPosition.current) {
       map.setCenter(point);
-      map.setZoom(16);
+      map.setZoom(MAP_MIN_ZOOM);
       centeredOnPosition.current = true;
     }
     const dispose = () => {
@@ -143,29 +191,10 @@ export function FieldMap({
     return dispose;
   }, [sdk, map, location.position]);
 
-  useEffect(() => {
-    if (
-      !sdk ||
-      !map ||
-      location.position ||
-      location.loading ||
-      fallbackFramed.current ||
-      !valid.length
-    )
-      return;
-    if (valid.length > 1)
-      map.fitBounds(
-        valid.map((site) => new sdk.LatLng(site.latitude, site.longitude)),
-        { top: 40, right: 40, bottom: 40, left: 40, maxZoom: 16 },
-      );
-    else map.setCenter(new sdk.LatLng(valid[0].latitude, valid[0].longitude));
-    fallbackFramed.current = true;
-  }, [sdk, map, valid, location.position, location.loading]);
-
   function showMyLocation() {
     if (sdk && map && location.position) {
       map.setCenter(new sdk.LatLng(location.position.latitude, location.position.longitude));
-      map.setZoom(16);
+      map.setZoom(MAP_MIN_ZOOM);
       centeredOnPosition.current = true;
     } else centeredOnPosition.current = false;
     location.retry();
@@ -188,10 +217,16 @@ export function FieldMap({
           지도 다시 시도
         </Button>
       )}
-      {sites.length > valid.length && (
-        <p className="form-error">
-          좌표 누락·오류 {sites.length - valid.length}건은 마커에서 제외했습니다. 목록에서 상세를 열
-          수 있습니다.
+      {sdk && !error && (
+        <p role="status">
+          {viewportNotice ||
+            (markersQuery.isError
+              ? '이 지역 수용가를 불러오지 못했습니다. 지도를 이동하거나 다시 시도하세요.'
+              : markersQuery.isFetching
+                ? '이 지역 수용가를 불러오는 중…'
+                : markersQuery.data?.truncated
+                  ? '이 지역에 수용가가 500건을 초과합니다. 지도를 더 확대해 주세요.'
+                  : `현재 지도 영역의 수용가 ${valid?.length ?? 0}건 · 목록 검색 조건과 무관하게 표시됩니다.`)}
         </p>
       )}
       <div className="map-canvas-wrap">
