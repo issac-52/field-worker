@@ -3,10 +3,40 @@ import { store } from '../store';
 import { ok, err, isAdmin, publicSite, feeFor } from '../http';
 import { filterSites, paginate, summarize } from '../queries';
 import type { Phase, SitePhoto } from '../../types';
-import { PHOTO_SLOTS } from '../../types';
+import { validViewport } from '../../lib/mapViewport';
+import { hasCoordinates } from '../../lib/coordinates';
+import { statusOf, PHOTO_SLOTS } from '../../types';
 import { blocks } from '../data';
 
 export const sitesHandlers = [
+  http.get('/api/map-sites', ({ request }) => {
+    const p = new URL(request.url).searchParams;
+    const v = {
+      south: Number(p.get('south')),
+      north: Number(p.get('north')),
+      west: Number(p.get('west')),
+      east: Number(p.get('east')),
+      zoom: Number(p.get('zoom')),
+    };
+    if (!validViewport(v)) return err('지도를 더 확대해 주세요.', 400);
+    const items = store.sites
+      .filter(hasCoordinates)
+      .filter(
+        (s) =>
+          s.latitude >= v.south &&
+          s.latitude <= v.north &&
+          s.longitude >= v.west &&
+          s.longitude <= v.east,
+      )
+      .slice(0, 501)
+      .map((s) => ({
+        id: s.id,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        status: statusOf(s),
+      }));
+    return ok({ items: items.length > 500 ? [] : items, truncated: items.length > 500 });
+  }),
   http.get('/api/blocks', () => ok(blocks)),
   http.get('/api/site-summary', ({ request }) =>
     ok(summarize(filterSites(store.sites, new URL(request.url).searchParams), isAdmin(request))),

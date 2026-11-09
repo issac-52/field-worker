@@ -15,7 +15,7 @@ export function MapPage() {
       <h1 className="sr-only">현장 지도</h1>
       {role === 'ADMIN' && !__MOCKS_ENABLED__ && <GeocodingPanel />}
       <SiteSearch />
-      <FieldMap sites={sites} onSelect={setSelected} />
+      <FieldMap onSelect={setSelected} />
       {selected !== undefined && (
         <MapInspection
           key={selected}

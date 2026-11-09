@@ -25,6 +25,75 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   long site;
   String number;
 
+  @Test
+  void mapUsesBoundsInsteadOfListFiltersAndRejectsWideQueries() throws Exception {
+    jdbc.update("update worksites set latitude=35.82,longitude=128.74 where id=?", site);
+    mvc.perform(
+            get("/api/map-sites")
+                .with(user(actor))
+                .param("south", "35.81")
+                .param("north", "35.83")
+                .param("west", "128.73")
+                .param("east", "128.75")
+                .param("zoom", "16")
+                .param("q", "does-not-match"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].id").value(site))
+        .andExpect(jsonPath("$.data.items[0].status").value("TODO"))
+        .andExpect(jsonPath("$.data.items[0].name").doesNotExist());
+    mvc.perform(
+            get("/api/map-sites")
+                .with(user(actor))
+                .param("south", "35.81")
+                .param("north", "35.83")
+                .param("west", "128.73")
+                .param("east", "128.75")
+                .param("zoom", "15"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            get("/api/map-sites")
+                .with(user(actor))
+                .param("south", "35")
+                .param("north", "36")
+                .param("west", "128")
+                .param("east", "129")
+                .param("zoom", "16"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void denseRegionRequiresMoreZoomAndOutsidePointsAreExcluded() throws Exception {
+    jdbc.update("update worksites set latitude=34.12,longitude=127.12 where id=?", site);
+    String url = "/api/map-sites?south=34.11&north=34.13&west=127.11&east=127.13&zoom=16";
+    mvc.perform(get(url)).andExpect(status().isUnauthorized());
+    mvc.perform(
+            get("/api/map-sites?south=34.14&north=34.15&west=127.11&east=127.13&zoom=16")
+                .with(user(actor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items").isEmpty());
+    jdbc.update(
+        "insert into"
+            + " worksites(consumer_number,source_cells,source_sheet,source_row,import_job_id,latitude,longitude)"
+            + " select ? || n::text,'{}','Test',3,import_job_id,34.12,127.12 from worksites cross"
+            + " join generate_series(1,499) n where id=?",
+        UUID.randomUUID().toString(),
+        site);
+    mvc.perform(get(url).with(user(actor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items.length()").value(500))
+        .andExpect(jsonPath("$.data.truncated").value(false));
+    jdbc.update(
+        "insert into"
+            + " worksites(consumer_number,source_cells,source_sheet,source_row,import_job_id,latitude,longitude)"
+            + " select ?,'{}','Test',3,import_job_id,34.12,127.12 from worksites where id=?",
+        UUID.randomUUID().toString(),
+        site);
+    mvc.perform(get(url).with(user(actor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items").isEmpty())
+        .andExpect(jsonPath("$.data.truncated").value(true));
+  }
+
   @BeforeEach
   void setup() {
     String key = UUID.randomUUID().toString();

@@ -6,7 +6,10 @@ const states = {
   DONE: { label: '검침완료', className: 'complete', zIndex: 100 },
 };
 export function mapMarker(site: Pick<Site, 'inspections'>) {
-  const state = states[statusOf(site)];
+  return mapMarkerForStatus(statusOf(site));
+}
+export function mapMarkerForStatus(status: keyof typeof states) {
+  const state = states[status];
   return {
     label: state.label,
     zIndex: state.zIndex,
