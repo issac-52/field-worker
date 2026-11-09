@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { call, request } from '../api/client';
+import { call } from '../api/client';
 import { Button } from './ui/button';
 
 type Job = {
@@ -65,17 +65,17 @@ export function HwpxDownloads({
       setBusy(false);
     }
   }
-  async function download(part: number) {
+  async function download() {
     setBusy(true);
     setError('');
     try {
-      const response = await request(`/exports/cards/${jobId}/parts/${part}`);
-      const url = URL.createObjectURL(await response.blob());
+      await call(`/exports/cards/${jobId}/download-check`);
       const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `검침카드-${part}.zip`;
+      anchor.href = `/api/exports/cards/${jobId}/download`;
+      anchor.download = '검침카드-전체.zip';
+      document.body.appendChild(anchor);
       anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      anchor.remove();
     } catch (e) {
       setError(e instanceof Error ? e.message : '다운로드 실패');
     } finally {
@@ -106,8 +106,8 @@ export function HwpxDownloads({
         검침카드 생성 요청
       </Button>
       <p className="form-help">
-        화면을 닫아도 생성은 계속됩니다. 변경 없는 문서는 재사용하며, 최대 50건씩 ZIP으로 나누어
-        7일간 보관합니다. 사진·정보 변경 후에는 다시 생성해 주세요.
+        화면을 닫아도 생성은 계속됩니다. 변경 없는 문서는 재사용하며, 생성이 완료되면 전체를 ZIP
+        하나로 내려받습니다. 파일은 7일간 보관합니다. 사진·정보 변경 후에는 다시 생성해 주세요.
       </p>
       {(error || job.error || history.error) && (
         <p role="alert" className="form-error">
@@ -122,19 +122,14 @@ export function HwpxDownloads({
             {job.data.total.toLocaleString()}건
           </p>
           {job.data.error && <p className="form-error">{job.data.error}</p>}
-          <div className="hwpx-parts">
-            {job.data.parts.map((part) => (
-              <Button
-                key={part.part}
-                variant="outline"
-                className="outline-btn"
-                disabled={busy}
-                onClick={() => void download(part.part)}
-              >
-                {part.firstOrdinal}~{part.lastOrdinal}번 ZIP 다운로드
-              </Button>
-            ))}
-          </div>
+          <Button
+            variant="outline"
+            className="outline-btn"
+            disabled={busy || job.data.status !== 'READY'}
+            onClick={() => void download()}
+          >
+            {busy ? '다운로드 준비 중…' : `전체 ${job.data.total.toLocaleString()}건 ZIP 다운로드`}
+          </Button>
         </div>
       )}
       <details>

@@ -89,3 +89,7 @@ Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessNa
 ## HWPX 검침카드 (2026-11-09)
 
 ADMIN + CSRF POST `/api/exports/cards`에 `{siteId?,middleBlock?,smallBlock?,title}`로 생성 요청. `{id}`를 받아 GET `/api/exports/cards/{id}`를 진행 중 2초마다 조회한다. 상태 및 ZIP 목록, 만료/변경 검사와 다운로드는 `docs/HWPX_EXPORT.md` 참고. GET `/api/exports/cards`는 본인 최근 20개 작업이다. 위치도는 생성하지 않고 원경·START·END 근경만 넣는다. Excel 다운로드와 별도 기능이다.
+
+### 전체 HWPX ZIP 다운로드
+
+READY 작업에서 GET `/api/exports/cards/{id}/download-check`로 완료·만료·원본 변경 검사 후, `/api/exports/cards/{id}/download`를 브라우저 기본 다운로드로 연다. 결과는 전체 HWPX 파일이 직접 포함된 ZIP 하나다. 화면에 50건 묶음 버튼을 노출하지 않으며 전체 ZIP을 fetch/blob으로 메모리에 담지 않는다. 이전 생성 완료 작업도 지원한다.
