@@ -109,3 +109,7 @@ Row.errorCode가 있는 SERVICE_ERROR 한 건은 실패 목록에 표시하고 �
 ### HWPX 작업 취소·삭제
 
 ADMIN + 요청자 소유권 + CSRF POST `/api/exports/cards/{id}/cancel`, DELETE `/api/exports/cards/{id}`. 취소는 CANCELLED, 삭제 요청은 DELETING 상태로 보인다. DELETING은 처리 완료 후 목록에서 사라지며 조회는 404다. 화면에서 기존 요청별 취소·삭제와 상태/진행률을 제공한다. 삭제된 작업의 404는 반복 polling하지 않는다. 공유 캐시·원본 데이터 보존 및 실제 저장소 정리는 docs/HWPX_EXPORT.md 참고.
+
+### Excel 보이는 행과 DB 정리
+
+기존 등록/보완 multipart에 visibleOnly(boolean, 기본 false) 추가. true면 저장된 hidden 행을 HIDDEN_ROW로 제외하고 hiddenRows를 보고한다. 삭제는 별도 `/api/admin/imports/prune/preview` 및 `/{planId}/execute`로만 수행한다. 보이는 수용가 외 기존 전체 DB가 대상이며 사진/미확정 검침도 삭제하되 확정/지급 정산 대상이 있으면 전체 차단한다. 미리보기/유효기간/입력 확인/권한/상태 변경 검사 및 상세 API는 docs/VISIBLE_EXCEL_AND_PRUNE.md 참고.

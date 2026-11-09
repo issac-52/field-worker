@@ -17,7 +17,11 @@ import org.xml.sax.InputSource;
 
 /** SAX rows; retain at most one formatted row plus POI shared strings at the parser boundary. */
 public class ExcelRows {
-  public record Row(String sheet, int number, Map<String, String> cells) {
+  public record Row(String sheet, int number, Map<String, String> cells, boolean hidden) {
+    public Row(String sheet, int number, Map<String, String> cells) {
+      this(sheet, number, cells, false);
+    }
+
     public String cell(String column) {
       return cells.getOrDefault(column, "");
     }
@@ -41,7 +45,21 @@ public class ExcelRows {
                   handler,
                   new DataFormatter(Locale.ROOT),
                   false));
-          parser.parse(new InputSource(sheet));
+          var filter =
+              new org.xml.sax.helpers.XMLFilterImpl(parser) {
+                @Override
+                public void startElement(
+                    String uri, String local, String qName, org.xml.sax.Attributes attrs)
+                    throws org.xml.sax.SAXException {
+                  if ("row".equals(local) || "row".equals(qName))
+                    handler.hidden =
+                        "1".equals(attrs.getValue("hidden"))
+                            || "true".equals(attrs.getValue("hidden"));
+                  super.startElement(uri, local, qName, attrs);
+                }
+              };
+          filter.setContentHandler(parser.getContentHandler());
+          filter.parse(new InputSource(sheet));
           if (!handler.header) throw invalid();
           found = true;
         }
@@ -65,6 +83,7 @@ public class ExcelRows {
     final Consumer<Row> consumer;
     Map<String, String> cells;
     boolean header;
+    boolean hidden;
 
     RowsHandler(String sheet, Consumer<Row> consumer) {
       this.sheet = sheet;
@@ -92,7 +111,7 @@ public class ExcelRows {
       }
       if (rowNum > 1 && !cells.isEmpty()) {
         if (!header) throw invalid();
-        consumer.accept(new Row(sheet, rowNum + 1, cells));
+        consumer.accept(new Row(sheet, rowNum + 1, cells, hidden));
       }
     }
   }
