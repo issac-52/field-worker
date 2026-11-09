@@ -17,6 +17,7 @@ public abstract class PostgresIntegrationTest {
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry properties) {
     properties.add("app.documents.worker-enabled", () -> "false");
+    properties.add("app.documents.maintenance-enabled", () -> "false");
     properties.add("app.storage.mode", () -> "local");
     properties.add("app.storage.local-root", () -> "build/test-private-photos");
     properties.add("spring.datasource.url", POSTGRES::getJdbcUrl);

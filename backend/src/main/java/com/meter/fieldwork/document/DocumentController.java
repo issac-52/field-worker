@@ -27,6 +27,18 @@ public class DocumentController {
     return ApiResult.ok(service.list(actor.id()));
   }
 
+  @PostMapping("/{id}/cancel")
+  ApiResult<?> cancel(@PathVariable UUID id, @AuthenticationPrincipal SessionUser actor) {
+    service.cancel(id, actor.id());
+    return ApiResult.ok(Map.of("cancelled", true));
+  }
+
+  @DeleteMapping("/{id}")
+  ApiResult<?> delete(@PathVariable UUID id, @AuthenticationPrincipal SessionUser actor) {
+    service.requestDelete(id, actor.id());
+    return ApiResult.ok(Map.of("deleting", true));
+  }
+
   @GetMapping("/{id}")
   ApiResult<?> status(@PathVariable UUID id, @AuthenticationPrincipal SessionUser actor) {
     return ApiResult.ok(service.status(id, actor.id()));

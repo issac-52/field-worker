@@ -101,3 +101,7 @@ Geocoding Result/Row에 optional errorCode/errorMessage 추가. 공급자 오류
 ### 축소 지도 집계 마커
 
 인증 GET `/api/map-clusters?south&north&west&east&zoom`는 zoom 1~22에서 `{clusters:[{x,y,count,latitude,longitude}],total}`을 반환한다. 현재 화면을 12×12 격자로 집계하며 경계 포함 최대 169개 묶음이다. 대표 위치는 해당 묶음 좌표 평균이며 좌표 없는 수용가는 제외한다. 목록 필터/페이지와 무관하다. 프론트는 축소/넓은 화면 또는 개별 조회 500건 초과일 때 집계를 사용하고, 클릭 시 건수 및 확대 버튼을 표시한다.
+
+### HWPX 작업 취소·삭제
+
+ADMIN + 요청자 소유권 + CSRF POST `/api/exports/cards/{id}/cancel`, DELETE `/api/exports/cards/{id}`. 취소는 CANCELLED, 삭제 요청은 DELETING 상태로 보인다. DELETING은 처리 완료 후 목록에서 사라지며 조회는 404다. 화면에서 기존 요청별 취소·삭제와 상태/진행률을 제공한다. 삭제된 작업의 404는 반복 polling하지 않는다. 공유 캐시·원본 데이터 보존 및 실제 저장소 정리는 docs/HWPX_EXPORT.md 참고.

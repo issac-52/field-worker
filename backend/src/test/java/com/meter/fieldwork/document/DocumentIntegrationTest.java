@@ -31,6 +31,7 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
   @Autowired PhotoCleanup cleanup;
   @Autowired MockMvc mvc;
   @Autowired UserRepository users;
+  @org.springframework.test.context.bean.override.mockito.MockitoSpyBean HwpxCardRenderer renderer;
   long actor, site;
   UUID importId;
   String block;
@@ -58,6 +59,84 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
             UUID.randomUUID().toString(),
             block,
             importId);
+  }
+
+  @Test
+  void cancellingDuringRenderDoesNotPublishOrRestartTheJob() throws Exception {
+    UUID job = service.create(new DocumentService.Request(site, null, null, "Cancel test"), actor);
+    var entered = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    org.mockito.Mockito.doAnswer(
+            invocation -> {
+              entered.countDown();
+              if (!release.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                throw new IllegalStateException("test timeout");
+              return invocation.callRealMethod();
+            })
+        .when(renderer)
+        .render(
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyMap());
+    var running = java.util.concurrent.CompletableFuture.runAsync(() -> service.tick());
+    try {
+      assertThat(entered.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      service.cancel(job, actor);
+      service.requestDelete(job, actor);
+      assertThat(service.status(job, actor).get("status")).isEqualTo("DELETING");
+    } finally {
+      release.countDown();
+    }
+    running.get(10, java.util.concurrent.TimeUnit.SECONDS);
+    assertThat(
+            db.queryForObject(
+                "select count(*) from document_parts where job_id=?", Integer.class, job))
+        .isZero();
+    service.maintain();
+    assertThatThrownBy(() -> service.status(job, actor)).isInstanceOf(ApiException.class);
+    assertThat(
+            db.queryForObject(
+                "select count(*) from document_cache where site_id=?", Integer.class, site))
+        .isZero();
+  }
+
+  @Test
+  void cancelsQueuedJobAndDeletesItsResultsWithoutDeletingSharedCache() throws Exception {
+    var request = new DocumentService.Request(site, null, null, "Test");
+    UUID first = service.create(request, actor);
+    UUID duplicate = service.create(request, actor);
+    mvc.perform(
+            post("/api/exports/cards/" + duplicate + "/cancel").with(user(principal)).with(csrf()))
+        .andExpect(status().isOk());
+    assertThat(service.status(duplicate, actor).get("status")).isEqualTo("CANCELLED");
+    service.tick();
+    assertThat(service.status(first, actor).get("status")).isEqualTo("READY");
+    String cache =
+        db.queryForObject(
+            "select object_key from document_cache where site_id=?", String.class, site);
+    String part =
+        db.queryForObject(
+            "select object_key from document_parts where job_id=?", String.class, first);
+    mvc.perform(delete("/api/exports/cards/" + first).with(user(principal)).with(csrf()))
+        .andExpect(status().isOk());
+    service.tick();
+    assertThatThrownBy(() -> service.status(first, actor)).isInstanceOf(ApiException.class);
+    assertThat(
+            db.queryForObject(
+                "select count(*) from document_cache where site_id=?", Integer.class, site))
+        .isEqualTo(1);
+    cleanup.cleanup();
+    assertThatThrownBy(() -> storage.get(part)).isInstanceOf(RuntimeException.class);
+    assertThat(storage.get(cache)).isNotEmpty();
+    mvc.perform(delete("/api/exports/cards/" + duplicate).with(user(principal)).with(csrf()))
+        .andExpect(status().isOk());
+    service.maintain();
+    cleanup.cleanup();
+    assertThat(
+            db.queryForObject(
+                "select count(*) from document_cache where site_id=?", Integer.class, site))
+        .isZero();
+    assertThatThrownBy(() -> storage.get(cache)).isInstanceOf(RuntimeException.class);
   }
 
   @Test
@@ -198,6 +277,14 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
                 .content("{\"title\":\"Test\"}"))
         .andExpect(status().isForbidden());
     UUID job = service.create(new DocumentService.Request(site, null, null, "Test"), actor);
+    assertThatThrownBy(() -> service.cancel(job, actor + 100000)).isInstanceOf(ApiException.class);
+    assertThatThrownBy(() -> service.requestDelete(job, actor + 100000))
+        .isInstanceOf(ApiException.class);
+    mvc.perform(post("/api/exports/cards/" + job + "/cancel").with(user(principal)))
+        .andExpect(status().isForbidden());
+    mvc.perform(delete("/api/exports/cards/" + job).with(user(principal)))
+        .andExpect(status().isForbidden());
+
     assertThatThrownBy(() -> service.status(job, actor + 100000)).isInstanceOf(ApiException.class);
     mvc.perform(get("/api/exports/cards/" + job).with(user(principal)))
         .andExpect(status().isOk())
