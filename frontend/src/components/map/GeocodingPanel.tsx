@@ -7,7 +7,7 @@ import { Button } from '../ui/button';
 
 const labels: Record<string, string> = {
   UPDATED: '좌표 등록',
-  SERVICE_ERROR: '변환 중단 (주소 검색 서비스 오류)',
+  SERVICE_ERROR: '변환 실패 (주소 검색 서비스 오류)',
   EMPTY_ADDRESS: '변환 안 됨 (주소 없음)',
   NO_MATCH: '변환 안 됨 (검색 결과 없음)',
   CHANGED_OR_ALREADY_SET: '주소 변경 또는 좌표 등록됨',
@@ -63,7 +63,7 @@ export function GeocodingPanel() {
           break;
         }
         if (result.done) {
-          setMessage('주소 변환이 완료됐습니다. 등록된 위치를 지도에서 확인하세요.');
+          setMessage('주소 변환 처리가 끝났습니다. 미등록 사유와 지도에 등록된 위치를 확인하세요.');
           break;
         }
       }

@@ -10,6 +10,25 @@ class NaverAddressGeocoderTest {
   ObjectMapper json = new ObjectMapper();
 
   @Test
+  void addressBracesAreLiteralQueryValuesRatherThanUriTemplateVariables() {
+    var builder = org.springframework.web.client.RestClient.builder();
+    var server = org.springframework.test.web.client.MockRestServiceServer.bindTo(builder).build();
+    server
+        .expect(
+            request -> {
+              assertThat(request.getURI().getRawQuery())
+                  .contains("%7B", "%7D", "%26", "%2B", "%23");
+            })
+        .andRespond(
+            org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess(
+                "{\"status\":\"OK\",\"addresses\":[]}",
+                org.springframework.http.MediaType.APPLICATION_JSON));
+    assertThat(new NaverAddressGeocoder("test", "test", builder).find("가상로 10 {가상건물} & + #"))
+        .isNull();
+    server.verify();
+  }
+
+  @Test
   void providerErrorsSeparatePermissionQuotaAndUnavailableWithoutLeakingResponse() {
     assertThat(NaverAddressGeocoder.providerError(403).code).isEqualTo("GEOCODING_ACCESS_DENIED");
     assertThat(NaverAddressGeocoder.providerError(429).code).isEqualTo("GEOCODING_RATE_LIMITED");

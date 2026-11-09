@@ -119,6 +119,7 @@ public class GeocodingService {
     var result = new ArrayList<Row>();
     // Bound provider concurrency and return early on slow batches, keeping the cursor contiguous.
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+    Row stoppingFailure = null;
     try (var executor = Executors.newFixedThreadPool(10)) {
       for (int start = 0; start < candidates.size(); start += 10) {
         if (start > 0 && System.nanoTime() >= deadline) break;
@@ -135,14 +136,32 @@ public class GeocodingService {
             throw ex;
           }
         }
-        if (result.stream().anyMatch(row -> row.errorCode() != null)) break;
+        var chunk = result.subList(start, result.size());
+        stoppingFailure =
+            chunk.stream()
+                .filter(
+                    row ->
+                        Set.of(
+                                "GEOCODING_NOT_CONFIGURED",
+                                "GEOCODING_ACCESS_DENIED",
+                                "GEOCODING_RATE_LIMITED")
+                            .contains(Objects.toString(row.errorCode(), "")))
+                .findFirst()
+                .orElse(null);
+        if (stoppingFailure == null
+            && chunk.stream()
+                .filter(row -> !row.status().equals("EMPTY_ADDRESS"))
+                .allMatch(row -> row.errorCode() != null))
+          stoppingFailure =
+              chunk.stream().filter(row -> row.errorCode() != null).findFirst().orElse(null);
+        if (stoppingFailure != null) break;
       }
     }
     long cursor = result.isEmpty() ? request.afterId() : result.getLast().id();
     params.put("after", cursor);
     boolean done =
         db.queryForObject("select count(*) from worksites" + where, params, Long.class) == 0;
-    var failure = result.stream().filter(row -> row.errorCode() != null).findFirst().orElse(null);
+    var failure = stoppingFailure;
     return new Result(
         cursor,
         limit,
