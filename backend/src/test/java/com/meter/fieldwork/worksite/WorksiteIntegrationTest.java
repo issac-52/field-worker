@@ -32,10 +32,10 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
             get("/api/map-sites")
                 .with(user(actor))
                 .param("south", "35.81")
-                .param("north", "35.83")
+                .param("north", "35.89")
                 .param("west", "128.73")
-                .param("east", "128.75")
-                .param("zoom", "16")
+                .param("east", "128.81")
+                .param("zoom", "15")
                 .param("q", "does-not-match"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.items[0].id").value(site))
@@ -48,7 +48,7 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
                 .param("north", "35.83")
                 .param("west", "128.73")
                 .param("east", "128.75")
-                .param("zoom", "15"))
+                .param("zoom", "14"))
         .andExpect(status().isBadRequest());
     mvc.perform(
             get("/api/map-sites")
@@ -108,7 +108,7 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
     jdbc.update(
         "insert into"
             + " worksites(consumer_number,source_cells,source_sheet,source_row,import_job_id,latitude,longitude)"
-            + " select ?,'{}','Test',3,import_job_id,29.121,126.121 from worksites where id=?",
+            + " select ?,'{}','Test',3,import_job_id,29.04,126.04 from worksites where id=?",
         UUID.randomUUID().toString(),
         site);
     mvc.perform(get(url).with(user(actor)))

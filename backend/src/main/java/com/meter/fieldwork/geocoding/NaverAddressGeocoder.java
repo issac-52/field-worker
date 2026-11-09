@@ -15,20 +15,25 @@ public class NaverAddressGeocoder implements AddressGeocoder {
   private final String key;
   private final String secret;
 
+  @org.springframework.beans.factory.annotation.Autowired
   public NaverAddressGeocoder(
       @Value("${NAVER_GEOCODING_CLIENT_ID:}") String key,
       @Value("${NAVER_GEOCODING_CLIENT_SECRET:}") String secret) {
+    this(key, secret, httpBuilder());
+  }
+
+  NaverAddressGeocoder(String key, String secret, RestClient.Builder builder) {
     this.key = key;
     this.secret = secret;
+    this.client = builder.baseUrl("https://maps.apigw.ntruss.com").build();
+  }
+
+  private static RestClient.Builder httpBuilder() {
     var factory =
         new JdkClientHttpRequestFactory(
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
     factory.setReadTimeout(Duration.ofSeconds(5));
-    client =
-        RestClient.builder()
-            .requestFactory(factory)
-            .baseUrl("https://maps.apigw.ntruss.com")
-            .build();
+    return RestClient.builder().requestFactory(factory);
   }
 
   @Override
@@ -42,9 +47,9 @@ public class NaverAddressGeocoder implements AddressGeocoder {
               .uri(
                   b ->
                       b.path("/map-geocode/v2/geocode")
-                          .queryParam("query", address)
+                          .queryParam("query", "{address}")
                           .queryParam("count", 1)
-                          .build())
+                          .build(address))
               .header("x-ncp-apigw-api-key-id", key)
               .header("x-ncp-apigw-api-key", secret)
               .retrieve()

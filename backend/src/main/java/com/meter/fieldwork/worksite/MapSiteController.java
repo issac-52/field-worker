@@ -51,9 +51,9 @@ public class MapSiteController {
                 "east",
                 east,
                 "dx",
-                (east - west) / 12.0,
+                (east - west) / 6.0,
                 "dy",
-                (north - south) / 12.0));
+                (north - south) / 6.0));
     long total = clusters.stream().mapToLong(row -> ((Number) row.get("count")).longValue()).sum();
     return ApiResult.ok(Map.of("clusters", clusters, "total", total));
   }
@@ -75,9 +75,9 @@ public class MapSiteController {
         || east > 180
         || south >= north
         || west >= east
-        || north - south > .05
-        || east - west > .05
-        || zoom < 16
+        || north - south > .1
+        || east - west > .1
+        || zoom < 15
         || zoom > 22) throw new IllegalArgumentException("지도를 더 확대해 주세요.");
     var items =
         db.queryForList(
