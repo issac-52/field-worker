@@ -85,3 +85,7 @@ Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessNa
 ## 지도 영역 조회 (2026-11-09)
 
 `GET /api/map-sites?south=35.81&north=35.83&west=128.73&east=128.75&zoom=16` — 인증 필요. 목록 검색·블록 필터·페이지와 독립적으로 전체 수용가 중 영역 안 좌표를 조회한다. 확대 수준 16~22 및 각 축 범위 0.05도 이하만 허용하고 잘못된 범위는 400이다. 응답 data는 `{items:[{id,latitude,longitude,status}],truncated}`이며 status는 TODO/IN_PROGRESS/DONE이다. 이름·주소·사진·전체 검침 상세는 포함하지 않는다. 500건 이하는 전체 반환하며 500건 초과면 items를 비우고 truncated=true로 더 확대하도록 안내한다. 경계는 포함하며 좌표 미등록/0,0은 제외한다. 지도 이동 종료 후 조회하며 검색 목록의 페이지 변경과 좌표 변환 배치 완료마다 갱신하지 않는다.
+
+## HWPX 검침카드 (2026-11-09)
+
+ADMIN + CSRF POST `/api/exports/cards`에 `{siteId?,middleBlock?,smallBlock?,title}`로 생성 요청. `{id}`를 받아 GET `/api/exports/cards/{id}`를 진행 중 2초마다 조회한다. 상태 및 ZIP 목록, 만료/변경 검사와 다운로드는 `docs/HWPX_EXPORT.md` 참고. GET `/api/exports/cards`는 본인 최근 20개 작업이다. 위치도는 생성하지 않고 원경·START·END 근경만 넣는다. Excel 다운로드와 별도 기능이다.

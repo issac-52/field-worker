@@ -1,3 +1,4 @@
+import { HwpxDownloads } from '../components/HwpxDownloads';
 import { Button } from '../components/ui/button';
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, MapPin, MapPinned, ShieldCheck } from 'lucide-react';
@@ -45,6 +46,7 @@ export function SiteDetailPage() {
         <ArrowLeft size={17} />
         수용가 목록
       </Button>
+      {role === 'ADMIN' && !__MOCKS_ENABLED__ && <HwpxDownloads key={site.id} siteId={site.id} />}
       <section className="detail-head">
         <div>
           <h1>
