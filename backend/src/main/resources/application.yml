@@ -8,6 +8,10 @@ server:
         same-site: lax
         secure: ${SESSION_COOKIE_SECURE:false}
 spring:
+  task:
+    scheduling:
+      pool:
+        size: 2
   servlet:
     multipart:
       max-file-size: 25MB

@@ -1,6 +1,7 @@
+import { HwpxDownloads } from '../components/HwpxDownloads';
 import { request, query } from '../api/client';
 import { Button } from '../components/ui/button';
-import { Download, FileText } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useWork } from '../context/work';
 import { api } from '../api';
@@ -104,6 +105,9 @@ export function ReportsPage() {
   return (
     <>
       <h1 className="sr-only">문서 출력</h1>
+      {role === 'ADMIN' && !__MOCKS_ENABLED__ && (
+        <HwpxDownloads middleBlock={middle} smallBlock={small} />
+      )}
       <section className="panel report-panel">
         <span className="report-icon">
           <Download size={29} />
@@ -147,23 +151,6 @@ export function ReportsPage() {
             {error}
           </p>
         )}
-      </section>
-      <section className="panel report-panel">
-        <span className="report-icon">
-          <FileText size={29} />
-        </span>
-        <h2>검침카드 일괄 출력</h2>
-        <div className="report-count">
-          <span>선택 블록의 출력 대상</span>
-          <strong>
-            {loading ? '—' : summary.total.toLocaleString()}
-            <small>건</small>
-          </strong>
-        </div>
-        <Button variant="default" className="primary-btn full" disabled>
-          <Download size={18} />
-          HWP · ZIP 생성 준비 중
-        </Button>
       </section>
     </>
   );

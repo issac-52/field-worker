@@ -119,10 +119,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="top-actions">
             {!__MOCKS_ENABLED__ && (
               <>
-                <button onClick={changePassword}>비밀번호 변경</button>
-                <button onClick={() => void logout().catch(() => window.location.reload())}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="outline-btn"
+                  onClick={changePassword}
+                >
+                  비밀번호 변경
+                </Button>
+                <Button
+                  variant="outline"
+                  className="outline-btn"
+                  size="sm"
+                  onClick={() => void logout().catch(() => window.location.reload())}
+                >
                   로그아웃
-                </button>
+                </Button>
               </>
             )}
             {__MOCKS_ENABLED__ && <span className="demo-label">MOCK</span>}
