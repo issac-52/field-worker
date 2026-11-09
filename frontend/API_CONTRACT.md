@@ -84,7 +84,7 @@ Site는 `oldAddress`, `meterDiameter`, `householdCount`, `sewerRaw`, `businessNa
 
 ## 지도 영역 조회 (2026-11-09)
 
-`GET /api/map-sites?south=35.81&north=35.83&west=128.73&east=128.75&zoom=16` — 인증 필요. 목록 검색·블록 필터·페이지와 독립적으로 전체 수용가 중 영역 안 좌표를 조회한다. 확대 수준 16~22 및 각 축 범위 0.05도 이하만 허용하고 잘못된 범위는 400이다. 응답 data는 `{items:[{id,latitude,longitude,status}],truncated}`이며 status는 TODO/IN_PROGRESS/DONE이다. 이름·주소·사진·전체 검침 상세는 포함하지 않는다. 500건 이하는 전체 반환하며 500건 초과면 items를 비우고 truncated=true로 더 확대하도록 안내한다. 경계는 포함하며 좌표 미등록/0,0은 제외한다. 지도 이동 종료 후 조회하며 검색 목록의 페이지 변경과 좌표 변환 배치 완료마다 갱신하지 않는다.
+`GET /api/map-sites?south=35.81&north=35.83&west=128.73&east=128.75&zoom=16` — 인증 필요. 목록 검색·블록 필터·페이지와 독립적으로 전체 수용가 중 영역 안 좌표를 조회한다. 확대 수준 15~22 및 각 축 범위 0.1도 이하만 허용하고 잘못된 범위는 400이다. 응답 data는 `{items:[{id,latitude,longitude,status}],truncated}`이며 status는 TODO/IN_PROGRESS/DONE이다. 이름·주소·사진·전체 검침 상세는 포함하지 않는다. 500건 이하는 전체 반환하며 500건 초과면 items를 비우고 truncated=true로 더 확대하도록 안내한다. 경계는 포함하며 좌표 미등록/0,0은 제외한다. 지도 이동 종료 후 조회하며 검색 목록의 페이지 변경과 좌표 변환 배치 완료마다 갱신하지 않는다.
 
 ## HWPX 검침카드 (2026-11-09)
 
@@ -100,7 +100,7 @@ Geocoding Result/Row에 optional errorCode/errorMessage 추가. 공급자 오류
 
 ### 축소 지도 집계 마커
 
-인증 GET `/api/map-clusters?south&north&west&east&zoom`는 zoom 1~22에서 `{clusters:[{x,y,count,latitude,longitude}],total}`을 반환한다. 현재 화면을 12×12 격자로 집계하며 경계 포함 최대 169개 묶음이다. 대표 위치는 해당 묶음 좌표 평균이며 좌표 없는 수용가는 제외한다. 목록 필터/페이지와 무관하다. 프론트는 축소/넓은 화면 또는 개별 조회 500건 초과일 때 집계를 사용하고, 클릭 시 건수 및 확대 버튼을 표시한다.
+인증 GET `/api/map-clusters?south&north&west&east&zoom`는 zoom 1~22에서 `{clusters:[{x,y,count,latitude,longitude}],total}`을 반환한다. 현재 화면을 6×6 격자로 집계하며 경계 포함 최대 49개 묶음이다. 대표 위치는 해당 묶음 좌표 평균이며 좌표 없는 수용가는 제외한다. 목록 필터/페이지와 무관하다. 프론트는 축소/넓은 화면 또는 개별 조회 500건 초과일 때 집계를 사용하고, 클릭 시 건수 및 확대 버튼을 표시한다.
 
 ### 개별 주소 오류 후 계속 진행
 
