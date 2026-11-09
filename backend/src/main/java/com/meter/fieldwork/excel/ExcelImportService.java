@@ -23,6 +23,11 @@ public class ExcelImportService {
 
   @Transactional
   public ImportResult importWorkbook(InputStream stream, Long actor) {
+    return importWorkbook(stream, actor, false);
+  }
+
+  @Transactional
+  public ImportResult importWorkbook(InputStream stream, Long actor, boolean visibleOnly) {
     var context = new ImportContext(UUID.randomUUID());
     jdbc.update("insert into import_jobs(id,created_by) values(?,?)", context.id, actor);
     new ExcelRows()
@@ -32,6 +37,11 @@ public class ExcelImportService {
               context.sheetOrder.computeIfAbsent(row.sheet(), key -> context.sheetOrder.size());
               if (++context.total > 50000)
                 throw new ApiException(400, "TOO_MANY_ROWS", "업로드는 최대 50,000행입니다.");
+              if (visibleOnly && row.hidden()) {
+                context.hidden++;
+                context.skip(row, "HIDDEN_ROW", null);
+                return;
+              }
               String number = row.cell("C");
               if (number.isBlank()) {
                 context.skip(row, "INVALID_CONSUMER_NUMBER", null);
@@ -61,6 +71,7 @@ public class ExcelImportService {
             context.duplicates,
             context.exists,
             context.invalid,
+            context.hidden,
             List.copyOf(context.skipped));
     jdbc.update("update import_jobs set result=?::jsonb where id=?", json(result), context.id);
     return result;
@@ -132,7 +143,7 @@ public class ExcelImportService {
 
   private static class ImportContext {
     final UUID id;
-    int total, inserted, duplicates, exists, invalid;
+    int total, inserted, duplicates, exists, invalid, hidden;
     final Map<String, Integer> sheetOrder = new LinkedHashMap<>();
     final Map<String, FirstRow> seen = new LinkedHashMap<>();
     final List<ExcelRows.Row> batch = new ArrayList<>(500);
@@ -144,6 +155,7 @@ public class ExcelImportService {
 
     void skip(ExcelRows.Row row, String reason, FirstRow first) {
       switch (reason) {
+        case "HIDDEN_ROW" -> {}
         case "DUPLICATE_IN_FILE" -> duplicates++;
         case "ALREADY_EXISTS" -> exists++;
         default -> invalid++;

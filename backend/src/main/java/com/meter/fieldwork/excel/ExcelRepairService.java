@@ -44,21 +44,33 @@ public class ExcelRepairService {
       int duplicateInFile,
       int notFound,
       int invalid,
+      int hiddenRows,
       List<Row> rows) {}
 
   @Transactional
   public Result repair(InputStream stream, Long actor) {
+    return repair(stream, actor, false);
+  }
+
+  @Transactional
+  public Result repair(InputStream stream, Long actor, boolean visibleOnly) {
     UUID job = UUID.randomUUID();
     db.update("insert into import_jobs(id,created_by) values(?,?)", job, actor);
     var seen = new HashSet<String>();
     var rows = new ArrayList<Row>();
-    int[] counts = new int[6];
+    int[] counts = new int[7];
     new ExcelRows()
         .read(
             stream,
             row -> {
               if (++counts[0] > 50000)
                 throw new ApiException(400, "TOO_MANY_ROWS", "업로드는 최대 50,000행입니다.");
+              if (visibleOnly && row.hidden()) {
+                counts[6]++;
+                rows.add(
+                    new Row(row.sheet(), row.number(), row.cell("C"), "HIDDEN_ROW", List.of()));
+                return;
+              }
               String number = row.cell("C");
               String reason;
               List<String> changed = List.of();
@@ -99,6 +111,7 @@ public class ExcelRepairService {
             counts[3],
             counts[4],
             counts[5],
+            counts[6],
             List.copyOf(rows));
     db.update("update import_jobs set result=?::jsonb where id=?", encode(result), job);
     return result;

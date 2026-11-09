@@ -113,6 +113,44 @@ public class DocumentService {
         == 0;
   }
 
+  public void removeForSites(List<Long> ids) {
+    if (ids.isEmpty()) return;
+    if (!db.queryForObject("select pg_try_advisory_xact_lock(4285102)", Boolean.class))
+      throw new ApiException(409, "DOCUMENT_BUSY", "문서 작업 처리 중입니다. 잠시 후 다시 시도하세요.");
+    new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(db)
+        .update(
+            "update document_jobs set delete_requested=true,status='CANCELLED' where id in (select"
+                + " job_id from document_job_items where site_id in (:ids))",
+            Map.of("ids", ids));
+    purgeRequestedJobs();
+    var named = new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(db);
+    var keys =
+        named.queryForList(
+            "select object_key from document_cache where site_id in (:ids)",
+            Map.of("ids", ids),
+            String.class);
+    named.update("delete from document_cache where site_id in (:ids)", Map.of("ids", ids));
+    retireArtifacts(keys);
+  }
+
+  private void retireArtifacts(List<String> keys) {
+    var named = new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(db);
+    for (int start = 0; start < keys.size(); start += 500) {
+      var args = Map.of("keys", keys.subList(start, Math.min(start + 500, keys.size())));
+      String unused =
+          "object_key in (:keys) and not exists(select 1 from document_cache c where"
+              + " c.object_key=a.object_key) and not exists(select 1 from document_parts p where"
+              + " p.object_key=a.object_key)";
+      named.update(
+          "insert into photo_deletions(object_key) select object_key from document_artifacts a"
+              + " where "
+              + unused
+              + " on conflict do nothing",
+          args);
+      named.update("delete from document_artifacts a where " + unused, args);
+    }
+  }
+
   private void purgeRequestedJobs() {
     for (UUID id :
         db.queryForList("select id from document_jobs where delete_requested", UUID.class)) {
@@ -135,19 +173,7 @@ public class DocumentService {
                     id));
             db.update("delete from document_cache where " + unshared, id, id);
             db.update("delete from document_jobs where id=?", id);
-            for (String key : keys) {
-              int removed =
-                  db.update(
-                      "delete from document_artifacts a where object_key=? and not exists(select 1"
-                          + " from document_cache c where c.object_key=a.object_key) and not"
-                          + " exists(select 1 from document_parts p where"
-                          + " p.object_key=a.object_key)",
-                      key);
-              if (removed > 0)
-                db.update(
-                    "insert into photo_deletions(object_key) values(?) on conflict do nothing",
-                    key);
-            }
+            retireArtifacts(keys);
           });
     }
   }

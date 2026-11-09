@@ -21,18 +21,25 @@ public class ExcelImportController {
   }
 
   @PostMapping(consumes = "multipart/form-data")
-  ApiResult<?> upload(@RequestParam MultipartFile file, @AuthenticationPrincipal SessionUser actor)
+  ApiResult<?> upload(
+      @RequestParam MultipartFile file,
+      @RequestParam(defaultValue = "false") boolean visibleOnly,
+      @AuthenticationPrincipal SessionUser actor)
       throws IOException {
     try (var stream = file.getInputStream()) {
-      return ApiResult.ok(imports.importWorkbook(stream, actor == null ? null : actor.id()));
+      return ApiResult.ok(
+          imports.importWorkbook(stream, actor == null ? null : actor.id(), visibleOnly));
     }
   }
 
   @PostMapping(value = "/repair", consumes = "multipart/form-data")
-  ApiResult<?> repair(@RequestParam MultipartFile file, @AuthenticationPrincipal SessionUser actor)
+  ApiResult<?> repair(
+      @RequestParam MultipartFile file,
+      @RequestParam(defaultValue = "false") boolean visibleOnly,
+      @AuthenticationPrincipal SessionUser actor)
       throws IOException {
     try (var stream = file.getInputStream()) {
-      return ApiResult.ok(repairs.repair(stream, actor.id()));
+      return ApiResult.ok(repairs.repair(stream, actor.id(), visibleOnly));
     }
   }
 

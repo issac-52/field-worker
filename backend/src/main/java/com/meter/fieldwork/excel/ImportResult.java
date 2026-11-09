@@ -10,6 +10,7 @@ public record ImportResult(
     int duplicateInFile,
     int alreadyExists,
     int invalid,
+    int hiddenRows,
     List<SkippedRow> skippedRows) {
   public record SkippedRow(
       String sheet,
