@@ -47,6 +47,51 @@ class ExcelImportIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void visibleOnlyMultipartOptionAndPruneEndpointsRequireAdminAndCsrf() throws Exception {
+    String id = "visible-" + java.util.UUID.randomUUID();
+    byte[] bytes;
+    try (var book = new XSSFWorkbook(new java.io.ByteArrayInputStream(workbook(id, id)));
+        var out = new ByteArrayOutputStream()) {
+      book.getSheetAt(0).getRow(2).setZeroHeight(true);
+      book.write(out);
+      bytes = out.toByteArray();
+    }
+    var file =
+        new MockMultipartFile(
+            "file",
+            "test.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            bytes);
+    mvc.perform(
+            multipart("/api/admin/imports")
+                .file(file)
+                .param("visibleOnly", "true")
+                .with(user("admin").roles("ADMIN"))
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.inserted").value(1))
+        .andExpect(jsonPath("$.data.hiddenRows").value(1))
+        .andExpect(jsonPath("$.data.duplicateInFile").value(0));
+    mvc.perform(
+            multipart("/api/admin/imports/prune/preview")
+                .file(file)
+                .with(user("worker").roles("WORKER"))
+                .with(csrf()))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            multipart("/api/admin/imports/prune/preview")
+                .file(file)
+                .with(user("admin").roles("ADMIN")))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/api/admin/imports/prune/" + java.util.UUID.randomUUID() + "/execute")
+                .with(user("admin").roles("ADMIN"))
+                .contentType("application/json")
+                .content("{\"confirmation\":\"1건 삭제\"}"))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
   void firstRowWinsAndReportPreservesExcelRowNumbersAndLeadingZeros() throws Exception {
     var file =
         new MockMultipartFile(
