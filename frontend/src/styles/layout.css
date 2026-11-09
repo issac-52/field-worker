@@ -281,3 +281,52 @@
   color: #493b17;
   font-size: 16px;
 }
+
+.hwpx-panel {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.hwpx-panel .field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.hwpx-panel input {
+  width: 100%;
+  max-width: 640px;
+  min-width: 0;
+}
+.hwpx-panel p {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.hwpx-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.hwpx-panel details button {
+  white-space: normal;
+  text-align: left;
+}
+@media (max-width: 760px) {
+  .topbar {
+    height: auto;
+    min-height: 62px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+  .top-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+}
+@media (max-width: 480px) {
+  .top-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
