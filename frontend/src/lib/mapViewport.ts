@@ -12,7 +12,33 @@ export type MapSite = {
   longitude: number;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
 };
-export type MapSites = { items: MapSite[]; truncated: boolean };
+export type MapCluster = {
+  x: number;
+  y: number;
+  latitude: number;
+  longitude: number;
+  count: number;
+};
+export type MapSites = {
+  items: MapSite[];
+  truncated: boolean;
+  clusters?: MapCluster[];
+  total?: number;
+};
+export function validMapArea(v: MapViewport) {
+  return (
+    Object.values(v).every(Number.isFinite) &&
+    Number.isInteger(v.zoom) &&
+    v.zoom >= 1 &&
+    v.zoom <= 22 &&
+    v.south >= -90 &&
+    v.north <= 90 &&
+    v.west >= -180 &&
+    v.east <= 180 &&
+    v.south < v.north &&
+    v.west < v.east
+  );
+}
 export function validViewport(v: MapViewport) {
   return (
     Object.values(v).every(Number.isFinite) &&

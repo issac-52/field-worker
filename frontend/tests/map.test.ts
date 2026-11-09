@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
-import { validViewport } from '../src/lib/mapViewport';
+import { validViewport, validMapArea } from '../src/lib/mapViewport';
 import { mapMarker } from '../src/lib/mapMarker';
 import { watchCurrentLocation } from '../src/lib/currentLocation';
 import { seedSites } from '../src/mocks/data';
@@ -196,4 +196,12 @@ describe('viewport request limits', () => {
     expect(validViewport({ ...area, south: NaN })).toBe(false);
     expect(validViewport({ ...area, north: 35 })).toBe(false);
   });
+});
+
+it('allows zoomed-out bounded cluster queries without enabling individual markers', () => {
+  const region = { south: 34, north: 37, west: 126, east: 130, zoom: 10 };
+  expect(validMapArea(region)).toBe(true);
+  expect(validViewport(region)).toBe(false);
+  expect(validMapArea({ ...region, north: NaN })).toBe(false);
+  expect(validMapArea({ ...region, zoom: 0 })).toBe(false);
 });
