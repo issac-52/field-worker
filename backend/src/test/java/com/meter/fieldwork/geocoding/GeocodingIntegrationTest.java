@@ -50,9 +50,10 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
     for (int i = 0; i < 12; i++)
       db.update(
           "insert into"
-              + " worksites(consumer_number,middle_block,address,source_cells,source_sheet,source_row,import_job_id)"
-              + " values(?,?,?,'{}','Test',3,?)",
-          UUID.randomUUID().toString(),
+              + " worksites(consumer_number,name,middle_block,address,source_cells,source_sheet,source_row,import_job_id)"
+              + " values(?,?,?,?,'{}','Test',3,?)",
+          i == 0 ? null : UUID.randomUUID().toString(),
+          "Fictional " + block + i,
           block,
           "Failure road " + i,
           job);
@@ -65,6 +66,7 @@ class GeocodingIntegrationTest extends PostgresIntegrationTest {
         service.run(
             new GeocodingService.Request(after, null, "Test region", block, null, null), actor);
     assertThat(result.rows()).hasSize(pause ? 10 : 12);
+    assertThat(result.rows().getFirst().consumerNumber()).isNull();
     assertThat(result.rows().stream().filter(r -> r.status().equals("UPDATED")).count())
         .isEqualTo(all ? 0 : pause ? 9 : 11);
     assertThat(result.rows().get(1).status()).isEqualTo("SERVICE_ERROR");

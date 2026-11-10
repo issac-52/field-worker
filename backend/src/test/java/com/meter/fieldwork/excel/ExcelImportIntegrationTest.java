@@ -35,7 +35,8 @@ class ExcelImportIntegrationTest extends PostgresIntegrationTest {
       for (int i = 0; i < numbers.length; i++) {
         var row = sheet.createRow(i + 2);
         row.createCell(2).setCellValue(numbers[i]);
-        row.createCell(3).setCellValue("Fictional " + i);
+        // A numberless row without a name remains invalid under the address/name fallback.
+        row.createCell(3).setCellValue(numbers[i].isBlank() ? "" : "Fictional " + i);
         row.createCell(4).setCellValue("Test address");
         row.createCell(12).setCellValue(123 + i);
         row.createCell(24).setCellValue(2);

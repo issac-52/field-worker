@@ -25,7 +25,7 @@ export type Site = {
   industry: string;
   meterNo: string;
   sealed: boolean | null;
-  consumerNumber?: string;
+  consumerNumber?: string | null;
   oldAddress?: string;
   meterDiameter?: string;
   householdCount?: string;

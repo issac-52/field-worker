@@ -25,7 +25,7 @@ public class ExcelPruneService {
   }
 
   private static final String OUTSIDE =
-      "consumer_number not in (select jsonb_array_elements_text(?::jsonb))";
+      "id not in (select value::bigint from jsonb_array_elements_text(?::jsonb))";
 
   private String encode(Object o) {
     try {
@@ -89,8 +89,8 @@ public class ExcelPruneService {
     summary.put(
         "sample",
         db.queryForList(
-            "select consumer_number as \"consumerNumber\",middle_block as \"middleBlock\" from"
-                + " worksites where "
+            "select id,consumer_number as \"consumerNumber\",name,address,middle_block as"
+                + " \"middleBlock\" from worksites where "
                 + OUTSIDE
                 + " order by id limit 50",
             keep));
@@ -99,56 +99,70 @@ public class ExcelPruneService {
 
   @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   public Map<String, Object> preview(InputStream file, long actor) {
-    var visible = new LinkedHashSet<String>();
-    var hidden = new LinkedHashSet<String>();
-    int[] rows = {0, 0, 0, 0};
+    var visible = new LinkedHashSet<WorksiteIdentity>();
+    var hidden = new LinkedHashSet<WorksiteIdentity>();
+    int[] rows = {0, 0, 0, 0, 0, 0};
     new ExcelRows()
         .read(
             file,
             row -> {
               if (++rows[0] > 50000) throw new ApiException(400, "TOO_MANY_ROWS", "최대 50,000행입니다.");
-              String number = row.cell("C");
+              var identity = WorksiteIdentity.from(row);
               if (row.hidden()) {
                 rows[1]++;
-                if (number.isBlank()) rows[2]++;
-                else hidden.add(number);
+                if (row.cell("C").isBlank()) rows[2]++;
+                if (identity == null) rows[4]++;
+                else hidden.add(identity);
               } else {
-                if (number.isBlank()) rows[3]++;
-                else visible.add(number);
+                if (row.cell("C").isBlank()) rows[3]++;
+                if (identity == null) rows[5]++;
+                else visible.add(identity);
               }
             });
     if (visible.isEmpty())
-      throw new ApiException(400, "EMPTY_VISIBLE_ROWS", "보이는 수용가번호가 없어 삭제를 진행할 수 없습니다.");
+      throw new ApiException(400, "EMPTY_VISIBLE_ROWS", "보이는 수용가를 식별할 번호 또는 주소·이름이 없습니다.");
     if (rows[1] == 0)
       throw new ApiException(400, "NO_HIDDEN_ROWS", "저장된 파일에 숨긴 행이 없습니다. 필터 적용 후 저장했는지 확인하세요.");
     int overlaps = hidden.size();
     hidden.removeAll(visible);
     overlaps -= hidden.size();
-    var keep =
-        db.queryForList(
-            "select consumer_number from worksites where consumer_number not in (select"
-                + " jsonb_array_elements_text(?::jsonb)) order by consumer_number",
-            String.class,
-            encode(hidden));
-    if (keep.isEmpty())
-      throw new ApiException(400, "EMPTY_KEEP_SET", "DB 전체 삭제는 지원하지 않습니다. 필터와 번호를 확인하세요.");
-    String numbers = encode(keep);
-    var result = summary(numbers);
+    var keepIds = new ArrayList<Long>();
+    var matched = new HashSet<WorksiteIdentity>();
+    db.query(
+        "select id,consumer_number,address,name from worksites order by id",
+        (RowCallbackHandler)
+            row -> {
+              var identity =
+                  WorksiteIdentity.of(
+                      row.getString("consumer_number"),
+                      row.getString("address"),
+                      row.getString("name"));
+              if (hidden.contains(identity)) matched.add(identity);
+              else keepIds.add(row.getLong("id"));
+            });
+    if (keepIds.isEmpty())
+      throw new ApiException(400, "EMPTY_KEEP_SET", "DB 전체 삭제는 지원하지 않습니다. 필터와 식별 정보를 확인하세요.");
+    String keep = encode(keepIds);
+    var result = summary(keep);
     result.put("scope", "HIDDEN_ROWS");
+    result.put("identityVersion", 2);
     result.put("visibleDuplicateNumbers", overlaps);
+    result.put("visibleDuplicateIdentities", overlaps);
     result.put("hiddenRowsWithoutNumber", rows[2]);
     result.put("visibleRowsWithoutNumber", rows[3]);
-    result.put(
-        "unmatchedHiddenNumbers", hidden.size() - ((Number) result.get("deleteCount")).intValue());
+    result.put("hiddenRowsWithoutIdentity", rows[4]);
+    result.put("visibleRowsWithoutIdentity", rows[5]);
+    result.put("unmatchedHiddenNumbers", hidden.size() - matched.size());
+    result.put("unmatchedHiddenIdentities", hidden.size() - matched.size());
     UUID id = UUID.randomUUID();
     db.update(
-        "insert into excel_prune_plans(id,created_by,keep_numbers,fingerprint,result)"
-            + " values(?,?,?::jsonb,?,?::jsonb)",
+        "insert into excel_prune_plans(id,created_by,keep_numbers,keep_site_ids,fingerprint,result)"
+            + " values(?,?,'[]'::jsonb,?::jsonb,?,?::jsonb)",
         id,
         actor,
-        numbers,
+        keep,
         fingerprint(),
-        encode(Map.of("scope", "HIDDEN_ROWS")));
+        encode(Map.of("scope", "HIDDEN_ROWS", "identityVersion", 2)));
     result.put("planId", id);
     result.put("hiddenRows", rows[1]);
     result.put("confirmation", result.get("deleteCount") + "건 삭제");
@@ -167,17 +181,18 @@ public class ExcelPruneService {
             + " in share row exclusive mode");
     var plans =
         db.queryForList(
-            "select *,result->>'scope' as prune_scope,keep_numbers::text as keep_json from"
-                + " excel_prune_plans where id=? and created_by=? and expires_at>now() and not"
-                + " executed for update",
+            "select *,result->>'scope' as prune_scope,result->>'identityVersion' as"
+                + " identity_version,keep_site_ids::text as keep_json from excel_prune_plans where"
+                + " id=? and created_by=? and expires_at>now() and not executed for update",
             id,
             actor);
     if (plans.isEmpty())
       throw new ApiException(404, "PRUNE_PLAN_NOT_FOUND", "삭제 미리보기가 없거나 만료/실행됐습니다.");
     var plan = plans.getFirst();
-    if (!"HIDDEN_ROWS".equals(plan.get("prune_scope")))
-      throw new ApiException(
-          409, "PRUNE_SCOPE_CHANGED", "삭제 범위가 숨김 행 기준으로 바뀌었습니다. 미리보기를 다시 확인하세요.");
+    if (!"HIDDEN_ROWS".equals(plan.get("prune_scope"))
+        || !"2".equals(plan.get("identity_version"))
+        || plan.get("keep_json") == null)
+      throw new ApiException(409, "PRUNE_SCOPE_CHANGED", "삭제 범위 또는 식별 기준이 변경됐습니다. 미리보기를 다시 확인하세요.");
     String keep = (String) plan.get("keep_json");
     var result = summary(keep);
     if (!Objects.equals(plan.get("fingerprint"), fingerprint()))

@@ -599,6 +599,81 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void adminCanAssignMissingNumberWithoutChangingSiteOrHistory() throws Exception {
+    jdbc.update(
+        "update worksites set consumer_number=null,address=? where id=?",
+        "Test road " + site,
+        site);
+    jdbc.update(
+        "insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee)"
+            + " values(?,'START','2026-11-01',1,?,0)",
+        site,
+        actor.id());
+    long adminId =
+        jdbc.queryForObject(
+            "insert into users(login_id,nickname,password,role,must_change_password) values(?,'Test"
+                + " Admin','unused','ADMIN',false) returning id",
+            Long.class,
+            UUID.randomUUID().toString());
+    var admin = new SessionUser(users.findById(adminId).orElseThrow());
+    String endpoint = "/api/admin/sites/" + site + "/consumer-number";
+    mvc.perform(
+            patch(endpoint)
+                .with(user(actor))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"consumerNumber\":\"NEW-TEST\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            patch(endpoint)
+                .with(user(admin))
+                .contentType("application/json")
+                .content("{\"consumerNumber\":\"NEW-TEST\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            patch(endpoint)
+                .with(user(admin))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"consumerNumber\":\"  \"}"))
+        .andExpect(status().isBadRequest());
+    jdbc.update(
+        "insert into worksites(consumer_number,source_cells,source_sheet,source_row,import_job_id)"
+            + " select ?, '{}','Test',3,import_job_id from worksites where id=?",
+        "duplicate-" + site,
+        site);
+    mvc.perform(
+            patch(endpoint)
+                .with(user(admin))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"consumerNumber\":\"duplicate-" + site + "\"}"))
+        .andExpect(status().isConflict());
+    String number = "new-" + site;
+    mvc.perform(
+            patch(endpoint)
+                .with(user(admin))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"consumerNumber\":\"  " + number + "  \"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.id").value(site))
+        .andExpect(jsonPath("$.data.consumerNumber").value(number))
+        .andExpect(jsonPath("$.data.inspections.START.reading").value(1));
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from worksite_edits where site_id=?", Integer.class, site))
+        .isEqualTo(1);
+    mvc.perform(
+            patch(endpoint)
+                .with(user(admin))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"consumerNumber\":\"overwrite\"}"))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
   void consumerNumberAndWaterSupplyNumberAreNotConflated() throws Exception {
     jdbc.update(
         "update worksites set source_cells='{\"AZ\":\"SUPPLY-TEST\"}'::jsonb where id=?", site);

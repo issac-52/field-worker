@@ -53,6 +53,16 @@ public class WorksiteController {
         sites.condition(id, actor.id(), body.code(), body.description(), admin(actor)));
   }
 
+  public record ConsumerNumber(String consumerNumber) {}
+
+  @PatchMapping("/api/admin/sites/{id}/consumer-number")
+  ApiResult<?> registerConsumerNumber(
+      @PathVariable long id,
+      @RequestBody ConsumerNumber body,
+      @AuthenticationPrincipal SessionUser actor) {
+    return ApiResult.ok(sites.registerConsumerNumber(id, actor.id(), body.consumerNumber()));
+  }
+
   public record Note(String note) {}
 
   @PatchMapping("/api/sites/{id}/note")
