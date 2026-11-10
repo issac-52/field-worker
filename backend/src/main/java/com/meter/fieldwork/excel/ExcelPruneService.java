@@ -99,37 +99,56 @@ public class ExcelPruneService {
 
   @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   public Map<String, Object> preview(InputStream file, long actor) {
-    var keep = new LinkedHashSet<String>();
-    int[] rows = {0, 0};
+    var visible = new LinkedHashSet<String>();
+    var hidden = new LinkedHashSet<String>();
+    int[] rows = {0, 0, 0, 0};
     new ExcelRows()
         .read(
             file,
             row -> {
               if (++rows[0] > 50000) throw new ApiException(400, "TOO_MANY_ROWS", "최대 50,000행입니다.");
+              String number = row.cell("C");
               if (row.hidden()) {
                 rows[1]++;
-                return;
+                if (number.isBlank()) rows[2]++;
+                else hidden.add(number);
+              } else {
+                if (number.isBlank()) rows[3]++;
+                else visible.add(number);
               }
-              if (row.cell("C").isBlank())
-                throw new ApiException(
-                    400, "INVALID_VISIBLE_ROW", "보이는 행에 수용가번호가 없습니다. 파일을 확인하세요.");
-              keep.add(row.cell("C"));
             });
+    if (visible.isEmpty())
+      throw new ApiException(400, "EMPTY_VISIBLE_ROWS", "보이는 수용가번호가 없어 삭제를 진행할 수 없습니다.");
+    if (rows[1] == 0)
+      throw new ApiException(400, "NO_HIDDEN_ROWS", "저장된 파일에 숨긴 행이 없습니다. 필터 적용 후 저장했는지 확인하세요.");
+    int overlaps = hidden.size();
+    hidden.removeAll(visible);
+    overlaps -= hidden.size();
+    var keep =
+        db.queryForList(
+            "select consumer_number from worksites where consumer_number not in (select"
+                + " jsonb_array_elements_text(?::jsonb)) order by consumer_number",
+            String.class,
+            encode(hidden));
     if (keep.isEmpty())
-      throw new ApiException(400, "EMPTY_VISIBLE_ROWS", "보이는 수용가가 없어 삭제를 진행할 수 없습니다.");
+      throw new ApiException(400, "EMPTY_KEEP_SET", "DB 전체 삭제는 지원하지 않습니다. 필터와 번호를 확인하세요.");
     String numbers = encode(keep);
     var result = summary(numbers);
-    if (((Number) result.get("keepCount")).longValue() != keep.size())
-      throw new ApiException(
-          409, "VISIBLE_NOT_IMPORTED", "보이는 수용가 중 DB에 없는 번호가 있습니다. 먼저 보이는 행을 신규 등록하세요.");
+    result.put("scope", "HIDDEN_ROWS");
+    result.put("visibleDuplicateNumbers", overlaps);
+    result.put("hiddenRowsWithoutNumber", rows[2]);
+    result.put("visibleRowsWithoutNumber", rows[3]);
+    result.put(
+        "unmatchedHiddenNumbers", hidden.size() - ((Number) result.get("deleteCount")).intValue());
     UUID id = UUID.randomUUID();
     db.update(
-        "insert into excel_prune_plans(id,created_by,keep_numbers,fingerprint)"
-            + " values(?,?,?::jsonb,?)",
+        "insert into excel_prune_plans(id,created_by,keep_numbers,fingerprint,result)"
+            + " values(?,?,?::jsonb,?,?::jsonb)",
         id,
         actor,
         numbers,
-        fingerprint());
+        fingerprint(),
+        encode(Map.of("scope", "HIDDEN_ROWS")));
     result.put("planId", id);
     result.put("hiddenRows", rows[1]);
     result.put("confirmation", result.get("deleteCount") + "건 삭제");
@@ -148,13 +167,17 @@ public class ExcelPruneService {
             + " in share row exclusive mode");
     var plans =
         db.queryForList(
-            "select *,keep_numbers::text as keep_json from excel_prune_plans where id=? and"
-                + " created_by=? and expires_at>now() and not executed for update",
+            "select *,result->>'scope' as prune_scope,keep_numbers::text as keep_json from"
+                + " excel_prune_plans where id=? and created_by=? and expires_at>now() and not"
+                + " executed for update",
             id,
             actor);
     if (plans.isEmpty())
       throw new ApiException(404, "PRUNE_PLAN_NOT_FOUND", "삭제 미리보기가 없거나 만료/실행됐습니다.");
     var plan = plans.getFirst();
+    if (!"HIDDEN_ROWS".equals(plan.get("prune_scope")))
+      throw new ApiException(
+          409, "PRUNE_SCOPE_CHANGED", "삭제 범위가 숨김 행 기준으로 바뀌었습니다. 미리보기를 다시 확인하세요.");
     String keep = (String) plan.get("keep_json");
     var result = summary(keep);
     if (!Objects.equals(plan.get("fingerprint"), fingerprint()))
