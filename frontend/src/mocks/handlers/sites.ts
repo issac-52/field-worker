@@ -96,6 +96,19 @@ export const sitesHandlers = [
     const x = store.sites.find((s) => s.id === Number(params.id));
     return x ? ok(publicSite(x, request)) : err('수용가를 찾을 수 없습니다.', 404);
   }),
+  http.patch('/api/admin/sites/:id/consumer-number', async ({ params, request }) => {
+    if (!isAdmin(request)) return err('관리자만 등록할 수 있습니다.', 403);
+    const site = store.sites.find((value) => value.id === Number(params.id));
+    if (!site) return err('수용가 없음', 404);
+    const body = (await request.json()) as { consumerNumber?: string };
+    const number = typeof body?.consumerNumber === 'string' ? body.consumerNumber.trim() : '';
+    if (!number || number.length > 100) return err('수용가번호를 1~100자로 입력하세요.');
+    if (site.consumerNumber) return err('이미 번호가 등록된 수용가입니다.', 409);
+    if (store.sites.some((value) => value.consumerNumber === number))
+      return err('이미 사용 중인 수용가번호입니다.', 409);
+    site.consumerNumber = number;
+    return ok(publicSite(site, request));
+  }),
   http.patch('/api/sites/:id/special-condition', async ({ params, request }) => {
     const site = store.sites.find((value) => value.id === Number(params.id));
     if (!site) return err('수용가 없음', 404);

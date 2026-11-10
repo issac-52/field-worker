@@ -128,3 +128,13 @@ prune/preview는 이제 숨김 행의 번호와 일치하는 DB 수용가만 대
 - 상세 화면과 지도 현장 입력에서 별도 `현장 특이사항` 메모 입력을 제거했다. 저장은 special-condition PATCH 한 번으로 처리한다. 기존 `note` 컬럼/값과 호환 API는 보존하되 새 UI 및 출력의 특이사항으로 사용하지 않는다. 기존 메모를 자동 변환하거나 삭제하지 않는다.
 - 운영 `GET /api/exports/sites.xlsx`는 코드·상세·비고 3열 대신 읽을 수 있는 `특이사항` 1열을 제공한다(총 20열). 시연 35열 XLSX의 특이사항 열도 같은 표시 규칙을 사용한다.
 - HWPX 특이사항 칸은 같은 규칙을 적용한다. 생성기 버전을 card-2로 변경했으므로 이전 문서와 캐시를 새 형식으로 사용하려면 새 생성 요청이 필요하다. 기존 작업/파일을 자동 삭제하지 않는다.
+
+## 수용가번호 미등록 지원 (2026-11-10)
+
+`Site.consumerNumber`와 지오코딩 `Row.consumerNumber`는 string 또는 null이다. 내부 id는 계속 PK이며 상세/지도는 번호 미등록으로 표시한다. 지오코딩 결과는 번호가 없으면 내부 ID로 표시한다.
+
+업로드/빈 기본정보 보완/숨김 삭제는 번호가 있으면 수용가번호, 번호가 없으면 번호 없는 DB 자료의 새주소(E)·수용가명(D)으로 식별한다. 주소·이름의 앞뒤 및 연속 ASCII 공백을 정리해 비교한다. 번호 없는 행의 주소·이름 부족은 `MISSING_ADDRESS_OR_NAME`이며 신규 등록 제외 표에 표시한다. 번호가 있는 자료와 없는 자료의 자동 병합은 하지 않는다.
+
+관리자 상세 화면은 번호 없는 자료에 번호 등록 버튼을 제공한다. ADMIN+CSRF `PATCH /api/admin/sites/{id}/consumer-number` `{consumerNumber:string}` → Site. 1~100자/선행0 유지/앞뒤 공백 제거, 중복 번호와 기존 번호 덮어쓰기는409다. ID/사진/검침을 유지하고 변경 이력을 기록한다.
+
+숨김 삭제 미리보기는 identityVersion=2, hiddenRowsWithoutIdentity/visibleRowsWithoutIdentity/visibleDuplicateIdentities/unmatchedHiddenIdentities와 sample의 id/name/address를 추가한다. 번호 없는 대상을 주소·이름으로 표시한다. 서버는 내부 ID 유지 집합으로 실행하며 기존 계획은 PRUNE_SCOPE_CHANGED로 재미리보기를 요구한다. 전체 정책 및 재업로드 주의는 `docs/OPTIONAL_CONSUMER_NUMBER.md` 참고.

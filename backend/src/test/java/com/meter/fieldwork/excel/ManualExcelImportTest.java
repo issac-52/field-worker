@@ -21,18 +21,34 @@ class ManualExcelImportTest extends PostgresIntegrationTest {
     assertThat(path)
         .as("FIELDWORK_EXCEL_PATH is required for this explicitly invoked manual task")
         .isNotBlank();
+    var anonymousKeys = new java.util.HashSet<java.util.List<String>>();
+    int[] validAnonymousRows = {0};
+    try (var stream = Files.newInputStream(Path.of(path))) {
+      new ExcelRows()
+          .read(
+              stream,
+              row -> {
+                if (!row.cell("C").isBlank()) return;
+                String address = row.cell("E").replaceAll("[ \\t\\n\\r\\f\\u000B]+", " ").trim();
+                String name = row.cell("D").replaceAll("[ \\t\\n\\r\\f\\u000B]+", " ").trim();
+                if (!address.isEmpty() && !name.isEmpty()) {
+                  validAnonymousRows[0]++;
+                  anonymousKeys.add(java.util.List.of(address, name));
+                }
+              });
+    }
     long start = System.nanoTime();
     ImportResult first;
     try (var stream = Files.newInputStream(Path.of(path))) {
       first = imports.importWorkbook(stream, null);
     }
     assertThat(first.totalRows()).isEqualTo(19819);
-    assertThat(first.inserted()).isEqualTo(19795);
-    assertThat(first.duplicateInFile()).isEqualTo(3);
-    assertThat(first.invalid()).isEqualTo(21);
+    assertThat(first.inserted()).isEqualTo(19795 + anonymousKeys.size());
+    assertThat(first.duplicateInFile()).isEqualTo(3 + validAnonymousRows[0] - anonymousKeys.size());
+    assertThat(first.invalid()).isEqualTo(21 - validAnonymousRows[0]);
     assertThat(first.alreadyExists()).isZero();
     assertThat(jdbc.queryForObject("select count(*) from worksites", Integer.class))
-        .isEqualTo(19795);
+        .isEqualTo(first.inserted());
     assertThat(
             jdbc.queryForObject(
                 "select to_regclass('public.source_monthly_values')::text", String.class))
@@ -63,9 +79,9 @@ class ManualExcelImportTest extends PostgresIntegrationTest {
     try (var stream = Files.newInputStream(Path.of(path))) {
       var second = imports.importWorkbook(stream, null);
       assertThat(second.inserted()).isZero();
-      assertThat(second.alreadyExists()).isEqualTo(19795);
-      assertThat(second.duplicateInFile()).isEqualTo(3);
-      assertThat(second.invalid()).isEqualTo(21);
+      assertThat(second.alreadyExists()).isEqualTo(first.inserted());
+      assertThat(second.duplicateInFile()).isEqualTo(first.duplicateInFile());
+      assertThat(second.invalid()).isEqualTo(first.invalid());
     }
     System.out.printf(
         "PRIVATE_EXCEL_SUMMARY rows=%d inserted=%d duplicates=%d invalid=%d firstMs=%d"

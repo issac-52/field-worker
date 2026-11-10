@@ -22,6 +22,11 @@ export const siteApi = {
   summary: (params: SiteFilter = {}, signal?: AbortSignal) =>
     call<SiteSummary>('/site-summary' + query(params), { signal }),
   site: (id: number, signal?: AbortSignal) => call<Site>(`/sites/${id}`, { signal }),
+  registerConsumerNumber: (id: number, consumerNumber: string) =>
+    call<Site>(`/admin/sites/${id}/consumer-number`, {
+      method: 'PATCH',
+      body: JSON.stringify({ consumerNumber }),
+    }),
   condition: (id: number, body: { code: string; description: string }) =>
     call<Site>(`/sites/${id}/special-condition`, { method: 'PATCH', body: JSON.stringify(body) }),
   measurement: (

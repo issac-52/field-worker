@@ -1,7 +1,7 @@
 import { call, ApiError } from '../api/client';
 export type GeocodingRow = {
   id: number;
-  consumerNumber: string;
+  consumerNumber: string | null;
   status: string;
   errorCode?: string;
   errorMessage?: string;

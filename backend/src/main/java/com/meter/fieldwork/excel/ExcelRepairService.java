@@ -56,7 +56,7 @@ public class ExcelRepairService {
   public Result repair(InputStream stream, Long actor, boolean visibleOnly) {
     UUID job = UUID.randomUUID();
     db.update("insert into import_jobs(id,created_by) values(?,?)", job, actor);
-    var seen = new HashSet<String>();
+    var seen = new HashSet<WorksiteIdentity>();
     var rows = new ArrayList<Row>();
     int[] counts = new int[7];
     new ExcelRows()
@@ -74,18 +74,26 @@ public class ExcelRepairService {
               String number = row.cell("C");
               String reason;
               List<String> changed = List.of();
-              if (number.isBlank()) {
-                reason = "INVALID_CONSUMER_NUMBER";
+              var identity = WorksiteIdentity.from(row);
+              if (identity == null) {
+                reason = "MISSING_ADDRESS_OR_NAME";
                 counts[5]++;
-              } else if (!seen.add(number)) {
+              } else if (!seen.add(identity)) {
                 reason = "DUPLICATE_IN_FILE";
                 counts[3]++;
               } else {
                 var found =
-                    db.queryForList(
-                        "select *,source_cells::text as source_json from worksites where"
-                            + " consumer_number=? for update",
-                        number);
+                    identity.number() != null
+                        ? db.queryForList(
+                            "select *,source_cells::text as source_json from worksites where"
+                                + " consumer_number=? for update",
+                            identity.number())
+                        : db.queryForList(
+                            "select *,source_cells::text as source_json from worksites where"
+                                + " consumer_number is null and worksite_identity_text(address)=?"
+                                + " and worksite_identity_text(name)=? for update",
+                            identity.address(),
+                            identity.name());
                 if (found.isEmpty()) {
                   reason = "NOT_FOUND";
                   counts[4]++;

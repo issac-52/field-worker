@@ -61,7 +61,7 @@ export function MapInspection({
             </summary>
             <dl className="info-grid">
               {Object.entries({
-                수용가번호: site.consumerNumber ?? '—',
+                수용가번호: site.consumerNumber || '미등록',
                 급수전번호: site.waterNo,
                 계량기번호: site.meterNo,
                 중블록: site.middleBlockId,

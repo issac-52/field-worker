@@ -30,7 +30,16 @@ type PrunePlan = {
   hiddenRowsWithoutNumber?: number;
   unmatchedHiddenNumbers?: number;
   visibleRowsWithoutNumber?: number;
-  sample: { consumerNumber: string; middleBlock: string }[];
+  hiddenRowsWithoutIdentity?: number;
+  visibleDuplicateIdentities?: number;
+  unmatchedHiddenIdentities?: number;
+  sample: {
+    id?: number;
+    consumerNumber: string | null;
+    middleBlock: string;
+    name?: string;
+    address?: string;
+  }[];
 };
 export function ImportPanel() {
   const { refresh } = useWork();
@@ -85,7 +94,7 @@ export function ImportPanel() {
   const rows =
     result?.rows ??
     (result?.skippedRows ?? []).filter(
-      (row) => row.reason === 'DUPLICATE_IN_FILE' || row.reason === 'INVALID_CONSUMER_NUMBER',
+      (row) => !['ALREADY_EXISTS', 'HIDDEN_ROW'].includes(row.reason),
     );
   return (
     <section className="panel import-panel">
@@ -108,8 +117,8 @@ export function ImportPanel() {
       </label>
       <p>
         {mode === 'repair'
-          ? '수용가번호가 같은 기존 자료의 빈 기본정보만 채웁니다. 기존 값·검침·사진·좌표·월별 이력은 유지하며 신규 수용가는 등록하지 않습니다.'
-          : '기존 수용가는 유지하며 중복·누락 행은 결과에 표시합니다.'}
+          ? '수용가번호가 같은 기존 자료를 찾고, 번호가 없으면 번호 미등록 자료 중 주소·이름으로 찾습니다. 빈 기본정보만 채우며 기존 검침·사진·좌표를 유지합니다. 신규 수용가는 등록하지 않습니다.'
+          : '번호가 있으면 수용가번호로, 번호가 없으면 주소·이름으로 중복을 확인합니다. 번호 없는 행은 주소와 이름이 모두 필요합니다. 기존 수용가는 유지합니다.'}
       </p>
       <label className="field">
         <span>
@@ -175,9 +184,9 @@ export function ImportPanel() {
         <section className="prune-panel" aria-label="숨김 행 수용가 DB 삭제">
           <h3>엑셀에서 숨긴 수용가만 DB 삭제</h3>
           <p>
-            현재 파일에서 숨긴 행의 수용가번호와 일치하는 기존 DB 수용가만 삭제합니다. 파일에 없는
-            수용가와 보이는 행에 같은 번호가 있는 수용가는 유지합니다. 보이는 행의 번호 누락은 이
-            삭제 작업을 막지 않습니다.
+            숨긴 행과 일치하는 기존 수용가만 삭제합니다. 번호가 있으면 수용가번호로, 번호가 없으면
+            번호 미등록 자료 중 주소·이름으로 찾습니다. 파일에 없는 수용가와 보이는 행에도 있는
+            수용가는 유지합니다. 번호가 있는 자료와 없는 자료를 주소·이름만으로 합치지 않습니다.
           </p>
           <Button
             type="button"
@@ -195,12 +204,12 @@ export function ImportPanel() {
                 건
               </p>
               <p>
-                파일 숨김 {plan.hiddenRows ?? 0}행 중{' '}
-                {plan.hiddenRowsWithoutNumber === undefined
-                  ? ''
-                  : `번호 누락 ${plan.hiddenRowsWithoutNumber}건 · `}
-                보이는 행과 번호 중복 {plan.visibleDuplicateNumbers ?? 0}건 · DB에 없는 숨김 번호{' '}
-                {plan.unmatchedHiddenNumbers ?? 0}건은 삭제하지 않습니다.
+                파일 숨김 {plan.hiddenRows ?? 0}행 중 식별 정보 부족{' '}
+                {plan.hiddenRowsWithoutIdentity ?? plan.hiddenRowsWithoutNumber ?? 0}건 · 보이는
+                행과 중복 {plan.visibleDuplicateIdentities ?? plan.visibleDuplicateNumbers ?? 0}건 ·
+                DB에 없는 숨김 수용가{' '}
+                {plan.unmatchedHiddenIdentities ?? plan.unmatchedHiddenNumbers ?? 0}건은 삭제하지
+                않습니다.
               </p>
               <p>
                 연결 사진 {plan.photoCount.toLocaleString()}장 · 검침{' '}
@@ -220,8 +229,10 @@ export function ImportPanel() {
                 <summary>삭제 대상 예시 (최대 50건)</summary>
                 <ul>
                   {plan.sample.map((row) => (
-                    <li key={row.consumerNumber}>
-                      {row.consumerNumber} · {row.middleBlock || '중블록 없음'}
+                    <li key={row.id ?? row.consumerNumber ?? `${row.address}-${row.name}`}>
+                      {row.consumerNumber ||
+                        `${row.address || '주소 미기재'} · ${row.name || '이름 미기재'} (번호 미등록)`}{' '}
+                      · {row.middleBlock || '중블록 없음'}
                     </li>
                   ))}
                 </ul>
