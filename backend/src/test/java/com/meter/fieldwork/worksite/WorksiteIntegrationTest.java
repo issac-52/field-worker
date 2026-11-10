@@ -208,6 +208,70 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void conditionStoresOnlyOtherDescriptionAndPreservesLegacyNote() throws Exception {
+    jdbc.update("update worksites set note='Legacy memo' where id=?", site);
+    for (String code : new String[] {"HOPE", "LOCATION_UNKNOWN", "STACKED", "NONE"}) {
+      mvc.perform(
+              patch("/api/sites/" + site + "/special-condition")
+                  .with(user(actor))
+                  .with(csrf())
+                  .contentType("application/json")
+                  .content(
+                      "{\"code\":\"" + code + "\",\"description\":\"stale other description\"}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.specialCondition.code").value(code))
+          .andExpect(jsonPath("$.data.specialCondition.description").value(""))
+          .andExpect(jsonPath("$.data.note").value("Legacy memo"));
+      assertThat(
+              jdbc.queryForObject(
+                  "select special_description from worksites where id=?", String.class, site))
+          .isEmpty();
+    }
+    mvc.perform(
+            patch("/api/sites/" + site + "/special-condition")
+                .with(user(actor))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"code\":\"OTHER\",\"description\":\"  Fictional detail  \"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.specialCondition.description").value("Fictional detail"));
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from worksite_edits where site_id=?", Integer.class, site))
+        .isEqualTo(5);
+  }
+
+  @Test
+  void otherRequiresDescriptionAndConditionRequiresCsrf() throws Exception {
+    for (String body :
+        new String[] {"{\"code\":\"OTHER\"}", "{\"code\":\"OTHER\",\"description\":\"   \"}"}) {
+      mvc.perform(
+              patch("/api/sites/" + site + "/special-condition")
+                  .with(user(actor))
+                  .with(csrf())
+                  .contentType("application/json")
+                  .content(body))
+          .andExpect(status().isBadRequest());
+    }
+    mvc.perform(
+            patch("/api/sites/" + site + "/special-condition")
+                .with(user(actor))
+                .contentType("application/json")
+                .content("{\"code\":\"HOPE\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            patch("/api/sites/" + site + "/special-condition")
+                .with(csrf())
+                .contentType("application/json")
+                .content("{\"code\":\"HOPE\"}"))
+        .andExpect(status().isUnauthorized());
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from worksite_edits where site_id=?", Integer.class, site))
+        .isZero();
+  }
+
+  @Test
   void invalidConditionAndMissingSiteAreRejected() throws Exception {
     mvc.perform(
             patch("/api/sites/" + site + "/special-condition")
@@ -456,6 +520,40 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
       assertThat(workbook.getSheetAt(0).getLastRowNum()).isGreaterThanOrEqualTo(1);
       assertThat(workbook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue())
           .isEqualTo("수용가번호");
+    }
+  }
+
+  @Test
+  void excelExportUsesOneReadableConditionColumnAndOmitsLegacyMemo() throws Exception {
+    var exporter = new com.meter.fieldwork.excel.ExcelExportService(jdbc);
+    for (String[] example :
+        new String[][] {
+          {"HOPE", "stale", "호폐"},
+          {"OTHER", "Fictional detail", "Fictional detail"},
+          {"NONE", "stale", ""}
+        }) {
+      jdbc.update(
+          "update worksites set special_condition=?,special_description=?,note='Legacy memo' where"
+              + " id=?",
+          example[0],
+          example[1],
+          site);
+      var out = new java.io.ByteArrayOutputStream();
+      exporter.write(out, "M1", "S1");
+      try (var book =
+          new org.apache.poi.xssf.usermodel.XSSFWorkbook(
+              new java.io.ByteArrayInputStream(out.toByteArray()))) {
+        var sheet = book.getSheetAt(0);
+        assertThat(sheet.getRow(0).getLastCellNum()).isEqualTo((short) 20);
+        assertThat(sheet.getRow(0).getCell(17).getStringCellValue()).isEqualTo("특이사항");
+        org.apache.poi.ss.usermodel.Row exported = null;
+        for (var row : sheet)
+          if (row.getCell(0).getStringCellValue().equals(number)) exported = row;
+        assertThat(exported).isNotNull();
+        assertThat(exported.getCell(17).getStringCellValue()).isEqualTo(example[2]);
+        assertThat(exported.getCell(18).getStringCellValue()).isEqualTo("TODO");
+        assertThat(exported.getCell(19).getStringCellValue()).isEqualTo("0");
+      }
     }
   }
 

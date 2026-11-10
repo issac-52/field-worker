@@ -167,7 +167,7 @@ public class WorksiteService {
             "label",
             condition.label,
             "description",
-            row.get("special_description")));
+            condition == SpecialCondition.OTHER ? row.get("special_description") : ""));
     site.put("updatedAt", ((java.sql.Timestamp) row.get("updated_at")).toInstant());
     return site;
   }
@@ -253,19 +253,17 @@ public class WorksiteService {
       long id, long actor, SpecialCondition condition, String description, boolean admin) {
     if (condition == null || (description != null && description.length() > 2000))
       throw new IllegalArgumentException();
+    String detail =
+        condition == SpecialCondition.OTHER && description != null ? description.strip() : "";
+    if (condition == SpecialCondition.OTHER && detail.isEmpty())
+      throw new IllegalArgumentException();
     lock(id);
     var before = detail(id, admin);
     db.update(
         "update worksites set"
             + " special_condition=:code,special_description=:description,updated_at=clock_timestamp()"
             + " where id=:id",
-        Map.of(
-            "code",
-            condition.name(),
-            "description",
-            description == null ? "" : description,
-            "id",
-            id));
+        Map.of("code", condition.name(), "description", detail, "id", id));
     var after = detail(id, admin);
     audit(id, actor, before, after);
     return after;

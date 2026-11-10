@@ -41,3 +41,14 @@ tasks.register<Test>("manualExcelTest") {
     outputs.upToDateWhen { false }
     testLogging { showStandardStreams = true }
 }
+
+tasks.test { useJUnitPlatform { excludeTags("performance") } }
+tasks.register<Test>("performanceBaseline") {
+    description = "Measures synthetic 20k-site workloads against disposable PostgreSQL; never production"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("performance") }
+    maxHeapSize = "768m"
+    outputs.upToDateWhen { false }
+    testLogging { showStandardStreams = true }
+}
