@@ -25,6 +25,11 @@ type PrunePlan = {
   protectedCount: number;
   documentJobCount: number;
   confirmation: string;
+  hiddenRows?: number;
+  visibleDuplicateNumbers?: number;
+  hiddenRowsWithoutNumber?: number;
+  unmatchedHiddenNumbers?: number;
+  visibleRowsWithoutNumber?: number;
   sample: { consumerNumber: string; middleBlock: string }[];
 };
 export function ImportPanel() {
@@ -77,7 +82,11 @@ export function ImportPanel() {
       setBusy(false);
     }
   }
-  const rows = result?.rows ?? result?.skippedRows ?? [];
+  const rows =
+    result?.rows ??
+    (result?.skippedRows ?? []).filter(
+      (row) => row.reason === 'DUPLICATE_IN_FILE' || row.reason === 'INVALID_CONSUMER_NUMBER',
+    );
   return (
     <section className="panel import-panel">
       <h2>수용가 Excel 등록</h2>
@@ -163,12 +172,12 @@ export function ImportPanel() {
         </button>
       </form>
       {visibleOnly && (
-        <section className="prune-panel" aria-label="보이는 수용가 외 DB 삭제">
-          <h3>보이는 수용가만 남기고 기존 DB 정리</h3>
+        <section className="prune-panel" aria-label="숨김 행 수용가 DB 삭제">
+          <h3>엑셀에서 숨긴 수용가만 DB 삭제</h3>
           <p>
-            현재 파일에서 보이는 수용가번호 외의 <strong>전체 기존 수용가</strong>를 삭제합니다.
-            숨긴 행뿐 아니라 파일에 없는 수용가도 대상입니다. 먼저 보이는 수용가를 업로드한 다음
-            삭제 미리보기를 확인하세요.
+            현재 파일에서 숨긴 행의 수용가번호와 일치하는 기존 DB 수용가만 삭제합니다. 파일에 없는
+            수용가와 보이는 행에 같은 번호가 있는 수용가는 유지합니다. 보이는 행의 번호 누락은 이
+            삭제 작업을 막지 않습니다.
           </p>
           <Button
             type="button"
@@ -184,6 +193,14 @@ export function ImportPanel() {
               <p>
                 유지 {plan.keepCount.toLocaleString()}건 · 삭제 {plan.deleteCount.toLocaleString()}
                 건
+              </p>
+              <p>
+                파일 숨김 {plan.hiddenRows ?? 0}행 중{' '}
+                {plan.hiddenRowsWithoutNumber === undefined
+                  ? ''
+                  : `번호 누락 ${plan.hiddenRowsWithoutNumber}건 · `}
+                보이는 행과 번호 중복 {plan.visibleDuplicateNumbers ?? 0}건 · DB에 없는 숨김 번호{' '}
+                {plan.unmatchedHiddenNumbers ?? 0}건은 삭제하지 않습니다.
               </p>
               <p>
                 연결 사진 {plan.photoCount.toLocaleString()}장 · 검침{' '}
@@ -248,7 +265,7 @@ export function ImportPanel() {
             검사 {result.totalRows} ·{' '}
             {result.updated !== undefined
               ? `보완 ${result.updated} · 변경 없음 ${result.unchanged} · 미등록 수용가 ${result.notFound}`
-              : `등록 ${result.inserted} · 기존 ${result.alreadyExists}`}{' '}
+              : `등록 ${result.inserted}`}{' '}
             · 파일 중복 {result.duplicateInFile} · 숨김 제외 {result.hiddenRows ?? 0} · 오류{' '}
             {result.invalid}
           </p>
