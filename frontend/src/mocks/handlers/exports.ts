@@ -1,5 +1,5 @@
 import { http } from 'msw';
-import { isAdmin, ok, err } from '../http';
+import { isAdmin, ok, err, publicSite } from '../http';
 import { store } from '../store';
 import { filterSites, paginate } from '../queries';
 
@@ -11,7 +11,7 @@ export const exportHandlers = [
     return ok({
       ...page,
       items: page.items.map((site) => {
-        const { photos, ...values } = site;
+        const { photos, ...values } = publicSite(site, request);
         return {
           ...values,
           photoSlots: photos.map((photo) => photo.slot),

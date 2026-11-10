@@ -1,5 +1,6 @@
 package com.meter.fieldwork.excel;
 
+import com.meter.fieldwork.worksite.ImportedMeterInfo;
 import com.meter.fieldwork.worksite.SpecialCondition;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -30,7 +31,7 @@ public class ExcelExportService {
         "새주소",
         "구주소",
         "계량기번호",
-        "계량기 유무 원문",
+        "계량기 유무",
         "업종",
         "관리번호",
         "START 검침일",
@@ -42,7 +43,8 @@ public class ExcelExportService {
         "사용량",
         "특이사항",
         "작업 상태",
-        "사진 수"
+        "사진 수",
+        "비고"
       };
       sheet.createFreezePane(0, 1);
       for (int i = 0; i < headers.length; i++) sheet.setColumnWidth(i, 20 * 256);
@@ -59,7 +61,8 @@ public class ExcelExportService {
                       b.inspection_date as end_date,b.reading as end_reading,bu.nickname as end_worker,
                       b.reading-a.reading as usage,s.special_condition,s.special_description,
                       case when b.id is not null then 'DONE' when a.id is not null then 'IN_PROGRESS' else 'TODO' end as status,
-                      (select count(*) from photos p where p.site_id=s.id) as photo_count
+                      (select count(*) from photos p where p.site_id=s.id) as photo_count,
+                      s.source_cells->>'H' as meter_presence_source
                     from worksites s left join inspections a on a.site_id=s.id and a.phase='START'
                     left join inspections b on b.site_id=s.id and b.phase='END'
                     left join users au on au.id=a.worker_id left join users bu on bu.id=b.worker_id
@@ -75,9 +78,13 @@ public class ExcelExportService {
           (org.springframework.jdbc.core.RowCallbackHandler)
               row -> {
                 var target = sheet.createRow(number.getAndIncrement());
+                var meter =
+                    ImportedMeterInfo.fromRaw(
+                        row.getString("meter_presence_raw"),
+                        row.getString("meter_presence_source"));
                 for (int col = 1; col <= 17; col++) {
                   // String cells preserve identifiers and prevent spreadsheet formula injection.
-                  String value = row.getString(col);
+                  String value = col == 8 ? meter.presence() : row.getString(col);
                   if (value != null) target.createCell(col - 1).setCellValue(value);
                 }
                 target
@@ -87,6 +94,7 @@ public class ExcelExportService {
                             .displayText(row.getString("special_description")));
                 target.createCell(18).setCellValue(row.getString("status"));
                 target.createCell(19).setCellValue(row.getString("photo_count"));
+                target.createCell(20).setCellValue(meter.remark());
               });
       workbook.write(out);
     }
