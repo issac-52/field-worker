@@ -10,6 +10,7 @@ import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
 import { formatDate, formatWon } from '../lib/format';
 import { PHOTO_SLOTS } from '../types';
+import { specialConditionText } from '../lib/specialCondition';
 import type { Phase } from '../types';
 
 export function SiteDetailPage() {
@@ -99,7 +100,7 @@ export function SiteDetailPage() {
                 <ArrowRight size={14} />
               </Button>
             </div>
-            <p>{site.note || '등록된 특이사항이 없습니다.'}</p>
+            <p>{specialConditionText(site.specialCondition) || '등록된 특이사항이 없습니다.'}</p>
           </section>
           <InspectionPanel
             site={site}

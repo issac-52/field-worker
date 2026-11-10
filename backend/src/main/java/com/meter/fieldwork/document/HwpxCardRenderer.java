@@ -1,6 +1,7 @@
 package com.meter.fieldwork.document;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.meter.fieldwork.worksite.SpecialCondition;
 import java.awt.Color;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -18,7 +19,7 @@ import org.w3c.dom.*;
 
 @Component
 public class HwpxCardRenderer {
-  public static final String VERSION = "card-1";
+  public static final String VERSION = "card-2";
   static final String HP = "http://www.hancom.co.kr/hwpml/2011/paragraph";
   static final String HC = "http://www.hancom.co.kr/hwpml/2011/core";
   private final Map<String, byte[]> template;
@@ -56,16 +57,9 @@ public class HwpxCardRenderer {
     text(cells.get("4:2"), value(site, "meter_number"));
     text(cells.get("4:7"), "미확인");
     text(cells.get("5:2"), "미기재");
-    String condition =
-        switch (site.path("special_condition").asText()) {
-          case "HOPE" -> "호폐";
-          case "LOCATION_UNKNOWN" -> "위치불명";
-          case "STACKED" -> "적재";
-          case "OTHER" -> "기타";
-          default -> "";
-        };
-    String description = site.path("special_description").asText("");
-    text(cells.get("5:7"), (condition + " " + description).strip());
+    SpecialCondition condition =
+        SpecialCondition.valueOf(site.path("special_condition").asText("NONE"));
+    text(cells.get("5:7"), condition.displayText(site.path("special_description").asText("")));
     JsonNode start = null, end = null;
     for (JsonNode i : snapshot.path("inspections")) {
       if (i.path("phase").asText().equals("START")) start = i;

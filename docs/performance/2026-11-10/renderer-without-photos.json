@@ -1,0 +1,20 @@
+{
+  "results" : [ {
+    "name" : "renderer_without_photos",
+    "samples" : 100,
+    "p50Ms" : 6.416254,
+    "p95Ms" : 18.013617,
+    "meanMs" : 8.02137911,
+    "responseBytes" : 24,
+    "storageGets" : 0,
+    "storageIoMs" : 0.0,
+    "renderMs" : 0.0,
+    "renderCalls" : 0,
+    "jdbcExecuteMs" : 0.0,
+    "storagePuts" : 0,
+    "jdbcExecutions" : 0,
+    "jdbcBatchCalls" : 0,
+    "jdbcExecutionsPerOperation" : 0.0
+  } ],
+  "scope" : "Renderer only, no DB/storage/queue/network; 5 warmups, 100 samples"
+}

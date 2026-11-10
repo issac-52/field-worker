@@ -117,3 +117,14 @@ ADMIN + 요청자 소유권 + CSRF POST `/api/exports/cards/{id}/cancel`, DELETE
 ### 숨김 행만 삭제 및 제외 행 간소화
 
 prune/preview는 이제 숨김 행의 번호와 일치하는 DB 수용가만 대상으로 한다. 파일 밖 DB와 보이는 행에도 존재하는 번호는 유지한다. 보이는 번호 누락은 차단하지 않으며 hiddenRowsWithoutNumber/visibleRowsWithoutNumber/visibleDuplicateNumbers/unmatchedHiddenNumbers 및 scope=HIDDEN_ROWS를 보고한다. 기존 넓은 범위 계획은 PRUNE_SCOPE_CHANGED로 재확인한다. 신규 등록 제외 행 UI에는 오류·파일 중복만 표시하고 ALREADY_EXISTS/HIDDEN_ROW는 숨기며 서버 원본 보고서는 유지한다.
+
+## 특이사항 입력·표시 통일 (2026-11-10)
+
+`PATCH /api/sites/:id/special-condition` → `{code,description}` → Site. 운영은 인증·CSRF 필수이며 변경 이력을 기록한다. 운영/시연 모두 같은 선택 UI와 요청을 사용한다.
+
+- code: NONE(해당 없음), HOPE(호폐), LOCATION_UNKNOWN(위치불명), STACKED(적재), OTHER(기타).
+- OTHER는 공백 제거 후 내용 필수, 최대 2,000자. 다른 code는 description을 빈 문자열로 저장하며 응답에서도 설명을 비운다. 요청 description의 기존 2,000자 길이 제한은 유지한다.
+- 호폐·위치불명·적재는 선택한 문구 자체가 특이사항이다. OTHER는 입력한 내용만, NONE은 특이사항 없음으로 표시한다. 과거 OTHER 설명이 비어 있는 데이터는 `기타`로 표시하고 다음 저장 시 내용을 요구한다.
+- 상세 화면과 지도 현장 입력에서 별도 `현장 특이사항` 메모 입력을 제거했다. 저장은 special-condition PATCH 한 번으로 처리한다. 기존 `note` 컬럼/값과 호환 API는 보존하되 새 UI 및 출력의 특이사항으로 사용하지 않는다. 기존 메모를 자동 변환하거나 삭제하지 않는다.
+- 운영 `GET /api/exports/sites.xlsx`는 코드·상세·비고 3열 대신 읽을 수 있는 `특이사항` 1열을 제공한다(총 20열). 시연 35열 XLSX의 특이사항 열도 같은 표시 규칙을 사용한다.
+- HWPX 특이사항 칸은 같은 규칙을 적용한다. 생성기 버전을 card-2로 변경했으므로 이전 문서와 캐시를 새 형식으로 사용하려면 새 생성 요청이 필요하다. 기존 작업/파일을 자동 삭제하지 않는다.

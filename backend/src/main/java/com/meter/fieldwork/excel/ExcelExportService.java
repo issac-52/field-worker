@@ -1,5 +1,6 @@
 package com.meter.fieldwork.excel;
 
+import com.meter.fieldwork.worksite.SpecialCondition;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,9 +40,7 @@ public class ExcelExportService {
         "END 지침",
         "END 작업자",
         "사용량",
-        "특이사항 코드",
-        "특이사항 상세",
-        "비고",
+        "특이사항",
         "작업 상태",
         "사진 수"
       };
@@ -58,7 +57,7 @@ public class ExcelExportService {
                     select s.consumer_number,s.middle_block,s.small_block,s.name,s.address,s.old_address,s.meter_number,s.meter_presence_raw,s.industry,s.management_number,
                       a.inspection_date as start_date,a.reading as start_reading,au.nickname as start_worker,
                       b.inspection_date as end_date,b.reading as end_reading,bu.nickname as end_worker,
-                      b.reading-a.reading as usage,s.special_condition,s.special_description,s.note,
+                      b.reading-a.reading as usage,s.special_condition,s.special_description,
                       case when b.id is not null then 'DONE' when a.id is not null then 'IN_PROGRESS' else 'TODO' end as status,
                       (select count(*) from photos p where p.site_id=s.id) as photo_count
                     from worksites s left join inspections a on a.site_id=s.id and a.phase='START'
@@ -76,11 +75,18 @@ public class ExcelExportService {
           (org.springframework.jdbc.core.RowCallbackHandler)
               row -> {
                 var target = sheet.createRow(number.getAndIncrement());
-                for (int col = 1; col <= headers.length; col++) {
+                for (int col = 1; col <= 17; col++) {
                   // String cells preserve identifiers and prevent spreadsheet formula injection.
                   String value = row.getString(col);
                   if (value != null) target.createCell(col - 1).setCellValue(value);
                 }
+                target
+                    .createCell(17)
+                    .setCellValue(
+                        SpecialCondition.valueOf(row.getString("special_condition"))
+                            .displayText(row.getString("special_description")));
+                target.createCell(18).setCellValue(row.getString("status"));
+                target.createCell(19).setCellValue(row.getString("photo_count"));
               });
       workbook.write(out);
     }
