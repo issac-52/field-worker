@@ -544,7 +544,7 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
           new org.apache.poi.xssf.usermodel.XSSFWorkbook(
               new java.io.ByteArrayInputStream(out.toByteArray()))) {
         var sheet = book.getSheetAt(0);
-        assertThat(sheet.getRow(0).getLastCellNum()).isEqualTo((short) 20);
+        assertThat(sheet.getRow(0).getLastCellNum()).isEqualTo((short) 21);
         assertThat(sheet.getRow(0).getCell(17).getStringCellValue()).isEqualTo("특이사항");
         org.apache.poi.ss.usermodel.Row exported = null;
         for (var row : sheet)

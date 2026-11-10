@@ -34,6 +34,7 @@ export type Site = {
   sourceReader?: string;
   regularReadingDay?: string;
   meterPresenceRaw?: string;
+  importRemark?: string;
   specialCondition?: { code: string; label: string; description: string };
   latitude: number | null;
   longitude: number | null;
