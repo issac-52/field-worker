@@ -42,12 +42,13 @@ public class ExcelImportService {
                 context.skip(row, "HIDDEN_ROW", null);
                 return;
               }
-              String number = row.cell("C");
-              if (number.isBlank()) {
-                context.skip(row, "INVALID_CONSUMER_NUMBER", null);
+              var identity = WorksiteIdentity.from(row);
+              if (identity == null) {
+                context.skip(row, "MISSING_ADDRESS_OR_NAME", null);
                 return;
               }
-              var first = context.seen.putIfAbsent(number, new FirstRow(row.sheet(), row.number()));
+              var first =
+                  context.seen.putIfAbsent(identity, new FirstRow(row.sheet(), row.number()));
               if (first != null) {
                 context.skip(row, "DUPLICATE_IN_FILE", first);
                 return;
@@ -83,13 +84,13 @@ public class ExcelImportService {
         """
         insert into worksites(consumer_number,middle_block,small_block,name,address,old_address,meter_number,
           meter_presence_raw,industry,management_number,source_cells,source_sheet,source_row,import_job_id)
-        values(?,?,?,?,?,?,?,?,?,?,?::jsonb,?,?,?) on conflict(consumer_number) do nothing
+        values(?,?,?,?,?,?,?,?,?,?,?::jsonb,?,?,?) on conflict do nothing
         """;
     List<Object[]> arguments = new ArrayList<>();
     for (var row : context.batch)
       arguments.add(
           new Object[] {
-            row.cell("C"),
+            row.cell("C").isBlank() ? null : row.cell("C"),
             row.cell("B"),
             row.cell("BB"),
             row.cell("D"),
@@ -145,7 +146,7 @@ public class ExcelImportService {
     final UUID id;
     int total, inserted, duplicates, exists, invalid, hidden;
     final Map<String, Integer> sheetOrder = new LinkedHashMap<>();
-    final Map<String, FirstRow> seen = new LinkedHashMap<>();
+    final Map<WorksiteIdentity, FirstRow> seen = new LinkedHashMap<>();
     final List<ExcelRows.Row> batch = new ArrayList<>(500);
     final List<SkippedRow> skipped = new ArrayList<>();
 
@@ -164,7 +165,7 @@ public class ExcelImportService {
           new SkippedRow(
               row.sheet(),
               row.number(),
-              row.cell("C"),
+              row.cell("C").isBlank() ? null : row.cell("C"),
               reason,
               first == null ? null : first.sheet(),
               first == null ? null : first.number()));

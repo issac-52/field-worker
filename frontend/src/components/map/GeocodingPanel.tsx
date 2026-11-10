@@ -175,7 +175,7 @@ export function GeocodingPanel() {
           <ul>
             {skipped.slice(-100).map((row) => (
               <li key={row.id}>
-                {row.consumerNumber}: {labels[row.status] ?? row.status}
+                {row.consumerNumber || `수용가 ID ${row.id}`}: {labels[row.status] ?? row.status}
               </li>
             ))}
           </ul>

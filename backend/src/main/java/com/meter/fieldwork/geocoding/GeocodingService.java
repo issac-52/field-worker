@@ -183,7 +183,7 @@ public class GeocodingService {
       } catch (ApiException ex) {
         return new Row(
             id,
-            Objects.toString(row.get("consumer_number")),
+            Objects.toString(row.get("consumer_number"), null),
             "SERVICE_ERROR",
             ex.code,
             ex.getMessage());
@@ -201,6 +201,6 @@ public class GeocodingService {
                   ? "UPDATED"
                   : "CHANGED_OR_ALREADY_SET";
     }
-    return new Row(id, Objects.toString(row.get("consumer_number")), status);
+    return new Row(id, Objects.toString(row.get("consumer_number"), null), status);
   }
 }

@@ -28,6 +28,8 @@ Mock 역할 전환은 실제 로그인·권한 인증이 아니다. 새로고침
 
 ## 문서 안내
 
+- [번호 없는 수용가의 주소·이름 식별과 추후 번호 등록](docs/OPTIONAL_CONSUMER_NUMBER.md)
+
 - [프로젝트 개요·성능 측정 포트폴리오 (PDF·그래프)](docs/portfolio/performance-baseline/README.md) — 2026-11-10 가상 2만 건 기준 측정, 개선 전 기록
 
 - [프로젝트 인계·다음 작업](docs/PROJECT_CONTEXT.md)

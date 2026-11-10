@@ -270,6 +270,27 @@ public class WorksiteService {
   }
 
   @Transactional
+  public Map<String, Object> registerConsumerNumber(long id, long actor, String number) {
+    if (number == null || number.strip().isEmpty() || number.strip().length() > 100)
+      throw new IllegalArgumentException();
+    number = number.strip();
+    lock(id);
+    var before = detail(id, true);
+    if (before.get("consumerNumber") != null)
+      throw new ApiException(409, "CONSUMER_NUMBER_ALREADY_SET", "이미 번호가 등록된 수용가입니다.");
+    try {
+      db.update(
+          "update worksites set consumer_number=:number,updated_at=clock_timestamp() where id=:id",
+          Map.of("id", id, "number", number));
+    } catch (org.springframework.dao.DuplicateKeyException ex) {
+      throw new ApiException(409, "CONSUMER_NUMBER_CONFLICT", "이미 사용 중인 수용가번호입니다.");
+    }
+    var after = detail(id, true);
+    audit(id, actor, before, after);
+    return after;
+  }
+
+  @Transactional
   public Map<String, Object> note(long id, long actor, String note, boolean admin) {
     if (note == null || note.length() > 4000) throw new IllegalArgumentException();
     lock(id);

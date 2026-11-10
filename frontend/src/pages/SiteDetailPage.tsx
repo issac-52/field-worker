@@ -1,3 +1,4 @@
+import { ConsumerNumberEditor } from '../components/ConsumerNumberEditor';
 import { HwpxDownloads } from '../components/HwpxDownloads';
 import { Button } from '../components/ui/button';
 import { useState } from 'react';
@@ -16,14 +17,14 @@ import type { Phase } from '../types';
 export function SiteDetailPage() {
   const { target: site, navigate, role } = useWork();
   const [phase, setPhase] = useState<Phase>('START');
-  const [editor, setEditor] = useState<'measurement' | 'note'>();
+  const [editor, setEditor] = useState<'measurement' | 'note' | 'consumerNumber'>();
   if (!site) return <p className="loading">불러오는 중...</p>;
   const info = [
     ['관리번호', site.managementNo],
     ['중블록', site.middleBlockId],
     ['소블록', site.zone],
     ['성명', site.name],
-    ['수용가번호', site.consumerNumber ?? '—'],
+    ['수용가번호', site.consumerNumber || '미등록'],
     ['급수전번호', site.waterNo],
     ['업종', site.industry],
     ['계량기번호', site.meterNo],
@@ -81,6 +82,15 @@ export function SiteDetailPage() {
                 </div>
               ))}
             </dl>
+            {role === 'ADMIN' && !site.consumerNumber && (
+              <Button
+                variant="outline"
+                className="outline-btn"
+                onClick={() => setEditor('consumerNumber')}
+              >
+                수용가번호 등록
+              </Button>
+            )}
           </section>
 
           <section className="panel photos-panel">
@@ -147,6 +157,9 @@ export function SiteDetailPage() {
           phase={phase}
           onClose={() => setEditor(undefined)}
         />
+      )}
+      {editor === 'consumerNumber' && (
+        <ConsumerNumberEditor siteId={site.id} onClose={() => setEditor(undefined)} />
       )}
       {editor === 'note' && <NoteEditor site={site} onClose={() => setEditor(undefined)} />}
     </>
