@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { specialConditionText } from './specialCondition';
 import type { Block, SiteExportItem } from '../types';
 import { PHOTO_SLOTS, statusOf } from '../types';
 
@@ -90,7 +91,7 @@ export function createExportWorkbook(
       site.latitude,
       site.longitude,
       { TODO: '미처리', IN_PROGRESS: '시작검침완료', DONE: '완료' }[statusOf(site)],
-      site.note,
+      specialConditionText(site.specialCondition),
       ...phaseValues(start),
       ...phaseValues(end),
       start && end ? end.reading - start.reading : null,

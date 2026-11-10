@@ -8,6 +8,12 @@ public enum SpecialCondition {
   OTHER("기타");
   public final String label;
 
+  public String displayText(String description) {
+    if (this == NONE) return "";
+    if (this == OTHER && description != null && !description.isBlank()) return description.strip();
+    return label;
+  }
+
   SpecialCondition(String label) {
     this.label = label;
   }

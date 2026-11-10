@@ -34,7 +34,12 @@ describe('export regression', () => {
       expect(response.status).toBe(200);
       return (await response.json()).data as PageResponse<SiteExportItem>;
     };
-    store.sites[0].note = '=HYPERLINK("https://example.invalid","literal")';
+    store.sites[0].note = 'Legacy memo';
+    store.sites[0].specialCondition = {
+      code: 'OTHER',
+      label: '기타',
+      description: '=HYPERLINK("https://example.invalid","literal")',
+    };
     const records = await collectExportSites(
       (page) => getPage(page),
       controller.signal,
@@ -62,7 +67,7 @@ describe('export regression', () => {
     expect(sheet.rowCount).toBe(15);
     expect(sheet.columnCount).toBe(EXPORT_COLUMNS.length);
     expect(sheet.getCell('B4').value).toBe('0012');
-    expect(sheet.getCell('O4').value).toBe(store.sites[0].note);
+    expect(sheet.getCell('O4').value).toBe(store.sites[0].specialCondition!.description);
     expect(sheet.getCell('O4').type).toBe(ExcelJS.ValueType.String);
     expect(sheet.getCell('Q4').value).toBe(records[0].inspections.START!.reading);
     expect(sheet.getCell('P4').value instanceof Date).toBeTruthy();

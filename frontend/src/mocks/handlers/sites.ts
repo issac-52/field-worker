@@ -7,6 +7,7 @@ import { validViewport, validMapArea } from '../../lib/mapViewport';
 import { hasCoordinates } from '../../lib/coordinates';
 import { statusOf, PHOTO_SLOTS } from '../../types';
 import { blocks } from '../data';
+import { SPECIAL_CONDITIONS, conditionPayload } from '../../lib/specialCondition';
 
 export const sitesHandlers = [
   http.get('/api/map-clusters', ({ request }) => {
@@ -94,6 +95,28 @@ export const sitesHandlers = [
   http.get('/api/sites/:id', ({ params, request }) => {
     const x = store.sites.find((s) => s.id === Number(params.id));
     return x ? ok(publicSite(x, request)) : err('수용가를 찾을 수 없습니다.', 404);
+  }),
+  http.patch('/api/sites/:id/special-condition', async ({ params, request }) => {
+    const site = store.sites.find((value) => value.id === Number(params.id));
+    if (!site) return err('수용가 없음', 404);
+    try {
+      const body = (await request.json()) as { code: string; description?: string };
+      if (
+        !body ||
+        typeof body.code !== 'string' ||
+        (body.description != null && typeof body.description !== 'string') ||
+        (body.description?.length ?? 0) > 2000
+      )
+        return err('입력값을 확인하세요.');
+      const value = conditionPayload(body.code, body.description ?? '');
+      site.specialCondition = {
+        ...value,
+        label: SPECIAL_CONDITIONS[value.code as keyof typeof SPECIAL_CONDITIONS],
+      };
+      return ok(publicSite(site, request));
+    } catch {
+      return err('기타 내용을 1~2,000자로 입력하세요.');
+    }
   }),
   http.patch('/api/sites/:id/note', async ({ params, request }) => {
     const x = store.sites.find((s) => s.id === Number(params.id));
