@@ -1,4 +1,5 @@
 import { HttpResponse } from 'msw';
+import { importedMeterInfo } from '../lib/importedMeterInfo';
 import type { Phase, Site } from '../types';
 import { store } from './store';
 
@@ -21,9 +22,10 @@ export const feeFor = (phase: Phase, date: string) =>
     ?.amount ?? 0;
 
 export function publicSite(site: Site, request: Request) {
-  if (isAdmin(request)) return site;
+  const visibleSite = { ...site, ...importedMeterInfo(site.meterPresenceRaw, site.importRemark) };
+  if (isAdmin(request)) return visibleSite;
   return {
-    ...site,
+    ...visibleSite,
     inspections: Object.fromEntries(
       Object.entries(site.inspections).map(([phase, measurement]) => {
         const { fee, ...visible } = measurement;

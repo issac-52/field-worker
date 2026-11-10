@@ -35,6 +35,7 @@ describe('export regression', () => {
       return (await response.json()).data as PageResponse<SiteExportItem>;
     };
     store.sites[0].note = 'Legacy memo';
+    store.sites[0].meterPresenceRaw = '=1+1';
     store.sites[0].specialCondition = {
       code: 'OTHER',
       label: '기타',
@@ -74,7 +75,10 @@ describe('export regression', () => {
     expect(sheet.getCell('AD4').value).toBe(
       records[0].inspections.END!.reading - records[0].inspections.START!.reading,
     );
-    expect(EXPORT_COLUMNS.length).toBe(35);
+    expect(EXPORT_COLUMNS.length).toBe(37);
+    expect(sheet.getCell('AJ4').value).toBe('');
+    expect(sheet.getCell('AK4').value).toBe('=1+1');
+    expect(sheet.getCell('AK4').type).toBe(ExcelJS.ValueType.String);
     expect(records.every((item) => !('locationMap' in item))).toBeTruthy();
     expect(!EXPORT_COLUMNS.some((column) => column.includes('위치도'))).toBeTruthy();
     const many: SiteExportItem[] = Array.from({ length: 12050 }, (_, index) => ({

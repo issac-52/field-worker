@@ -20,10 +20,11 @@ public class WorksiteService {
   }
 
   private static final String SITE_QUERY =
-      "select *,source_cells->>'AZ' as supply_number,source_cells->>'J' as meter_diameter,"
-          + "source_cells->>'K' as household_count,source_cells->>'L' as sewer_raw,"
-          + "source_cells->>'AX' as business_name,source_cells->>'BC' as source_reader,"
-          + "source_cells->>'BD' as regular_reading_day from worksites s";
+      "select *,source_cells->>'H' as meter_presence_source,source_cells->>'AZ' as"
+          + " supply_number,source_cells->>'J' as meter_diameter,source_cells->>'K' as"
+          + " household_count,source_cells->>'L' as sewer_raw,source_cells->>'AX' as"
+          + " business_name,source_cells->>'BC' as source_reader,source_cells->>'BD' as"
+          + " regular_reading_day from worksites s";
 
   public record Filter(String middleBlockId, String smallBlockId, String q, String status) {}
 
@@ -165,7 +166,11 @@ public class WorksiteService {
     site.put("sourceReader", text(row, "source_reader"));
     site.put("regularReadingDay", text(row, "regular_reading_day"));
     site.put("sealed", null);
-    site.put("meterPresenceRaw", text(row, "meter_presence_raw"));
+    var meter =
+        ImportedMeterInfo.fromRaw(
+            text(row, "meter_presence_raw"), text(row, "meter_presence_source"));
+    site.put("meterPresenceRaw", meter.presence());
+    site.put("importRemark", meter.remark());
     site.put("latitude", row.get("latitude"));
     site.put("longitude", row.get("longitude"));
     site.put("note", row.get("note"));

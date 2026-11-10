@@ -28,6 +28,8 @@ Mock 역할 전환은 실제 로그인·권한 인증이 아니다. 새로고침
 
 ## 문서 안내
 
+- [Excel 계량기 유무와 비고 분리 규칙](docs/EXCEL_METER_REMARKS.md)
+
 - [목록 조회 1차 성능 개선 결과 — 전후 그래프·PDF·원시 결과](docs/performance/2026-11-10-list-optimization/REPORT.md)
 
 - [번호 없는 수용가의 주소·이름 식별과 추후 번호 등록](docs/OPTIONAL_CONSUMER_NUMBER.md)

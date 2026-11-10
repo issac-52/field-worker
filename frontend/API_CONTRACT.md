@@ -138,3 +138,11 @@ prune/preview는 이제 숨김 행의 번호와 일치하는 DB 수용가만 대
 관리자 상세 화면은 번호 없는 자료에 번호 등록 버튼을 제공한다. ADMIN+CSRF `PATCH /api/admin/sites/{id}/consumer-number` `{consumerNumber:string}` → Site. 1~100자/선행0 유지/앞뒤 공백 제거, 중복 번호와 기존 번호 덮어쓰기는409다. ID/사진/검침을 유지하고 변경 이력을 기록한다.
 
 숨김 삭제 미리보기는 identityVersion=2, hiddenRowsWithoutIdentity/visibleRowsWithoutIdentity/visibleDuplicateIdentities/unmatchedHiddenIdentities와 sample의 id/name/address를 추가한다. 번호 없는 대상을 주소·이름으로 표시한다. 서버는 내부 ID 유지 집합으로 실행하며 기존 계획은 PRUNE_SCOPE_CHANGED로 재미리보기를 요구한다. 전체 정책 및 재업로드 주의는 `docs/OPTIONAL_CONSUMER_NUMBER.md` 참고.
+
+## Excel 계량기 유무 → 비고 분리 (2026-11-10)
+
+H열 원본의 앞뒤 공백을 제거한 값이 정확히 `완료`면 `meterPresenceRaw="완료"`, `importRemark=""`다. 그 외 비어 있지 않은 값은 `meterPresenceRaw=""`, `importRemark=해당 문구`로 반환한다. 빈 값은 둘 다 빈 문자열이다. 원본 컬럼이 비었으면 보존한 source_cells.H를 사용한다.
+
+Site에 optional `importRemark:string`을 추가하고 상세/지도 기본정보에서 `비고 (엑셀)`로 표시한다. 현장 specialCondition 및 note와 구분한다. 원본 H값은 DB에 보존하므로 기존 자료도 재업로드 없이 같은 표시 규칙을 적용한다.
+
+운영 XLSX는 기존20열 뒤에 비고1열을 추가해21열이며 계량기 유무 칸에는 완료만 표시한다. 시연 XLSX는 기존35열 뒤에 계량기 유무/비고를 추가해37열이다. 현장 특이사항의 출력 규칙은 유지한다. 자세한 원본 보존/검증은 docs/EXCEL_METER_REMARKS.md 참고.

@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { importedMeterInfo } from './importedMeterInfo';
 import { specialConditionText } from './specialCondition';
 import type { Block, SiteExportItem } from '../types';
 import { PHOTO_SLOTS, statusOf } from '../types';
@@ -39,6 +40,8 @@ export const EXPORT_COLUMNS = [
   'START 근경 등록',
   'END 근경 등록',
   '임시용 사진 등록',
+  '계량기 유무',
+  '비고',
 ] as const;
 
 const date = (value?: string) =>
@@ -65,6 +68,7 @@ export function createExportWorkbook(
   sheet.addRow([...EXPORT_COLUMNS]);
   const names = new Map(blocks.map((block) => [block.id, block.name]));
   for (const site of records) {
+    const meter = importedMeterInfo(site.meterPresenceRaw, site.importRemark);
     const start = site.inspections.START;
     const end = site.inspections.END;
     const phaseValues = (value: typeof start) => [
@@ -97,6 +101,8 @@ export function createExportWorkbook(
       start && end ? end.reading - start.reading : null,
       (start?.fee ?? 0) + (end?.fee ?? 0),
       ...PHOTO_SLOTS.map((slot) => (site.photoSlots.includes(slot) ? '등록' : '미등록')),
+      meter.meterPresenceRaw,
+      meter.importRemark,
     ];
     if (values.some((value) => typeof value === 'string' && value.length > 32767))
       throw new Error(`관리번호 ${site.managementNo}: 엑셀 셀 최대 길이를 초과한 내용이 있습니다.`);
@@ -104,7 +110,7 @@ export function createExportWorkbook(
     sheet.addRow(values);
   }
   sheet.columns.forEach((column, index) => {
-    column.width = [5, 14].includes(index) ? 42 : index === 4 ? 16 : 21;
+    column.width = [5, 14, 36].includes(index) ? 42 : index === 4 ? 16 : 21;
   });
   for (const index of [2, 7, 9]) sheet.getColumn(index).numFmt = '@';
   for (const index of [16, 23]) sheet.getColumn(index).numFmt = 'yyyy-mm-dd';
