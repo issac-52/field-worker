@@ -1,5 +1,7 @@
 # 포트폴리오용 성능 측정 자료
 
+이 문서는 초기 기준선이다. 후속 [1차 목록 성능 개선 결과](../../performance/2026-11-10-list-optimization/REPORT.md)에서 최신 develop 재측정과 개선 후를 비교했다. 초기 수치를 덮어쓰지 않는다.
+
 - [공유·인쇄용 PDF](fieldwork-performance-baseline.pdf) — A4 6페이지
 - [편집 가능한 Markdown](PORTFOLIO.md) — 프로젝트 개요·측정 방법·분석·후속 비교 기준
 - [독립 HTML](fieldwork-performance-baseline.html) — 그래프 포함, 별도 서버 없이 열기 가능

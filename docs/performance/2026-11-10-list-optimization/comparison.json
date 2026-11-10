@@ -1,0 +1,75 @@
+{
+  "tests": 79,
+  "pullRequestUrl": "",
+  "beforeCommit": "30e40ce",
+  "afterCommit": "6b1d766",
+  "harnessSha256": "90e981b5c1b1d180f0a0b75802856c820d13648e64a4ea449102ec2f5cfa9c70",
+  "beforeMeasuredAt": "2026-11-10T10:55:10.706204523+09:00[Asia/Seoul]",
+  "afterMeasuredAt": "2026-11-10T11:00:44.979504422+09:00[Asia/Seoul]",
+  "comparisons": [
+    {
+      "name": "list_20_first_page",
+      "label": "첫 페이지 20건",
+      "labelEn": "First page · 20 rows",
+      "samples": 20,
+      "beforeSql": 62,
+      "afterSql": 4,
+      "beforeP50": 21.675258,
+      "afterP50": 5.534003,
+      "beforeP95": 36.108505,
+      "afterP95": 20.882314,
+      "p50ReductionPercent": 74.46857149289757,
+      "responseBytesEqual": true
+    },
+    {
+      "name": "list_100_first_page",
+      "label": "첫 페이지 100건",
+      "labelEn": "First page · 100 rows",
+      "samples": 10,
+      "beforeSql": 302,
+      "afterSql": 4,
+      "beforeP50": 74.753629,
+      "afterP50": 8.560628,
+      "beforeP95": 93.428996,
+      "afterP95": 21.523492,
+      "p50ReductionPercent": 88.54821081662804,
+      "responseBytesEqual": true
+    },
+    {
+      "name": "list_20_last_page",
+      "label": "마지막 페이지 20건",
+      "labelEn": "Last page · 20 rows",
+      "samples": 20,
+      "beforeSql": 62,
+      "afterSql": 4,
+      "beforeP50": 17.679404,
+      "afterP50": 11.245895,
+      "beforeP95": 37.390956,
+      "afterP95": 15.193339,
+      "p50ReductionPercent": 36.3898522823507,
+      "responseBytesEqual": true
+    },
+    {
+      "name": "list_20_text_search",
+      "label": "문자열 검색 20건",
+      "labelEn": "Text search · 20 rows",
+      "samples": 10,
+      "beforeSql": 62,
+      "afterSql": 4,
+      "beforeP50": 56.938741,
+      "afterP50": 54.788979,
+      "beforeP95": 68.312007,
+      "afterP95": 58.883355,
+      "p50ReductionPercent": 3.775569958598146,
+      "responseBytesEqual": true
+    }
+  ],
+  "concurrent": {
+    "beforeP50": 99.31805,
+    "afterP50": 30.684417,
+    "beforeP95": 237.870019,
+    "afterP95": 72.198437,
+    "samples": 100,
+    "concurrency": 10
+  }
+}
