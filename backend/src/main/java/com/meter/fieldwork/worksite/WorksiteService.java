@@ -19,6 +19,12 @@ public class WorksiteService {
     this.json = json;
   }
 
+  private static final String SITE_QUERY =
+      "select *,source_cells->>'AZ' as supply_number,source_cells->>'J' as meter_diameter,"
+          + "source_cells->>'K' as household_count,source_cells->>'L' as sewer_raw,"
+          + "source_cells->>'AX' as business_name,source_cells->>'BC' as source_reader,"
+          + "source_cells->>'BD' as regular_reading_day from worksites s";
+
   public record Filter(String middleBlockId, String smallBlockId, String q, String status) {}
 
   public Map<String, Object> page(Filter filter, int requestedPage, int size, boolean admin) {
@@ -31,20 +37,43 @@ public class WorksiteService {
     int page = (int) Math.min(requestedPage, pages);
     params.put("limit", size);
     params.put("offset", (page - 1) * size);
-    var ids =
+    var rows =
         db.queryForList(
-            "select s.id from worksites s where "
+            SITE_QUERY
+                + " where "
                 + where
                 + " order by s.management_number nulls last,s.id limit :limit offset :offset",
-            params,
-            Long.class);
+            params);
+    if (rows.isEmpty())
+      return Map.of(
+          "items", List.of(), "page", page, "pageSize", size, "total", total, "totalPages", pages);
+    var ids = rows.stream().map(row -> ((Number) row.get("id")).longValue()).toList();
+    var selected = Map.of("ids", ids);
+    var photoCounts = new HashMap<Long, Integer>();
+    for (var row :
+        db.queryForList(
+            "select site_id,count(*) as count from photos where site_id in (:ids) group by site_id",
+            selected))
+      photoCounts.put(
+          ((Number) row.get("site_id")).longValue(), ((Number) row.get("count")).intValue());
+    var inspections = new HashMap<Long, List<Map<String, Object>>>();
+    for (var row :
+        db.queryForList(
+            "select i.*,u.nickname from inspections i join users u on u.id=i.worker_id where"
+                + " site_id in (:ids)",
+            selected))
+      inspections
+          .computeIfAbsent(((Number) row.get("site_id")).longValue(), ignored -> new ArrayList<>())
+          .add(row);
     var items =
-        ids.stream()
+        rows.stream()
             .map(
-                id -> {
-                  var item = detail(id, admin);
-                  item.put("photoCount", ((List<?>) item.remove("photos")).size());
+                row -> {
+                  long id = ((Number) row.get("id")).longValue();
+                  var item = basicFields(row);
                   item.remove("note");
+                  item.put("photoCount", photoCounts.getOrDefault(id, 0));
+                  applyInspections(item, inspections.getOrDefault(id, List.of()), admin);
                   return item;
                 })
             .toList();
@@ -90,16 +119,31 @@ public class WorksiteService {
   }
 
   public Map<String, Object> detail(long id, boolean admin) {
-    var rows =
-        db.queryForList(
-            "select *,source_cells->>'AZ' as supply_number,source_cells->>'J' as"
-                + " meter_diameter,source_cells->>'K' as household_count,source_cells->>'L' as"
-                + " sewer_raw,source_cells->>'AX' as business_name,source_cells->>'BC' as"
-                + " source_reader,source_cells->>'BD' as regular_reading_day from worksites where"
-                + " id=:id",
-            Map.of("id", id));
+    var rows = db.queryForList(SITE_QUERY + " where id=:id", Map.of("id", id));
     if (rows.isEmpty()) throw new ApiException(404, "SITE_NOT_FOUND", "수용가를 찾을 수 없습니다.");
     var row = rows.getFirst();
+    var site = basicFields(row);
+    var photos =
+        db.queryForList(
+            "select id,slot from photos where site_id=:id order by case slot when 'OVERVIEW' then 1"
+                + " when 'START_CLOSEUP' then 2 when 'END_CLOSEUP' then 3 when 'TEMPORARY' then 4"
+                + " when 'EXTRA_1' then 5 else 6 end",
+            Map.of("id", id));
+    for (var photo : photos)
+      photo.put("url", "/api/sites/" + id + "/photos/" + photo.get("id") + "/content");
+    site.put("photos", photos);
+    applyInspections(
+        site,
+        db.queryForList(
+            "select i.*,u.nickname from inspections i join users u on u.id=i.worker_id where"
+                + " site_id=:id",
+            Map.of("id", id)),
+        admin);
+    return site;
+  }
+
+  private LinkedHashMap<String, Object> basicFields(Map<String, Object> row) {
+    long id = ((Number) row.get("id")).longValue();
     var site = new LinkedHashMap<String, Object>();
     site.put("id", id);
     site.put("middleBlockId", text(row, "middle_block"));
@@ -125,22 +169,25 @@ public class WorksiteService {
     site.put("latitude", row.get("latitude"));
     site.put("longitude", row.get("longitude"));
     site.put("note", row.get("note"));
-    var photos =
-        db.queryForList(
-            "select id,slot from photos where site_id=:id order by case slot when 'OVERVIEW' then 1"
-                + " when 'START_CLOSEUP' then 2 when 'END_CLOSEUP' then 3 when 'TEMPORARY' then 4"
-                + " when 'EXTRA_1' then 5 else 6 end",
-            Map.of("id", id));
-    for (var photo : photos)
-      photo.put("url", "/api/sites/" + id + "/photos/" + photo.get("id") + "/content");
-    site.put("photos", photos);
+    SpecialCondition condition = SpecialCondition.valueOf((String) row.get("special_condition"));
+    site.put(
+        "specialCondition",
+        Map.of(
+            "code",
+            condition.name(),
+            "label",
+            condition.label,
+            "description",
+            condition == SpecialCondition.OTHER ? row.get("special_description") : ""));
+    site.put("updatedAt", ((java.sql.Timestamp) row.get("updated_at")).toInstant());
+    return site;
+  }
+
+  private void applyInspections(
+      Map<String, Object> site, List<Map<String, Object>> records, boolean admin) {
     var inspections = new LinkedHashMap<String, Object>();
     java.math.BigDecimal start = null, end = null;
-    for (var record :
-        db.queryForList(
-            "select i.*,u.nickname from inspections i join users u on u.id=i.worker_id where"
-                + " site_id=:id",
-            Map.of("id", id))) {
+    for (var record : records) {
       var value = new LinkedHashMap<String, Object>();
       value.put("date", record.get("inspection_date").toString());
       value.put("reading", record.get("reading"));
@@ -158,18 +205,6 @@ public class WorksiteService {
     }
     site.put("inspections", inspections);
     site.put("usage", com.meter.fieldwork.inspection.InspectionRules.usage(start, end));
-    SpecialCondition condition = SpecialCondition.valueOf((String) row.get("special_condition"));
-    site.put(
-        "specialCondition",
-        Map.of(
-            "code",
-            condition.name(),
-            "label",
-            condition.label,
-            "description",
-            condition == SpecialCondition.OTHER ? row.get("special_description") : ""));
-    site.put("updatedAt", ((java.sql.Timestamp) row.get("updated_at")).toInstant());
-    return site;
   }
 
   public List<Map<String, Object>> blocks() {
