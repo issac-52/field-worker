@@ -115,7 +115,8 @@ class OptionalConsumerNumberTest extends PostgresIntegrationTest {
   }
 
   @Test
-  void importsUnnamedNumbersByAddressAndNameAndPreservesFirstRowsOnReupload() throws Exception {
+  void registersByAddressAndReportsUnnumberedAddressCollisionsWithoutOverwriting()
+      throws Exception {
     byte[] file =
         workbook(
             new String[] {null, "Person A", "Road  1"},
@@ -126,20 +127,21 @@ class OptionalConsumerNumberTest extends PostgresIntegrationTest {
             new String[] {null, "", "Road 1"},
             new String[] {null, "Person A", ""});
     var first = upload(file, false);
-    assertThat(first.inserted()).isEqualTo(4);
-    assertThat(first.duplicateInFile()).isEqualTo(1);
-    assertThat(first.invalid()).isEqualTo(2);
+    assertThat(first.inserted()).isEqualTo(3);
+    assertThat(first.duplicateInFile()).isZero();
+    assertThat(first.invalid()).isEqualTo(4);
     assertThat(first.skippedRows().getFirst().firstRowNumber()).isEqualTo(3);
-    assertThat(first.skippedRows().getLast().reason()).isEqualTo("MISSING_ADDRESS_OR_NAME");
+    assertThat(first.skippedRows().getLast().reason()).isEqualTo("MISSING_ADDRESS");
     assertThat(
             db.queryForObject(
                 "select count(*) from worksites where consumer_number is null", Integer.class))
-        .isEqualTo(3);
+        .isEqualTo(2);
     var ids = db.queryForList("select id from worksites order by id", Long.class);
     var second = upload(file, false);
     assertThat(second.inserted()).isZero();
-    assertThat(second.alreadyExists()).isEqualTo(4);
-    assertThat(second.duplicateInFile()).isEqualTo(1);
+    assertThat(second.alreadyExists()).isEqualTo(1);
+    assertThat(second.invalid()).isEqualTo(6);
+    assertThat(second.duplicateInFile()).isZero();
     assertThat(db.queryForList("select id from worksites order by id", Long.class)).isEqualTo(ids);
     assertThat(
             db.queryForObject(
@@ -159,7 +161,7 @@ class OptionalConsumerNumberTest extends PostgresIntegrationTest {
   }
 
   @Test
-  void repairsOnlyMatchingAnonymousIdentityAndKeepsNumberedSiteSeparate() throws Exception {
+  void repairsOnlyByNumberAndNeverUsesAnAnonymousAddress() throws Exception {
     upload(
         workbook(
             new String[] {null, "Person A", "Road 1"}, new String[] {"001", "Person A", "Road 1"}),
@@ -168,19 +170,21 @@ class OptionalConsumerNumberTest extends PostgresIntegrationTest {
         workbook(
             new String[] {null, " Person A ", "Road  1", "false", "METER-A"},
             new String[] {null, "Person A", "Road 1", "false", "ignored"},
-            new String[] {null, "Person B", "Road 1"});
+            new String[] {null, "Person B", "Road 1"},
+            new String[] {"001", "Ignored name", "Ignored road", "false", "METER-N"});
     var result = tx.execute(s -> repairs.repair(new ByteArrayInputStream(repair), actor));
     assertThat(result.updated()).isEqualTo(1);
-    assertThat(result.duplicateInFile()).isEqualTo(1);
-    assertThat(result.notFound()).isEqualTo(1);
+    assertThat(result.duplicateInFile()).isZero();
+    assertThat(result.notFound()).isZero();
+    assertThat(result.invalid()).isEqualTo(3);
     assertThat(
             db.queryForObject(
                 "select meter_number from worksites where consumer_number is null", String.class))
-        .isEqualTo("METER-A");
+        .isEmpty();
     assertThat(
             db.queryForObject(
                 "select meter_number from worksites where consumer_number='001'", String.class))
-        .isEmpty();
+        .isEqualTo("METER-N");
     assertThat(db.queryForObject("select count(*) from worksite_edits", Integer.class))
         .isEqualTo(1);
   }
@@ -243,5 +247,87 @@ class OptionalConsumerNumberTest extends PostgresIntegrationTest {
     try (var book = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
       assertThat(book.getSheetAt(0).getRow(1).getCell(0)).isNull();
     }
+  }
+
+  @Test
+  void addressOnlyRegistrationAllowsMissingNamesAndRejectsAlreadyRegisteredAddresses()
+      throws Exception {
+    byte[] file =
+        workbook(
+            new String[] {"001", "Original", "Road 1"},
+            new String[] {null, "Different name", " Road  1 "},
+            new String[] {null, "", "Road 2"},
+            new String[] {null, "No address", ""},
+            new String[] {null, "Another name", "Road 2"});
+    var result = upload(file, false);
+    assertThat(result.inserted()).isEqualTo(2);
+    assertThat(result.invalid()).isEqualTo(3);
+    assertThat(result.alreadyExists()).isZero();
+    assertThat(result.skippedRows().getFirst().reason())
+        .isEqualTo("DUPLICATE_ADDRESS_WITHOUT_NUMBER");
+    assertThat(result.skippedRows().get(1).reason()).isEqualTo("MISSING_ADDRESS");
+    assertThat(
+            db.queryForObject(
+                "select name from worksites where consumer_number is null", String.class))
+        .isEmpty();
+    assertThat(
+            db.queryForObject(
+                "select name from worksites where consumer_number='001'", String.class))
+        .isEqualTo("Original");
+    var again = upload(workbook(new String[] {null, "Changed name", "Road 2"}), false);
+    assertThat(again.invalid()).isEqualTo(1);
+    assertThat(again.inserted()).isZero();
+    assertThat(
+            db.queryForObject(
+                "select name from worksites where consumer_number is null", String.class))
+        .isEmpty();
+  }
+
+  @Test
+  void repairWithoutNumberNeverMatchesOrFillsByAddress() throws Exception {
+    upload(workbook(new String[] {null, "Person A", "Road 1"}), false);
+    var input = workbook(new String[] {null, "Person A", "Road 1", "false", "MUST-NOT-FILL"});
+    var result = tx.execute(status -> repairs.repair(new ByteArrayInputStream(input), actor));
+    assertThat(result.invalid()).isEqualTo(1);
+    assertThat(result.updated()).isZero();
+    assertThat(result.rows().getFirst().reason()).isEqualTo("CONSUMER_NUMBER_REQUIRED");
+    assertThat(db.queryForObject("select meter_number from worksites", String.class)).isEmpty();
+    assertThat(db.queryForObject("select count(*) from worksite_edits", Integer.class)).isZero();
+  }
+
+  @Test
+  void concurrentDifferentNamesCannotCreateTheSameUnnumberedAddress() throws Exception {
+    var left = workbook(new String[] {null, "Person A", "Road 1"});
+    var right = workbook(new String[] {null, "Person B", "Road 1"});
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var a = executor.submit(() -> upload(left, false));
+      var b = executor.submit(() -> upload(right, false));
+      var first = a.get();
+      var second = b.get();
+      assertThat(first.inserted() + second.inserted()).isEqualTo(1);
+      assertThat(first.invalid() + second.invalid()).isEqualTo(1);
+    }
+    assertThat(db.queryForObject("select count(*) from worksites", Integer.class)).isEqualTo(1);
+  }
+
+  @Test
+  void existingNumberedDuplicateDoesNotReserveAnAddressThatWasNotInserted() throws Exception {
+    upload(workbook(new String[] {"001", "Original", "Old road"}), false);
+    var result =
+        upload(
+            workbook(
+                new String[] {"001", "Ignored", "New road"},
+                new String[] {null, "", "New road"},
+                new String[] {null, "Other", "Old road"},
+                new String[] {"002", "", "New road"},
+                new String[] {null, "Other", ""}),
+            false);
+    assertThat(result.inserted()).isEqualTo(2);
+    assertThat(result.alreadyExists()).isEqualTo(1);
+    assertThat(result.invalid()).isEqualTo(2);
+    assertThat(
+            db.queryForObject(
+                "select address from worksites where consumer_number='001'", String.class))
+        .isEqualTo("Old road");
   }
 }

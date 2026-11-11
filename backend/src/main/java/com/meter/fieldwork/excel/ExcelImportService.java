@@ -21,14 +21,24 @@ public class ExcelImportService {
     this.json = json;
   }
 
-  @Transactional
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
   public ImportResult importWorkbook(InputStream stream, Long actor) {
     return importWorkbook(stream, actor, false);
   }
 
-  @Transactional
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
   public ImportResult importWorkbook(InputStream stream, Long actor, boolean visibleOnly) {
     var context = new ImportContext(UUID.randomUUID());
+    ExcelUploadLock.acquire(jdbc);
+    jdbc.query(
+        "select consumer_number,worksite_identity_text(address) as address_key from worksites",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            row -> {
+              String number = row.getString("consumer_number"),
+                  address = row.getString("address_key");
+              if (number != null) context.existingNumbers.add(number);
+              if (!address.isEmpty()) context.existingAddresses.add(address);
+            });
     jdbc.update("insert into import_jobs(id,created_by) values(?,?)", context.id, actor);
     new ExcelRows()
         .read(
@@ -42,16 +52,34 @@ public class ExcelImportService {
                 context.skip(row, "HIDDEN_ROW", null);
                 return;
               }
-              var identity = WorksiteIdentity.from(row);
-              if (identity == null) {
-                context.skip(row, "MISSING_ADDRESS_OR_NAME", null);
-                return;
+              String number = row.cell("C");
+              String address = WorksiteIdentity.normalize(row.cell("E"));
+              var current = new FirstRow(row.sheet(), row.number());
+              if (number.isBlank()) {
+                if (address.isEmpty()) {
+                  context.skip(row, "MISSING_ADDRESS", null);
+                  return;
+                }
+                if (context.existingAddresses.contains(address)) {
+                  context.skip(
+                      row, "DUPLICATE_ADDRESS_WITHOUT_NUMBER", context.firstAddresses.get(address));
+                  return;
+                }
+              } else {
+                var first = context.seen.putIfAbsent(number, current);
+                if (first != null) {
+                  context.skip(row, "DUPLICATE_IN_FILE", first);
+                  return;
+                }
+                if (context.existingNumbers.contains(number)) {
+                  context.skip(row, "ALREADY_EXISTS", null);
+                  return;
+                }
+                context.existingNumbers.add(number);
               }
-              var first =
-                  context.seen.putIfAbsent(identity, new FirstRow(row.sheet(), row.number()));
-              if (first != null) {
-                context.skip(row, "DUPLICATE_IN_FILE", first);
-                return;
+              if (!address.isEmpty()) {
+                context.existingAddresses.add(address);
+                context.firstAddresses.putIfAbsent(address, current);
               }
               context.batch.add(row);
               if (context.batch.size() == 500) flush(context);
@@ -109,7 +137,10 @@ public class ExcelImportService {
     for (int i = 0; i < counts.length; i++) {
       var row = context.batch.get(i);
       if (counts[i] == 0) {
-        context.skip(row, "ALREADY_EXISTS", null);
+        context.skip(
+            row,
+            row.cell("C").isBlank() ? "DUPLICATE_ADDRESS_WITHOUT_NUMBER" : "ALREADY_EXISTS",
+            null);
         continue;
       }
       if (counts[i] != 1)
@@ -146,7 +177,10 @@ public class ExcelImportService {
     final UUID id;
     int total, inserted, duplicates, exists, invalid, hidden;
     final Map<String, Integer> sheetOrder = new LinkedHashMap<>();
-    final Map<WorksiteIdentity, FirstRow> seen = new LinkedHashMap<>();
+    final Map<String, FirstRow> seen = new LinkedHashMap<>();
+    final Map<String, FirstRow> firstAddresses = new HashMap<>();
+    final Set<String> existingNumbers = new HashSet<>();
+    final Set<String> existingAddresses = new HashSet<>();
     final List<ExcelRows.Row> batch = new ArrayList<>(500);
     final List<SkippedRow> skipped = new ArrayList<>();
 
