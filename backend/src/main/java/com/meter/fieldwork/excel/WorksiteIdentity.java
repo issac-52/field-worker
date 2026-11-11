@@ -1,6 +1,6 @@
 package com.meter.fieldwork.excel;
 
-/** A numbered site and an unnumbered site never match through address/name alone. */
+/** Legacy hidden-row deletion identity, separate from address-only registration checks. */
 record WorksiteIdentity(String number, String address, String name) {
   static WorksiteIdentity from(ExcelRows.Row row) {
     return of(row.cell("C"), row.cell("E"), row.cell("D"));
@@ -13,7 +13,7 @@ record WorksiteIdentity(String number, String address, String name) {
   }
 
   // Same ASCII whitespace set as the database identity function. Do not infer address equivalence.
-  private static String normalize(String value) {
+  static String normalize(String value) {
     return value == null ? "" : value.replaceAll("[ \\t\\n\\r\\f\\u000B]+", " ").trim();
   }
 }
