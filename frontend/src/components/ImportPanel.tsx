@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { call } from '../api/client';
 import { Button } from './ui/button';
 import { useWork } from '../context/work';
+const importReasonLabels: Record<string, string> = {
+  MISSING_ADDRESS: '주소 누락 (수용가번호 없음)',
+  DUPLICATE_ADDRESS_WITHOUT_NUMBER: '수용가번호 없음: 이미 등록된 주소',
+  CONSUMER_NUMBER_REQUIRED: '보완 처리에는 수용가번호가 필요합니다.',
+};
 type Result = {
   jobId: string;
   totalRows: number;
@@ -117,8 +122,8 @@ export function ImportPanel() {
       </label>
       <p>
         {mode === 'repair'
-          ? '수용가번호가 같은 기존 자료를 찾고, 번호가 없으면 번호 미등록 자료 중 주소·이름으로 찾습니다. 빈 기본정보만 채우며 기존 검침·사진·좌표를 유지합니다. 신규 수용가는 등록하지 않습니다.'
-          : '번호가 있으면 수용가번호로, 번호가 없으면 주소·이름으로 중복을 확인합니다. 번호 없는 행은 주소와 이름이 모두 필요합니다. 기존 수용가는 유지합니다.'}
+          ? '수용가번호로만 기존 자료의 빈 기본정보를 보완합니다. 번호가 없는 행은 오류로 제외하며 주소로 기존 자료를 찾아 보완하지 않습니다. 기존 검침·사진·좌표를 유지합니다.'
+          : '번호가 있으면 기존 수용가번호 기준으로 등록합니다. 번호가 없으면 이름 없이도 새주소로 등록할 수 있습니다. 이미 등록된 주소이거나 같은 파일에서 먼저 등록한 주소라면 해당 행은 오류로 제외하며 기존 자료를 수정하지 않습니다.'}
       </p>
       <label className="field">
         <span>
@@ -186,7 +191,8 @@ export function ImportPanel() {
           <p>
             숨긴 행과 일치하는 기존 수용가만 삭제합니다. 번호가 있으면 수용가번호로, 번호가 없으면
             번호 미등록 자료 중 주소·이름으로 찾습니다. 파일에 없는 수용가와 보이는 행에도 있는
-            수용가는 유지합니다. 번호가 있는 자료와 없는 자료를 주소·이름만으로 합치지 않습니다.
+            수용가는 유지합니다. 이름 없는 번호 미등록 자료는 자동 삭제 대상에서 제외합니다. 신규
+            등록의 주소 단독 기준을 삭제에 적용하지 않습니다.
           </p>
           <Button
             type="button"
@@ -299,7 +305,7 @@ export function ImportPanel() {
                     <tr key={i}>
                       <td>{row.sheet}</td>
                       <td>{row.rowNumber}</td>
-                      <td>{row.reason}</td>
+                      <td>{importReasonLabels[row.reason] ?? row.reason}</td>
                       <td>
                         {'fields' in row
                           ? row.fields?.join(', ') || '—'
