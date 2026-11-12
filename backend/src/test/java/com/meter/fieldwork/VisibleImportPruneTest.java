@@ -45,7 +45,7 @@ class VisibleImportPruneTest extends PostgresIntegrationTest {
     tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
     var storage =
         new ObjectStorage() {
-          final Map<String, byte[]> data = new HashMap<>();
+          final Map<String, byte[]> data = new java.util.concurrent.ConcurrentHashMap<>();
 
           public void put(String key, byte[] bytes, String type) {
             data.put(key, bytes);

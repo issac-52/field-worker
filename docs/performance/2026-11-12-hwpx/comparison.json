@@ -1,0 +1,19 @@
+{
+  "baseCommit": "95ed14d",
+  "implementationCommit": "86ad189",
+  "pairedHarnessSha256": "90e981b5c1b1d180f0a0b75802856c820d13648e64a4ea449102ec2f5cfa9c70",
+  "comparisons": [
+    {
+      "name": "hwpx_100_first_generation_3photos",
+      "beforeSeconds": 50.735722335,
+      "afterSeconds": 30.917192552,
+      "reductionPercent": 39.062279732889905
+    },
+    {
+      "name": "hwpx_100_repeat_cached",
+      "beforeSeconds": 2.314678504,
+      "afterSeconds": 1.572427273,
+      "reductionPercent": 32.067141493616255
+    }
+  ]
+}

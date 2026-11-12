@@ -7,6 +7,8 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.*;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,6 +22,7 @@ public class DocumentService {
   private final ObjectMapper json;
   private final HwpxCardRenderer renderer;
   private final TransactionTemplate tx;
+  private final DocumentBatchSettings settings;
 
   public DocumentService(
       JdbcTemplate db,
@@ -27,6 +30,18 @@ public class DocumentService {
       ObjectMapper json,
       HwpxCardRenderer renderer,
       org.springframework.transaction.PlatformTransactionManager manager) {
+    this(db, storage, json, renderer, manager, DocumentBatchSettings.defaults());
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public DocumentService(
+      JdbcTemplate db,
+      ObjectStorage storage,
+      ObjectMapper json,
+      HwpxCardRenderer renderer,
+      org.springframework.transaction.PlatformTransactionManager manager,
+      DocumentBatchSettings settings) {
+    this.settings = settings;
     this.db = db;
     this.storage = storage;
     this.json = json;
@@ -284,6 +299,7 @@ jsonb_build_object('site',to_jsonb(s),
             "select object_key from document_parts where job_id=? order by part", String.class, id);
     // Flatten the existing batches: the final ZIP contains HWPX files, not nested ZIPs.
     try (var zip = new ZipOutputStream(output)) {
+      zip.setLevel(settings.zipCompressionLevel());
       for (String key : parts) {
         try (var input = new ZipInputStream(new ByteArrayInputStream(storage.get(key)))) {
           for (ZipEntry entry; (entry = input.getNextEntry()) != null; ) {
@@ -318,7 +334,8 @@ jsonb_build_object('site',to_jsonb(s),
     return key;
   }
 
-  private byte[] card(long site, JsonNode snapshot, String title, String fingerprint)
+  private byte[] card(
+      long site, JsonNode snapshot, String title, String fingerprint, BatchMetrics metrics)
       throws Exception {
     var cached =
         db.queryForList(
@@ -329,17 +346,44 @@ jsonb_build_object('site',to_jsonb(s),
             fingerprint);
     if (!cached.isEmpty()) {
       try {
-        return storage.get(cached.getFirst());
+        long started = System.nanoTime();
+        try {
+          byte[] bytes = storage.get(cached.getFirst());
+          metrics.cacheHits.incrementAndGet();
+          return bytes;
+        } finally {
+          metrics.readNanos.addAndGet(System.nanoTime() - started);
+        }
       } catch (RuntimeException ex) {
         db.update(
             "delete from document_cache where site_id=? and fingerprint=?", site, fingerprint);
       }
     }
     var photos = new HashMap<String, byte[]>();
-    for (var photo : snapshot.path("photos"))
-      photos.put(photo.path("slot").asText(), storage.get(photo.path("object_key").asText()));
-    byte[] result = renderer.render(snapshot, title, photos);
-    String key = artifact(result, "application/hwp+zip");
+    for (var photo : snapshot.path("photos")) {
+      long started = System.nanoTime();
+      try {
+        photos.put(photo.path("slot").asText(), storage.get(photo.path("object_key").asText()));
+        metrics.photoReads.incrementAndGet();
+      } finally {
+        metrics.readNanos.addAndGet(System.nanoTime() - started);
+      }
+    }
+    byte[] result;
+    long started = System.nanoTime();
+    try {
+      result = renderer.render(snapshot, title, photos);
+      metrics.generated.incrementAndGet();
+    } finally {
+      metrics.renderNanos.addAndGet(System.nanoTime() - started);
+    }
+    String key;
+    started = System.nanoTime();
+    try {
+      key = artifact(result, "application/hwp+zip");
+    } finally {
+      metrics.uploadNanos.addAndGet(System.nanoTime() - started);
+    }
     db.update(
         "insert into document_cache(site_id,fingerprint,object_key) values(?,?,?) on"
             + " conflict(site_id,fingerprint) do update set object_key=excluded.object_key",
@@ -384,39 +428,67 @@ jsonb_build_object('site',to_jsonb(s),
   }
 
   // A database session lock serializes generation/cleanup across process restarts and instances.
-  public void tick() {
-    tick(true);
+  public boolean tick() {
+    return tick(true);
   }
 
   public void maintain() {
     tick(false);
   }
 
-  private void tick(boolean generate) {
-    db.execute(
-        (ConnectionCallback<Void>)
+  private boolean tick(boolean generate) {
+    return db.execute(
+        (ConnectionCallback<Boolean>)
             connection -> {
               try (var statement = connection.createStatement();
                   var result = statement.executeQuery("select pg_try_advisory_lock(4285102)")) {
                 result.next();
-                if (!result.getBoolean(1)) return null;
+                if (!result.getBoolean(1)) return false;
               }
               try {
                 purgeRequestedJobs();
                 cleanup();
-                if (!generate) return null;
+                if (!generate) return false;
                 var jobs =
                     db.queryForList(
                         "select * from document_jobs where status in ('QUEUED','RUNNING') and"
                             + " expires_at>now() order by created_at limit 1");
-                if (!jobs.isEmpty()) process(jobs.getFirst());
+                if (!jobs.isEmpty()) {
+                  process(jobs.getFirst());
+                  return true;
+                }
+                return false;
               } finally {
                 try (var statement = connection.createStatement()) {
                   statement.execute("select pg_advisory_unlock(4285102)");
                 }
               }
-              return null;
             });
+  }
+
+  private record Card(
+      long ordinal, long site, JsonNode snapshot, String fingerprint, byte[] bytes) {}
+
+  private static final class BatchMetrics {
+    final AtomicLong generated = new AtomicLong(),
+        cacheHits = new AtomicLong(),
+        photoReads = new AtomicLong(),
+        readNanos = new AtomicLong(),
+        renderNanos = new AtomicLong(),
+        uploadNanos = new AtomicLong();
+  }
+
+  private Card prepare(Map<String, Object> row, String title, BatchMetrics metrics)
+      throws Exception {
+    long site = ((Number) row.get("site_id")).longValue();
+    JsonNode snap = snapshot(site);
+    String hash = fingerprint(snap, title);
+    return new Card(
+        ((Number) row.get("ordinal")).longValue(),
+        site,
+        snap,
+        hash,
+        card(site, snap, title, hash, metrics));
   }
 
   private void process(Map<String, Object> job) {
@@ -428,41 +500,68 @@ jsonb_build_object('site',to_jsonb(s),
                 + " ('QUEUED','RUNNING') and not delete_requested",
             id)
         == 0) return;
+    long batchStarted = System.nanoTime();
+    var metrics = new BatchMetrics();
+    long zipNanos = 0;
     try {
       var candidates =
           db.queryForList(
               "select ordinal,site_id from document_job_items where job_id=? and ordinal>? order by"
-                  + " ordinal limit 50",
+                  + " ordinal limit ?",
               id,
-              completed);
+              completed,
+              settings.batchSize());
       var out = new ByteArrayOutputStream();
       int last = completed;
-      try (var zip = new ZipOutputStream(out)) {
-        for (var row : candidates) {
-          if (cancelled(id)) return;
-          long site = ((Number) row.get("site_id")).longValue();
-          JsonNode snap = snapshot(site);
-          String hash = fingerprint(snap, title);
-          byte[] card = card(site, snap, title, hash);
-          // The document contains a consistent single-statement snapshot. Do not publish if it
-          // changed while reading photos.
-          if (!hash.equals(fingerprint(snapshot(site), title)))
-            throw new IllegalStateException("Source changed");
-          zip.putNextEntry(new ZipEntry("site-" + site + ".hwpx"));
-          zip.write(card);
-          zip.closeEntry();
-          last = ((Number) row.get("ordinal")).intValue();
-          db.update(
-              "update document_job_items set fingerprint=? where job_id=? and ordinal=?",
-              hash,
-              id,
-              last);
-          if (out.size() >= 16 * 1024 * 1024) break;
+      // Keep at most parallelism cards in flight. Never queue an entire 1000-row batch.
+      try (var executor = Executors.newFixedThreadPool(settings.parallelism());
+          var zip = new ZipOutputStream(out)) {
+        zip.setLevel(settings.zipCompressionLevel());
+        var pending = new ArrayDeque<Future<Card>>();
+        int next = 0;
+        for (; next < Math.min(settings.parallelism(), candidates.size()); next++) {
+          var row = candidates.get(next);
+          pending.add(executor.submit(() -> prepare(row, title, metrics)));
+        }
+        try {
+          while (!pending.isEmpty()) {
+            if (cancelled(id)) return;
+            Card card = pending.removeFirst().get();
+            if (cancelled(id)) return;
+            if (!card.fingerprint().equals(fingerprint(snapshot(card.site()), title)))
+              throw new IllegalStateException("Source changed");
+            long zipped = System.nanoTime();
+            zip.putNextEntry(new ZipEntry("site-" + card.site() + ".hwpx"));
+            zip.write(card.bytes());
+            zip.closeEntry();
+            zipNanos += System.nanoTime() - zipped;
+            last = (int) card.ordinal();
+            db.update(
+                "update document_job_items set fingerprint=? where job_id=? and ordinal=?",
+                card.fingerprint(),
+                id,
+                last);
+            if (out.size() >= 16 * 1024 * 1024) break;
+            if (next < candidates.size()) {
+              var row = candidates.get(next++);
+              pending.add(executor.submit(() -> prepare(row, title, metrics)));
+            }
+          }
+        } finally {
+          // Executor.close waits for a running storage/render operation before releasing the
+          // global generation lock. Cleanup must never race late writes from cancelled work.
+          pending.forEach(future -> future.cancel(false));
         }
       }
       if (cancelled(id)) return;
       if (last == completed) throw new IllegalStateException("Empty job");
-      String key = artifact(out.toByteArray(), "application/zip");
+      long uploading = System.nanoTime();
+      String key;
+      try {
+        key = artifact(out.toByteArray(), "application/zip");
+      } finally {
+        metrics.uploadNanos.addAndGet(System.nanoTime() - uploading);
+      }
       int end = last;
       boolean published =
           tx.execute(
@@ -492,6 +591,24 @@ jsonb_build_object('site',to_jsonb(s),
                     id);
                 return true;
               });
+      org.slf4j.LoggerFactory.getLogger(DocumentService.class)
+          .info(
+              "HWPX batch job={} completed={} generated={} cacheHits={} photoReads={} elapsedMs={}"
+                  + " renderWorkerMs={} readWorkerMs={} uploadWorkerMs={} zipMs={} zipBytes={}"
+                  + " parallelism={} batchLimit={}",
+              id,
+              end - completed,
+              metrics.generated.get(),
+              metrics.cacheHits.get(),
+              metrics.photoReads.get(),
+              (System.nanoTime() - batchStarted) / 1_000_000,
+              metrics.renderNanos.get() / 1_000_000,
+              metrics.readNanos.get() / 1_000_000,
+              metrics.uploadNanos.get() / 1_000_000,
+              zipNanos / 1_000_000,
+              out.size(),
+              settings.parallelism(),
+              settings.batchSize());
       if (!published)
         tx.executeWithoutResult(
             status -> {
