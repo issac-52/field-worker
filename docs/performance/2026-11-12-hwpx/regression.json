@@ -1,0 +1,18 @@
+{
+  "command": "bash backend/gradlew -p backend test bootJar --no-daemon",
+  "java": "21.0.13",
+  "database": "disposable PostgreSQL 17 via Testcontainers",
+  "build": "BUILD SUCCESSFUL in 1m 24s",
+  "tests": {
+    "tests": 94,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "performanceRuns": {
+    "before": "PerformanceBaselineTest.baseline: BUILD SUCCESSFUL",
+    "after": "PerformanceBaselineTest.baseline: BUILD SUCCESSFUL in 1m 3s",
+    "matrix": "DocumentBatchPerformanceTest: BUILD SUCCESSFUL in 2m 47s"
+  },
+  "productionAccess": false
+}
