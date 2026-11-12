@@ -46,6 +46,41 @@ class HwpxCardRendererTest {
   }
 
   @Test
+  void jpegEntriesAreStoredWithoutSecondCompression() throws Exception {
+    var image = new BufferedImage(32, 24, BufferedImage.TYPE_INT_RGB);
+    var source = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(image, "png", source);
+    var snapshot =
+        new com.fasterxml.jackson.databind.ObjectMapper()
+            .readTree("{\"site\":{},\"inspections\":[]}");
+    byte[] result =
+        new HwpxCardRenderer()
+            .render(snapshot, "Test", java.util.Map.of("OVERVIEW", source.toByteArray()));
+    boolean found = false;
+    try (var zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(result))) {
+      for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null; )
+        if (entry.getName().endsWith(".jpg")) {
+          found = true;
+          assertThat(entry.getMethod()).isEqualTo(java.util.zip.ZipEntry.STORED);
+          assertThat(
+                  javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(zip.readAllBytes())))
+              .isNotNull();
+        }
+    }
+    assertThat(found).isTrue();
+  }
+
+  @Test
+  void largePhotosAreSubsampledBeforeFullResolutionAllocation() throws Exception {
+    var source = new BufferedImage(4000, 3000, BufferedImage.TYPE_INT_RGB);
+    var bytes = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(source, "jpg", bytes);
+    var decoded = HwpxCardRenderer.readForExport(bytes.toByteArray());
+    assertThat(decoded.getWidth()).isEqualTo(1334);
+    assertThat(decoded.getHeight()).isEqualTo(1000);
+  }
+
+  @Test
   void rotatesPortraitPhotoAndPreservesPixels() {
     var source = new BufferedImage(2, 1, BufferedImage.TYPE_INT_RGB);
     source.setRGB(0, 0, 0xff0000);
