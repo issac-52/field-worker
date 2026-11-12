@@ -50,7 +50,7 @@ class OptionalConsumerNumberTest extends PostgresIntegrationTest {
     repairs = new ExcelRepairService(db, json);
     var storage =
         new ObjectStorage() {
-          final Map<String, byte[]> values = new HashMap<>();
+          final Map<String, byte[]> values = new java.util.concurrent.ConcurrentHashMap<>();
 
           public void put(String key, byte[] value, String type) {
             values.put(key, value);

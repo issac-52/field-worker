@@ -25,6 +25,11 @@ spring:
   flyway:
     enabled: true
 app:
+  documents:
+    batch-size: ${DOCUMENT_BATCH_SIZE:200}
+    parallelism: ${DOCUMENT_PARALLELISM:2}
+    zip-compression-level: ${DOCUMENT_ZIP_COMPRESSION_LEVEL:0}
+    worker-delay-ms: ${DOCUMENT_WORKER_DELAY_MS:100}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
 management:

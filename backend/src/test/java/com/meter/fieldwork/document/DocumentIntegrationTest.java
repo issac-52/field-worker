@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @AutoConfigureMockMvc
+@org.springframework.test.context.TestPropertySource(properties = "app.documents.batch-size=50")
 class DocumentIntegrationTest extends PostgresIntegrationTest {
   @Autowired DocumentService service;
   @Autowired JdbcTemplate db;
@@ -59,6 +60,107 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
             UUID.randomUUID().toString(),
             block,
             importId);
+  }
+
+  @Test
+  void defaultBatchCanFinishMoreThanFiftySmallCards() {
+    db.update(
+        "insert into"
+            + " worksites(consumer_number,middle_block,source_cells,source_sheet,source_row,import_job_id)"
+            + " select ?||n,?,'{}','Test',3,? from generate_series(1,50)n",
+        UUID.randomUUID().toString(),
+        block,
+        importId);
+    var generator =
+        new DocumentService(
+            db,
+            storage,
+            new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(),
+            renderer,
+            new org.springframework.jdbc.datasource.DataSourceTransactionManager(
+                db.getDataSource()));
+    UUID job =
+        generator.create(new DocumentService.Request(null, block, null, "Larger batch"), actor);
+    generator.tick();
+    assertThat(generator.status(job, actor).get("completed")).isEqualTo(51);
+    assertThat(generator.status(job, actor).get("status")).isEqualTo("READY");
+  }
+
+  @Test
+  void twoWorkersCanOverlapAndCancellationWaitsForThemBeforeCleanup() throws Exception {
+    db.update(
+        "insert into"
+            + " worksites(consumer_number,middle_block,source_cells,source_sheet,source_row,import_job_id)"
+            + " values(?,?,'{}','Test',3,?)",
+        UUID.randomUUID().toString(),
+        block,
+        importId);
+    UUID job =
+        service.create(
+            new DocumentService.Request(null, block, null, "Bounded parallel test"), actor);
+    var entered = new java.util.concurrent.CountDownLatch(2);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    org.mockito.Mockito.doAnswer(
+            invocation -> {
+              entered.countDown();
+              if (!release.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                throw new IllegalStateException("test timeout");
+              return invocation.callRealMethod();
+            })
+        .when(renderer)
+        .render(
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyMap());
+    var running = java.util.concurrent.CompletableFuture.runAsync(() -> service.tick());
+    try {
+      assertThat(entered.await(3, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      service.cancel(job, actor);
+      service.requestDelete(job, actor);
+    } finally {
+      release.countDown();
+      running.get(10, java.util.concurrent.TimeUnit.SECONDS);
+    }
+    service.maintain();
+    assertThat(
+            db.queryForObject(
+                "select count(*) from document_parts where job_id=?", Integer.class, job))
+        .isZero();
+    assertThat(
+            db.queryForObject(
+                "select count(*) from document_cache where site_id in (select id from worksites"
+                    + " where middle_block=?)",
+                Integer.class,
+                block))
+        .isZero();
+    assertThatThrownBy(() -> service.status(job, actor)).isInstanceOf(ApiException.class);
+  }
+
+  @Test
+  void byteThresholdStillSplitsLargeCardsWhenBatchLimitIsHigher() throws Exception {
+    db.update(
+        "insert into"
+            + " worksites(consumer_number,middle_block,source_cells,source_sheet,source_row,import_job_id)"
+            + " select ?||n,?,'{}','Test',3,? from generate_series(1,2)n",
+        UUID.randomUUID().toString(),
+        block,
+        importId);
+    byte[] payload = new byte[9 * 1024 * 1024];
+    org.mockito.Mockito.doReturn(payload)
+        .when(renderer)
+        .render(
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyMap());
+    UUID job =
+        service.create(new DocumentService.Request(null, block, null, "Byte cap test"), actor);
+    service.tick();
+    assertThat(service.status(job, actor).get("completed")).isEqualTo(2);
+    assertThat(service.status(job, actor).get("status")).isEqualTo("QUEUED");
+    service.tick();
+    assertThat(service.status(job, actor).get("completed")).isEqualTo(3);
+    assertThat(service.status(job, actor).get("status")).isEqualTo("READY");
+    assertThat((List<?>) service.status(job, actor).get("parts")).hasSize(2);
   }
 
   @Test
@@ -236,6 +338,14 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
     assertThat((List<?>) service.status(job, actor).get("parts")).hasSize(2);
     var combined = new ByteArrayOutputStream();
     service.writeWholeZip(job, actor, combined);
+    assertThat(unzip(combined.toByteArray()).keySet())
+        .containsExactlyElementsOf(
+            db
+                .queryForList(
+                    "select id from worksites where middle_block=? order by id", Long.class, block)
+                .stream()
+                .map(id -> "site-" + id + ".hwpx")
+                .toList());
     assertThat(unzip(combined.toByteArray()))
         .hasSize(51)
         .allSatisfy(

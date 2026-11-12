@@ -127,3 +127,8 @@ FIELDWORK_EXCEL_PATH=/private/path/input.xlsx bash gradlew manualExcelTest --no-
 ## 운영 반영 전
 
 사용자 검토 후 별도 배포 절차를 진행한다. 실제 Flyway 이력·백업·DB 권한·세션 쿠키 HTTPS·Workers `/api/*` 프록시의 Cookie/Set-Cookie/CSRF 전달·R2 접근을 배포 환경에서 확인해야 한다. 운영 스키마 변경/EC2 부하 검증/원격 CI/실제 R2 연결/프론트 통합 배포는 이번 작업에서 실행하지 않았다.
+
+
+### HWPX 대량 생성 설정
+
+2026-11-12 개선 버전은 추가 설정 없이 묶음당 200건·동시2건·활성 대기100ms를 사용한다. 기존 개별 캐시와 진행 중 완료 묶음을 재사용한다. 선택 환경변수/메모리 고려/복귀 값은 [HWPX 안내](HWPX_EXPORT.md#대량-생성-성능-설정-2026-11-12), 실험 조건은 [측정 보고서](performance/2026-11-12-hwpx/REPORT.md)를 참고한다. 환경변수 수정 시 서비스 재시작이 필요하다.

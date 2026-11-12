@@ -119,7 +119,8 @@ public class HwpxCardRenderer {
     try (var zip = new ZipOutputStream(out)) {
       for (var entry : files.entrySet()) {
         var e = new ZipEntry(entry.getKey());
-        if (entry.getKey().equals("mimetype")) {
+        if (entry.getKey().equals("mimetype")
+            || entry.getKey().startsWith("BinData/") && entry.getKey().endsWith(".jpg")) {
           var crc = new CRC32();
           crc.update(entry.getValue());
           e.setMethod(ZipEntry.STORED);
@@ -155,9 +156,27 @@ public class HwpxCardRenderer {
     return run;
   }
 
+  // Decode near the export resolution instead of allocating a full 25MP phone image per worker.
+  static BufferedImage readForExport(byte[] bytes) throws IOException {
+    try (var input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+      if (input == null) throw new IOException("Invalid image");
+      var readers = ImageIO.getImageReaders(input);
+      if (!readers.hasNext()) throw new IOException("Invalid image");
+      var reader = readers.next();
+      try {
+        reader.setInput(input, true, true);
+        int sample = Math.max(1, Math.max(reader.getWidth(0), reader.getHeight(0)) / 1280);
+        var params = reader.getDefaultReadParam();
+        params.setSourceSubsampling(sample, sample, 0, 0);
+        return reader.read(0, params);
+      } finally {
+        reader.dispose();
+      }
+    }
+  }
+
   private static BufferedImage resize(byte[] bytes) throws IOException {
-    BufferedImage source = ImageIO.read(new ByteArrayInputStream(bytes));
-    if (source == null) throw new IOException("Invalid image");
+    BufferedImage source = readForExport(bytes);
     double scale = Math.min(1, 1280.0 / Math.max(source.getWidth(), source.getHeight()));
     BufferedImage target =
         new BufferedImage(
