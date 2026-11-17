@@ -167,6 +167,20 @@ public class ExcelImportService {
             after.put(field, incoming);
           }
         });
+    // Compare the address actually sent to the geocoder; an unused old address is irrelevant.
+    String previousAddress = geocodingAddress(existing.get("address"), existing.get("old_address"));
+    String nextAddress =
+        geocodingAddress(
+            updates.getOrDefault("address", existing.get("address")),
+            updates.getOrDefault("old_address", existing.get("old_address")));
+    if (!previousAddress.equals(nextAddress)
+        && (existing.get("latitude") != null || existing.get("longitude") != null)) {
+      for (String coordinate : List.of("latitude", "longitude")) {
+        updates.put(coordinate, null);
+        before.put(coordinate, existing.get(coordinate));
+        after.put(coordinate, null);
+      }
+    }
     var columns = new HashSet<>(BASIC_FIELDS.keySet());
     columns.addAll(SOURCE_FIELDS);
     for (String col : columns) {
@@ -199,6 +213,11 @@ public class ExcelImportService {
         json(before),
         json(after));
     return true;
+  }
+
+  private static String geocodingAddress(Object address, Object oldAddress) {
+    String primary = Objects.toString(address, "").strip();
+    return primary.isBlank() ? Objects.toString(oldAddress, "").strip() : primary;
   }
 
   private void flush(ImportContext context) {

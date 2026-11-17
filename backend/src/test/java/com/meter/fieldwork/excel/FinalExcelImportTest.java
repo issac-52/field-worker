@@ -267,4 +267,136 @@ class FinalExcelImportTest extends PostgresIntegrationTest {
                 "select count(*) from worksites where consumer_number=?", Integer.class, n))
         .isZero();
   }
+
+  @Autowired com.meter.fieldwork.worksite.WorksiteService sites;
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+  void changedAddressClearsCoordinatesAndNextGeocodingUsesNewAddress(boolean legacy)
+      throws Exception {
+    var a = actor();
+    String n = UUID.randomUUID().toString();
+    String format = legacy ? "LEGACY" : "FINAL";
+    String sheet = legacy ? "Legacy" : ExcelFormat.FINAL_SHEET;
+    upload(book(sheet, legacy, n, "Test", "Fictional previous " + n, false), a, format, true)
+        .andExpect(status().isOk());
+    long id = db.queryForObject("select id from worksites where consumer_number=?", Long.class, n);
+    db.update("update worksites set latitude=35,longitude=128 where id=?", id);
+    String address = "Fictional updated " + n;
+    upload(book(sheet, legacy, n, "Test", address, false), a, format, true)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.updated").value(1));
+    assertThat(
+            db.queryForObject(
+                "select latitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isNull();
+    assertThat(
+            db.queryForObject(
+                "select longitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isNull();
+    assertThat(
+            db.queryForObject(
+                "select before_value->>'latitude' from worksite_edits where site_id=? order by id"
+                    + " desc limit 1",
+                String.class,
+                id))
+        .isEqualTo("35.0000000");
+    assertThat(
+            db.queryForObject(
+                "select jsonb_exists(after_value,'latitude') and after_value->>'latitude' is null"
+                    + " from worksite_edits where site_id=? order by id desc limit 1",
+                Boolean.class,
+                id))
+        .isTrue();
+    db.update("update worksites set middle_block=? where id=?", "Geo " + n, id);
+    var geocoder = org.mockito.Mockito.mock(com.meter.fieldwork.geocoding.AddressGeocoder.class);
+    org.mockito.Mockito.when(geocoder.find("Test region " + address))
+        .thenReturn(
+            new com.meter.fieldwork.geocoding.AddressGeocoder.Match(
+                new java.math.BigDecimal("36"), new java.math.BigDecimal("129"), address));
+    var geocoding = new com.meter.fieldwork.geocoding.GeocodingService(db, geocoder, sites);
+    var result =
+        geocoding.run(
+            new com.meter.fieldwork.geocoding.GeocodingService.Request(
+                id - 1, id, "Test region", "Geo " + n, null, null),
+            a.id());
+    assertThat(result.rows()).hasSize(1);
+    assertThat(result.rows().getFirst().status()).isEqualTo("UPDATED");
+    assertThat(
+            db.queryForObject(
+                "select latitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isEqualByComparingTo("36");
+    assertThat(
+            db.queryForObject(
+                "select longitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isEqualByComparingTo("129");
+  }
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+  void fallbackAddressChangesClearCoordinatesOnlyWhenUsedForGeocoding(boolean legacy)
+      throws Exception {
+    var a = actor();
+    String n = UUID.randomUUID().toString();
+    String format = legacy ? "LEGACY" : "FINAL";
+    String sheet = legacy ? "Legacy" : ExcelFormat.FINAL_SHEET;
+    byte[] file = book(sheet, legacy, n, "Test", "", false);
+    upload(file, a, format, true).andExpect(status().isOk());
+    long id = db.queryForObject("select id from worksites where consumer_number=?", Long.class, n);
+    db.update(
+        "update worksites set latitude=35,longitude=128,old_address='Fictional previous fallback'"
+            + " where id=?",
+        id);
+    try (var b = new XSSFWorkbook(new ByteArrayInputStream(file));
+        var out = new ByteArrayOutputStream()) {
+      b.getSheet(sheet).getRow(legacy ? 2 : 3).createCell(5).setCellValue("Fictional new fallback");
+      b.write(out);
+      file = out.toByteArray();
+    }
+    upload(file, a, format, true).andExpect(status().isOk());
+    assertThat(
+            db.queryForObject(
+                "select latitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isNull();
+    assertThat(
+            db.queryForObject(
+                "select longitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isNull();
+  }
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+  void sameEffectiveAddressAndBlankUploadsPreserveCoordinates(boolean legacy) throws Exception {
+    var a = actor();
+    String n = UUID.randomUUID().toString();
+    String format = legacy ? "LEGACY" : "FINAL";
+    String sheet = legacy ? "Legacy" : ExcelFormat.FINAL_SHEET;
+    String address = "Fictional same " + n;
+    upload(book(sheet, legacy, n, "Test", address, false), a, format, true)
+        .andExpect(status().isOk());
+    long id = db.queryForObject("select id from worksites where consumer_number=?", Long.class, n);
+    db.update(
+        "update worksites set latitude=35,longitude=128,old_address='Old fallback' where id=?", id);
+    byte[] file = book(sheet, legacy, n, "Changed name", "  " + address + "  ", false);
+    try (var b = new XSSFWorkbook(new ByteArrayInputStream(file));
+        var out = new ByteArrayOutputStream()) {
+      b.getSheet(sheet)
+          .getRow(legacy ? 2 : 3)
+          .createCell(5)
+          .setCellValue("Different unused fallback");
+      b.write(out);
+      file = out.toByteArray();
+    }
+    upload(file, a, format, true).andExpect(status().isOk());
+    upload(book(sheet, legacy, n, "Changed name", "", false), a, format, true)
+        .andExpect(status().isOk());
+    assertThat(
+            db.queryForObject(
+                "select latitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isEqualByComparingTo("35");
+    assertThat(
+            db.queryForObject(
+                "select longitude from worksites where id=?", java.math.BigDecimal.class, id))
+        .isEqualByComparingTo("128");
+  }
 }
