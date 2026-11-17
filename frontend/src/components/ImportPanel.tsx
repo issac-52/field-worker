@@ -52,7 +52,8 @@ export function ImportPanel() {
   const [plan, setPlan] = useState<PrunePlan>();
   const [confirmation, setConfirmation] = useState('');
   const [pruneMessage, setPruneMessage] = useState('');
-  const [mode, setMode] = useState<'register' | 'repair'>('register');
+  const [mode, setMode] = useState<'upsert' | 'register' | 'repair'>('upsert');
+  const [format, setFormat] = useState<'FINAL' | 'LEGACY'>('FINAL');
   const [file, setFile] = useState<File>();
   const [result, setResult] = useState<Result>();
   const [skipPage, setSkipPage] = useState(0);
@@ -68,6 +69,7 @@ export function ImportPanel() {
     try {
       const body = new FormData();
       body.append('file', file);
+      body.append('format', format);
       setPlan(await call<PrunePlan>('/admin/imports/prune/preview', { method: 'POST', body }));
     } catch (e) {
       setError(e instanceof Error ? e.message : '삭제 미리보기 실패');
@@ -105,25 +107,51 @@ export function ImportPanel() {
     <section className="panel import-panel">
       <h2>수용가 Excel 등록</h2>
       <label className="field">
+        엑셀 양식
+        <select
+          value={format}
+          disabled={busy}
+          onChange={(e) => {
+            setFormat(e.target.value as 'FINAL' | 'LEGACY');
+            setPlan(undefined);
+            setResult(undefined);
+            setSkipPage(0);
+            setError('');
+            setConfirmation('');
+          }}
+        >
+          <option value="FINAL">신규 양식 (최종본 · 3행 헤더)</option>
+          <option value="LEGACY">구 양식 (기존 자료 · 2행 헤더)</option>
+        </select>
+      </label>
+      <p>
+        {format === 'FINAL'
+          ? '신규 양식은 @@@수용가 전수(검침조사) 시트만 읽습니다. 월별 사용량과 참고 시트는 가져오지 않습니다.'
+          : '구 양식은 기존 2행 헤더와 열 배치를 사용합니다. 월별 자료는 가져오지 않습니다.'}
+      </p>
+      <label className="field">
         업로드 방식
         <select
           value={mode}
           disabled={busy}
           onChange={(e) => {
-            setMode(e.target.value as 'register' | 'repair');
+            setMode(e.target.value as 'upsert' | 'register' | 'repair');
             setPlan(undefined);
             setResult(undefined);
             setSkipPage(0);
           }}
         >
+          <option value="upsert">신규 등록 + 기존 기본정보 업데이트</option>
           <option value="register">신규 수용가 등록</option>
           <option value="repair">기존 수용가의 빈 기본정보 보완</option>
         </select>
       </label>
       <p>
-        {mode === 'repair'
-          ? '수용가번호로만 기존 자료의 빈 기본정보를 보완합니다. 번호가 없는 행은 오류로 제외하며 주소로 기존 자료를 찾아 보완하지 않습니다. 기존 검침·사진·좌표를 유지합니다.'
-          : '번호가 있으면 기존 수용가번호 기준으로 등록합니다. 번호가 없으면 이름 없이도 새주소로 등록할 수 있습니다. 이미 등록된 주소이거나 같은 파일에서 먼저 등록한 주소라면 해당 행은 오류로 제외하며 기존 자료를 수정하지 않습니다.'}
+        {mode === 'upsert'
+          ? '수용가번호가 없으면 신규 등록만 합니다. 번호가 있으면 새 수용가는 등록하고 기존 수용가는 엑셀의 비어 있지 않은 기본정보로 업데이트합니다. 빈 값으로 기존 정보를 지우지 않습니다. 사진·현장 검침·정산·특이사항·좌표는 유지합니다. 번호 없는 기존 주소는 오류로 제외합니다.'
+          : mode === 'repair'
+            ? '수용가번호로만 기존 자료의 빈 기본정보를 보완합니다. 번호가 없는 행은 오류로 제외하며 주소로 기존 자료를 찾아 보완하지 않습니다. 기존 검침·사진·좌표를 유지합니다.'
+            : '번호가 있으면 기존 수용가번호 기준으로 등록합니다. 번호가 없으면 이름 없이도 새주소로 등록할 수 있습니다. 이미 등록된 주소이거나 같은 파일에서 먼저 등록한 주소라면 해당 행은 오류로 제외하며 기존 자료를 수정하지 않습니다.'}
       </p>
       <label className="field">
         <span>
@@ -156,6 +184,8 @@ export function ImportPanel() {
             const body = new FormData();
             body.append('file', file);
             body.append('visibleOnly', String(visibleOnly));
+            body.append('format', format);
+            body.append('updateExisting', String(mode === 'upsert'));
             setResult(
               await call<Result>(mode === 'repair' ? '/admin/imports/repair' : '/admin/imports', {
                 method: 'POST',
@@ -182,7 +212,13 @@ export function ImportPanel() {
           }}
         />
         <button disabled={busy || !file}>
-          {busy ? '처리 중…' : mode === 'repair' ? '빈 기본정보 보완' : '등록'}
+          {busy
+            ? '처리 중…'
+            : mode === 'repair'
+              ? '빈 기본정보 보완'
+              : mode === 'upsert'
+                ? '등록·업데이트'
+                : '등록'}
         </button>
       </form>
       {visibleOnly && (
@@ -280,9 +316,9 @@ export function ImportPanel() {
         <>
           <p role="status">
             검사 {result.totalRows} ·{' '}
-            {result.updated !== undefined
+            {mode === 'repair'
               ? `보완 ${result.updated} · 변경 없음 ${result.unchanged} · 미등록 수용가 ${result.notFound}`
-              : `등록 ${result.inserted}`}{' '}
+              : `등록 ${result.inserted} · 업데이트 ${result.updated ?? 0} · 변경 없음 ${result.unchanged ?? 0}`}{' '}
             · 파일 중복 {result.duplicateInFile} · 숨김 제외 {result.hiddenRows ?? 0} · 오류{' '}
             {result.invalid}
           </p>

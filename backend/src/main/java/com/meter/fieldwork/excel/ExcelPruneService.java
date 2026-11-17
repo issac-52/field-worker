@@ -99,12 +99,18 @@ public class ExcelPruneService {
 
   @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   public Map<String, Object> preview(InputStream file, long actor) {
+    return preview(file, actor, ExcelFormat.LEGACY);
+  }
+
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+  public Map<String, Object> preview(InputStream file, long actor, ExcelFormat format) {
     var visible = new LinkedHashSet<WorksiteIdentity>();
     var hidden = new LinkedHashSet<WorksiteIdentity>();
     int[] rows = {0, 0, 0, 0, 0, 0};
     new ExcelRows()
         .read(
             file,
+            format,
             row -> {
               if (++rows[0] > 50000) throw new ApiException(400, "TOO_MANY_ROWS", "최대 50,000행입니다.");
               var identity = WorksiteIdentity.from(row);

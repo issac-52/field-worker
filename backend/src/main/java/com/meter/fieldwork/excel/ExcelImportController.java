@@ -24,11 +24,14 @@ public class ExcelImportController {
   ApiResult<?> upload(
       @RequestParam MultipartFile file,
       @RequestParam(defaultValue = "false") boolean visibleOnly,
+      @RequestParam(defaultValue = "LEGACY") ExcelFormat format,
+      @RequestParam(defaultValue = "false") boolean updateExisting,
       @AuthenticationPrincipal SessionUser actor)
       throws IOException {
     try (var stream = file.getInputStream()) {
       return ApiResult.ok(
-          imports.importWorkbook(stream, actor == null ? null : actor.id(), visibleOnly));
+          imports.importWorkbook(
+              stream, actor == null ? null : actor.id(), visibleOnly, format, updateExisting));
     }
   }
 
@@ -36,10 +39,11 @@ public class ExcelImportController {
   ApiResult<?> repair(
       @RequestParam MultipartFile file,
       @RequestParam(defaultValue = "false") boolean visibleOnly,
+      @RequestParam(defaultValue = "LEGACY") ExcelFormat format,
       @AuthenticationPrincipal SessionUser actor)
       throws IOException {
     try (var stream = file.getInputStream()) {
-      return ApiResult.ok(repairs.repair(stream, actor.id(), visibleOnly));
+      return ApiResult.ok(repairs.repair(stream, actor.id(), visibleOnly, format));
     }
   }
 

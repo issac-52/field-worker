@@ -7,6 +7,8 @@ public record ImportResult(
     UUID jobId,
     int totalRows,
     int inserted,
+    int updated,
+    int unchanged,
     int duplicateInFile,
     int alreadyExists,
     int invalid,

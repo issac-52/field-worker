@@ -28,6 +28,10 @@ public class ExcelRows {
   }
 
   public void read(InputStream stream, Consumer<Row> consumer) {
+    read(stream, ExcelFormat.LEGACY, consumer);
+  }
+
+  public void read(InputStream stream, ExcelFormat format, Consumer<Row> consumer) {
     try (OPCPackage pkg = OPCPackage.open(stream)) {
       XSSFReader reader = new XSSFReader(pkg);
       var sheets = (XSSFReader.SheetIterator) reader.getSheetsData();
@@ -35,7 +39,8 @@ public class ExcelRows {
       while (sheets.hasNext()) {
         try (InputStream sheet = sheets.next()) {
           String name = sheets.getSheetName();
-          var handler = new RowsHandler(name, consumer);
+          if (format == ExcelFormat.FINAL && !ExcelFormat.FINAL_SHEET.equals(name)) continue;
+          var handler = new RowsHandler(name, format, consumer);
           var parser = XMLHelper.newXMLReader();
           parser.setContentHandler(
               new XSSFSheetXMLHandler(
@@ -75,17 +80,22 @@ public class ExcelRows {
   }
 
   private static ApiException invalid() {
-    return new ApiException(400, "INVALID_WORKBOOK", "지원하는 XLSX 파일과 2행 기본정보 헤더를 확인하세요.");
+    return new ApiException(
+        400,
+        "INVALID_WORKBOOK",
+        "선택한 엑셀 양식을 확인하세요. 구 양식은 2행 헤더, 신규 양식은 @@@수용가 전수(검침조사) 시트의 3행 헤더가 필요합니다.");
   }
 
   private static class RowsHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
     final String sheet;
     final Consumer<Row> consumer;
+    final ExcelFormat format;
     Map<String, String> cells;
     boolean header;
     boolean hidden;
 
-    RowsHandler(String sheet, Consumer<Row> consumer) {
+    RowsHandler(String sheet, ExcelFormat format, Consumer<Row> consumer) {
+      this.format = format;
       this.sheet = sheet;
       this.consumer = consumer;
     }
@@ -96,20 +106,29 @@ public class ExcelRows {
 
     public void cell(String reference, String value, XSSFComment comment) {
       int col = new CellReference(reference).getCol();
-      if (col >= 12 && col <= 48) return; // Ignore M:AW (original monthly data and totals).
+      if (format == ExcelFormat.LEGACY && col >= 12 && col <= 48)
+        return; // Ignore M:AW (original monthly data and totals).
+      String mapped = format.column(CellReference.convertNumToColString(col));
+      if (mapped == null) return;
       if (col >= 57 || value.length() > 10000) throw invalid();
-      if (!value.isEmpty()) cells.put(CellReference.convertNumToColString(col), value);
+      if (!value.isEmpty()) cells.put(mapped, value);
     }
 
     public void endRow(int rowNum) {
-      if (rowNum == 1) {
+      if (rowNum == format.headerIndex()) {
         header =
             "수용가번호".equals(cells.get("C"))
                 && "수용가명".equals(cells.get("D"))
                 && "새주소".equals(cells.get("E"));
+        if (format == ExcelFormat.FINAL)
+          header =
+              header
+                  && "계량기번호".equals(cells.get("G"))
+                  && "업종".equals(cells.get("I"))
+                  && "관리번호".equals(cells.get("BE"));
         if (!header) throw invalid();
       }
-      if (rowNum > 1 && !cells.isEmpty()) {
+      if (rowNum > format.headerIndex() && !cells.isEmpty()) {
         if (!header) throw invalid();
         consumer.accept(new Row(sheet, rowNum + 1, cells, hidden));
       }

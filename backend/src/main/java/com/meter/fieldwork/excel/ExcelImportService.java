@@ -28,6 +28,16 @@ public class ExcelImportService {
 
   @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
   public ImportResult importWorkbook(InputStream stream, Long actor, boolean visibleOnly) {
+    return importWorkbook(stream, actor, visibleOnly, ExcelFormat.LEGACY, false);
+  }
+
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+  public ImportResult importWorkbook(
+      InputStream stream,
+      Long actor,
+      boolean visibleOnly,
+      ExcelFormat format,
+      boolean updateExisting) {
     var context = new ImportContext(UUID.randomUUID());
     ExcelUploadLock.acquire(jdbc);
     jdbc.query(
@@ -43,6 +53,7 @@ public class ExcelImportService {
     new ExcelRows()
         .read(
             stream,
+            format,
             row -> {
               context.sheetOrder.computeIfAbsent(row.sheet(), key -> context.sheetOrder.size());
               if (++context.total > 50000)
@@ -72,6 +83,12 @@ public class ExcelImportService {
                   return;
                 }
                 if (context.existingNumbers.contains(number)) {
+                  if (updateExisting) {
+                    if (updateBasic(row, actor)) context.updated++;
+                    else context.unchanged++;
+                    if (!address.isEmpty()) context.existingAddresses.add(address);
+                    return;
+                  }
                   context.skip(row, "ALREADY_EXISTS", null);
                   return;
                 }
@@ -97,6 +114,8 @@ public class ExcelImportService {
             context.id,
             context.total,
             context.inserted,
+            context.updated,
+            context.unchanged,
             context.duplicates,
             context.exists,
             context.invalid,
@@ -104,6 +123,82 @@ public class ExcelImportService {
             List.copyOf(context.skipped));
     jdbc.update("update import_jobs set result=?::jsonb where id=?", json(result), context.id);
     return result;
+  }
+
+  // Only imported basic information is editable here; operational data never enters this whitelist.
+  private static final Map<String, String> BASIC_FIELDS =
+      Map.ofEntries(
+          Map.entry("B", "middle_block"),
+          Map.entry("BB", "small_block"),
+          Map.entry("D", "name"),
+          Map.entry("E", "address"),
+          Map.entry("F", "old_address"),
+          Map.entry("G", "meter_number"),
+          Map.entry("H", "meter_presence_raw"),
+          Map.entry("I", "industry"),
+          Map.entry("BE", "management_number"));
+  private static final Set<String> SOURCE_FIELDS = Set.of("J", "K", "L", "AX", "AZ", "BC", "BD");
+
+  private boolean updateBasic(ExcelRows.Row row, Long actor) {
+    var existing =
+        jdbc.queryForMap(
+            "select *,source_cells::text as source_json from worksites where consumer_number=? for"
+                + " update",
+            row.cell("C"));
+    Map<String, String> source;
+    try {
+      source =
+          json.readValue(
+              (String) existing.get("source_json"),
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  LinkedHashMap<String, String>>() {});
+    } catch (JsonProcessingException ex) {
+      throw new IllegalStateException(ex);
+    }
+    var updates = new LinkedHashMap<String, Object>();
+    var before = new LinkedHashMap<String, Object>();
+    var after = new LinkedHashMap<String, Object>();
+    BASIC_FIELDS.forEach(
+        (col, field) -> {
+          String incoming = row.cell(col);
+          if (!incoming.isBlank() && !Objects.equals(incoming, existing.get(field))) {
+            updates.put(field, incoming);
+            before.put(field, existing.get(field));
+            after.put(field, incoming);
+          }
+        });
+    var columns = new HashSet<>(BASIC_FIELDS.keySet());
+    columns.addAll(SOURCE_FIELDS);
+    for (String col : columns) {
+      String incoming = row.cell(col);
+      if (!incoming.isBlank() && !Objects.equals(incoming, source.get(col))) {
+        before.put("source." + col, source.get(col));
+        after.put("source." + col, incoming);
+        source.put(col, incoming);
+      }
+    }
+    if (after.isEmpty()) return false;
+    var assignments = new ArrayList<String>();
+    var args = new ArrayList<Object>();
+    updates.forEach(
+        (field, value) -> {
+          assignments.add(field + "=?");
+          args.add(value);
+        });
+    assignments.add("source_cells=?::jsonb");
+    args.add(json(source));
+    assignments.add("updated_at=clock_timestamp()");
+    args.add(existing.get("id"));
+    jdbc.update(
+        "update worksites set " + String.join(",", assignments) + " where id=?", args.toArray());
+    jdbc.update(
+        "insert into worksite_edits(site_id,actor_id,before_value,after_value)"
+            + " values(?,?,?::jsonb,?::jsonb)",
+        existing.get("id"),
+        actor,
+        json(before),
+        json(after));
+    return true;
   }
 
   private void flush(ImportContext context) {
@@ -175,7 +270,7 @@ public class ExcelImportService {
 
   private static class ImportContext {
     final UUID id;
-    int total, inserted, duplicates, exists, invalid, hidden;
+    int total, inserted, updated, unchanged, duplicates, exists, invalid, hidden;
     final Map<String, Integer> sheetOrder = new LinkedHashMap<>();
     final Map<String, FirstRow> seen = new LinkedHashMap<>();
     final Map<String, FirstRow> firstAddresses = new HashMap<>();
