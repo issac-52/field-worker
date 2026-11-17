@@ -54,6 +54,11 @@ public class ExcelRepairService {
 
   @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
   public Result repair(InputStream stream, Long actor, boolean visibleOnly) {
+    return repair(stream, actor, visibleOnly, ExcelFormat.LEGACY);
+  }
+
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+  public Result repair(InputStream stream, Long actor, boolean visibleOnly, ExcelFormat format) {
     ExcelUploadLock.acquire(db);
     UUID job = UUID.randomUUID();
     db.update("insert into import_jobs(id,created_by) values(?,?)", job, actor);
@@ -63,6 +68,7 @@ public class ExcelRepairService {
     new ExcelRows()
         .read(
             stream,
+            format,
             row -> {
               if (++counts[0] > 50000)
                 throw new ApiException(400, "TOO_MANY_ROWS", "업로드는 최대 50,000행입니다.");
