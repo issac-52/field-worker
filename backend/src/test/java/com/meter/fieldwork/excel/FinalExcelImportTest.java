@@ -211,6 +211,50 @@ class FinalExcelImportTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void finalVisibleOnlyPreservesHiddenDataAndNumberlessAddressPolicy() throws Exception {
+    var a = actor();
+    String n = UUID.randomUUID().toString();
+    String address = "Fictional new road " + n;
+    byte[] bytes = book("@@@수용가 전수(검침조사)", false, n, "Test", address, false);
+    try (var b = new XSSFWorkbook(new ByteArrayInputStream(bytes));
+        var out = new ByteArrayOutputStream()) {
+      var sheet = b.getSheet("@@@수용가 전수(검침조사)");
+      sheet.getRow(3).setZeroHeight(true);
+      b.write(out);
+      mvc.perform(
+              multipart("/api/admin/imports")
+                  .file(
+                      new MockMultipartFile(
+                          "file",
+                          "test.xlsx",
+                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                          out.toByteArray()))
+                  .param("format", "FINAL")
+                  .param("updateExisting", "true")
+                  .param("visibleOnly", "true")
+                  .with(csrf())
+                  .with(user(a)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.hiddenRows").value(1))
+          .andExpect(jsonPath("$.data.inserted").value(0));
+    }
+    upload(book("@@@수용가 전수(검침조사)", false, "", "", address, false), a, "FINAL", true)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.inserted").value(1));
+    upload(book("@@@수용가 전수(검침조사)", false, "", "New name", address, false), a, "FINAL", true)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.invalid").value(1))
+        .andExpect(
+            jsonPath("$.data.skippedRows[0].reason").value("DUPLICATE_ADDRESS_WITHOUT_NUMBER"));
+    assertThat(
+            db.queryForObject(
+                "select name from worksites where consumer_number is null and address=?",
+                String.class,
+                address))
+        .isEmpty();
+  }
+
+  @Test
   void finalSelectionRejectsMissingTargetAndWrongFormatWithoutPartialImport() throws Exception {
     var a = actor();
     String n = UUID.randomUUID().toString();
