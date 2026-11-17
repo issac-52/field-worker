@@ -28,6 +28,8 @@ Mock 역할 전환은 실제 로그인·권한 인증이 아니다. 새로고침
 
 ## 문서 안내
 
+- [최종 Excel 신·구 양식 선택 및 기존 기본정보 업데이트](docs/FINAL_EXCEL_IMPORT.md)
+
 - [Excel 계량기 유무와 비고 분리 규칙](docs/EXCEL_METER_REMARKS.md)
 
 - [HWPX 대량 생성 성능 개선 — 배치·동시 처리 비교와 한계](docs/performance/2026-11-12-hwpx/REPORT.md)

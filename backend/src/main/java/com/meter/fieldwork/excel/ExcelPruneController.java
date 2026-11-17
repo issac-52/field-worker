@@ -17,10 +17,13 @@ public class ExcelPruneController {
   }
 
   @PostMapping("/preview")
-  ApiResult<?> preview(@RequestParam MultipartFile file, @AuthenticationPrincipal SessionUser actor)
+  ApiResult<?> preview(
+      @RequestParam MultipartFile file,
+      @RequestParam(defaultValue = "LEGACY") ExcelFormat format,
+      @AuthenticationPrincipal SessionUser actor)
       throws java.io.IOException {
     try (var input = file.getInputStream()) {
-      return ApiResult.ok(service.preview(input, actor.id()));
+      return ApiResult.ok(service.preview(input, actor.id(), format));
     }
   }
 
