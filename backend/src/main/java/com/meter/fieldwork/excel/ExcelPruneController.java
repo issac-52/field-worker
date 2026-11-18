@@ -27,6 +27,15 @@ public class ExcelPruneController {
     }
   }
 
+  @PostMapping(value = "/final-preview", consumes = "multipart/form-data")
+  ApiResult<?> previewMissingFromFinal(
+      @RequestParam MultipartFile file, @AuthenticationPrincipal SessionUser actor)
+      throws java.io.IOException {
+    try (var input = file.getInputStream()) {
+      return ApiResult.ok(service.previewMissingFromFinal(input, actor.id()));
+    }
+  }
+
   public record Confirm(String confirmation) {}
 
   @PostMapping("/{id}/execute")

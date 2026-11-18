@@ -2,11 +2,14 @@ package com.meter.fieldwork.excel;
 
 import com.meter.fieldwork.global.ApiException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.util.XMLHelper;
@@ -32,51 +35,64 @@ public class ExcelRows {
   }
 
   public void read(InputStream stream, ExcelFormat format, Consumer<Row> consumer) {
-    try (OPCPackage pkg = OPCPackage.open(stream)) {
-      XSSFReader reader = new XSSFReader(pkg);
-      var sheets = (XSSFReader.SheetIterator) reader.getSheetsData();
-      boolean found = false;
-      while (sheets.hasNext()) {
-        try (InputStream sheet = sheets.next()) {
-          String name = sheets.getSheetName();
-          if (format == ExcelFormat.FINAL && !ExcelFormat.FINAL_SHEET.equals(name)) continue;
-          var handler = new RowsHandler(name, format, consumer);
-          var parser = XMLHelper.newXMLReader();
-          parser.setContentHandler(
-              new XSSFSheetXMLHandler(
-                  reader.getStylesTable(),
-                  null,
-                  reader.getSharedStringsTable(),
-                  handler,
-                  new DataFormatter(Locale.ROOT),
-                  false));
-          var filter =
-              new org.xml.sax.helpers.XMLFilterImpl(parser) {
-                @Override
-                public void startElement(
-                    String uri, String local, String qName, org.xml.sax.Attributes attrs)
-                    throws org.xml.sax.SAXException {
-                  if ("row".equals(local) || "row".equals(qName))
-                    handler.hidden =
-                        "1".equals(attrs.getValue("hidden"))
-                            || "true".equals(attrs.getValue("hidden"));
-                  super.startElement(uri, local, qName, attrs);
-                }
-              };
-          filter.setContentHandler(parser.getContentHandler());
-          filter.parse(new InputSource(sheet));
-          if (!handler.header) throw invalid();
-          found = true;
+    try {
+      // A file-backed ZIP streams large worksheet entries instead of inflating them into arrays.
+      var temporary = Files.createTempFile("fieldwork-import-", ".xlsx");
+      try {
+        Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
+        try (OPCPackage pkg = OPCPackage.open(temporary.toFile(), PackageAccess.READ)) {
+          readPackage(pkg, format, consumer);
         }
+      } finally {
+        Files.deleteIfExists(temporary);
       }
-      if (!found) throw invalid();
-    } catch (ApiException ex) {
-      throw ex;
-    } catch (org.springframework.dao.DataAccessException ex) {
+    } catch (ApiException | org.springframework.dao.DataAccessException ex) {
       throw ex;
     } catch (Exception ex) {
       throw invalid();
     }
+  }
+
+  private void readPackage(OPCPackage pkg, ExcelFormat format, Consumer<Row> consumer)
+      throws Exception {
+    XSSFReader reader = new XSSFReader(pkg);
+    reader.setUseReadOnlySharedStringsTable(true);
+    var sheets = (XSSFReader.SheetIterator) reader.getSheetsData();
+    boolean found = false;
+    while (sheets.hasNext()) {
+      try (InputStream sheet = sheets.next()) {
+        String name = sheets.getSheetName();
+        if (format == ExcelFormat.FINAL && !ExcelFormat.FINAL_SHEET.equals(name)) continue;
+        var handler = new RowsHandler(name, format, consumer);
+        var parser = XMLHelper.newXMLReader();
+        parser.setContentHandler(
+            new XSSFSheetXMLHandler(
+                reader.getStylesTable(),
+                null,
+                reader.getSharedStringsTable(),
+                handler,
+                new DataFormatter(Locale.ROOT),
+                false));
+        var filter =
+            new org.xml.sax.helpers.XMLFilterImpl(parser) {
+              @Override
+              public void startElement(
+                  String uri, String local, String qName, org.xml.sax.Attributes attrs)
+                  throws org.xml.sax.SAXException {
+                if ("row".equals(local) || "row".equals(qName))
+                  handler.hidden =
+                      "1".equals(attrs.getValue("hidden"))
+                          || "true".equals(attrs.getValue("hidden"));
+                super.startElement(uri, local, qName, attrs);
+              }
+            };
+        filter.setContentHandler(parser.getContentHandler());
+        filter.parse(new InputSource(sheet));
+        if (!handler.header) throw invalid();
+        found = true;
+      }
+    }
+    if (!found) throw invalid();
   }
 
   private static ApiException invalid() {
