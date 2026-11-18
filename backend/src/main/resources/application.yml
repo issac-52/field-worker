@@ -14,8 +14,8 @@ spring:
         size: 2
   servlet:
     multipart:
-      max-file-size: 25MB
-      max-request-size: 26MB
+      max-file-size: 50MB
+      max-request-size: 51MB
   application:
     name: fieldwork-backend
   jpa:

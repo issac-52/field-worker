@@ -59,6 +59,7 @@ export function ImportPanel() {
   const [skipPage, setSkipPage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const finalReconciliation = format === 'FINAL' && mode === 'upsert' && !visibleOnly;
   async function previewPrune() {
     if (!file) return;
     setBusy(true);
@@ -70,7 +71,10 @@ export function ImportPanel() {
       const body = new FormData();
       body.append('file', file);
       body.append('format', format);
-      setPlan(await call<PrunePlan>('/admin/imports/prune/preview', { method: 'POST', body }));
+      const path = finalReconciliation
+        ? '/admin/imports/prune/final-preview'
+        : '/admin/imports/prune/preview';
+      setPlan(await call<PrunePlan>(path, { method: 'POST', body }));
     } catch (e) {
       setError(e instanceof Error ? e.message : '삭제 미리보기 실패');
     } finally {
@@ -179,6 +183,9 @@ export function ImportPanel() {
           setBusy(true);
           setError('');
           setResult(undefined);
+          setPlan(undefined);
+          setConfirmation('');
+          setPruneMessage('');
           setSkipPage(0);
           try {
             const body = new FormData();
@@ -207,6 +214,8 @@ export function ImportPanel() {
           disabled={busy}
           onChange={(e) => {
             setFile(e.target.files?.[0]);
+            setResult(undefined);
+            setPruneMessage('');
             setPlan(undefined);
             setConfirmation('');
           }}
@@ -221,20 +230,29 @@ export function ImportPanel() {
                 : '등록'}
         </button>
       </form>
-      {visibleOnly && (
-        <section className="prune-panel" aria-label="숨김 행 수용가 DB 삭제">
-          <h3>엑셀에서 숨긴 수용가만 DB 삭제</h3>
-          <p>
-            숨긴 행과 일치하는 기존 수용가만 삭제합니다. 번호가 있으면 수용가번호로, 번호가 없으면
-            번호 미등록 자료 중 주소·이름으로 찾습니다. 파일에 없는 수용가와 보이는 행에도 있는
-            수용가는 유지합니다. 이름 없는 번호 미등록 자료는 자동 삭제 대상에서 제외합니다. 신규
-            등록의 주소 단독 기준을 삭제에 적용하지 않습니다.
-          </p>
+      {(visibleOnly || finalReconciliation) && (
+        <section className="prune-panel" aria-label="수용가 삭제 미리보기">
+          <h3>
+            {finalReconciliation ? '최종본에 없는 수용가 정리' : '엑셀에서 숨긴 수용가만 DB 삭제'}
+          </h3>
+          {finalReconciliation ? (
+            <p>
+              최종본을 등록·업데이트한 뒤 같은 파일에 없는 기존 수용가를 확인할 수 있습니다. 숨긴
+              행도 최종본에 포함된 것으로 봅니다.
+            </p>
+          ) : (
+            <p>
+              숨긴 행과 일치하는 기존 수용가만 삭제합니다. 번호가 있으면 수용가번호로, 번호가 없으면
+              번호 미등록 자료 중 주소·이름으로 찾습니다. 파일에 없는 수용가와 보이는 행에도 있는
+              수용가는 유지합니다. 이름 없는 번호 미등록 자료는 자동 삭제 대상에서 제외합니다. 신규
+              등록의 주소 단독 기준을 삭제에 적용하지 않습니다.
+            </p>
+          )}
           <Button
             type="button"
             variant="outline"
             className="outline-btn"
-            disabled={busy || !file}
+            disabled={busy || !file || (finalReconciliation && !result)}
             onClick={() => void previewPrune()}
           >
             삭제 대상 미리보기
@@ -245,14 +263,16 @@ export function ImportPanel() {
                 유지 {plan.keepCount.toLocaleString()}건 · 삭제 {plan.deleteCount.toLocaleString()}
                 건
               </p>
-              <p>
-                파일 숨김 {plan.hiddenRows ?? 0}행 중 식별 정보 부족{' '}
-                {plan.hiddenRowsWithoutIdentity ?? plan.hiddenRowsWithoutNumber ?? 0}건 · 보이는
-                행과 중복 {plan.visibleDuplicateIdentities ?? plan.visibleDuplicateNumbers ?? 0}건 ·
-                DB에 없는 숨김 수용가{' '}
-                {plan.unmatchedHiddenIdentities ?? plan.unmatchedHiddenNumbers ?? 0}건은 삭제하지
-                않습니다.
-              </p>
+              {!finalReconciliation && (
+                <p>
+                  파일 숨김 {plan.hiddenRows ?? 0}행 중 식별 정보 부족{' '}
+                  {plan.hiddenRowsWithoutIdentity ?? plan.hiddenRowsWithoutNumber ?? 0}건 · 보이는
+                  행과 중복 {plan.visibleDuplicateIdentities ?? plan.visibleDuplicateNumbers ?? 0}건
+                  · DB에 없는 숨김 수용가{' '}
+                  {plan.unmatchedHiddenIdentities ?? plan.unmatchedHiddenNumbers ?? 0}건은 삭제하지
+                  않습니다.
+                </p>
+              )}
               <p>
                 연결 사진 {plan.photoCount.toLocaleString()}장 · 검침{' '}
                 {plan.inspectionCount.toLocaleString()}건 · 무효화할 한글 작업{' '}

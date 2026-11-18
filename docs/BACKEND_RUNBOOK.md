@@ -88,7 +88,7 @@ curl -b cookies.txt -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
 
 - 첨부 최종 파일의 2행 C/D/E 기본정보 헤더를 검증한다. 월별 M:AW 영역은 헤더와 값 모두 무시한다. 다른 레이아웃은 조용히 잘못 매핑하지 않고 거부한다.
 - 모든 시트를 파일 순서로 처리한다. 각 시트는 같은 헤더/레이아웃을 가져야 한다.
-- 500행 배치, 최대50,000행, 파일25MB. 전체 Import는 한 트랜잭션이다.
+- 500행 배치, 최대50,000행, 파일50MB. 전체 Import는 한 트랜잭션이다.
 - 수용가번호는 표시 문자열 그대로 보존한다. 파일 안 최초 행 우선, DB 기존 값 유지, UNIQUE + ON CONFLICT로 동시 중복 방어.
 - 빈 번호는 INVALID_CONSUMER_NUMBER, 파일 중복은 DUPLICATE_IN_FILE, DB 중복은 ALREADY_EXISTS.
 - `jobId/totalRows/inserted/duplicateInFile/alreadyExists/invalid/skippedRows`를 반환한다. 제외 행에 sheet/rowNumber/consumerNumber/reason/firstSheet/firstRowNumber 포함.
