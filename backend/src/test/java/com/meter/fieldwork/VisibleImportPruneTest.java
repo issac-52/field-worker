@@ -97,6 +97,87 @@ class VisibleImportPruneTest extends PostgresIntegrationTest {
     }
   }
 
+  byte[] finalFile(String... numbers) throws Exception {
+    try (var book = new XSSFWorkbook();
+        var out = new ByteArrayOutputStream()) {
+      book.createSheet("Reference");
+      var sheet = book.createSheet(ExcelFormat.FINAL_SHEET);
+      var header = sheet.createRow(2);
+      header.createCell(2).setCellValue("수용가번호");
+      header.createCell(3).setCellValue("수용가명");
+      header.createCell(4).setCellValue("새주소");
+      header.createCell(11).setCellValue("업종");
+      header.createCell(29).setCellValue("계량기번호");
+      header.createCell(35).setCellValue("관리번호");
+      for (int i = 0; i < numbers.length; i++) {
+        var row = sheet.createRow(i + 3);
+        row.createCell(2).setCellValue(numbers[i]);
+        row.createCell(4).setCellValue("Fictional retained address");
+        row.setZeroHeight(i == 0);
+      }
+      book.write(out);
+      return out.toByteArray();
+    }
+  }
+
+  Map<String, Object> finalPreview(byte[] file) {
+    return tx.execute(s -> prune.previewMissingFromFinal(new ByteArrayInputStream(file), actor));
+  }
+
+  @Test
+  void finalPreviewMatchesNumbersAndUnnumberedAddressesAndKeepsHiddenFinalRows() throws Exception {
+    seed();
+    UUID job =
+        db.queryForObject("select import_job_id from worksites where id=?", UUID.class, keep);
+    db.update(
+        """
+        insert into worksites (address, source_cells, source_sheet, source_row, import_job_id)
+        values ('  Fictional retained address  ', '{}', 'Test', 8, ?),
+               ('Fictional missing address', '{}', 'Test', 9, ?)
+        """,
+        job,
+        job);
+    var plan = finalPreview(finalFile("keep", "new"));
+    assertThat(plan)
+        .containsEntry("scope", "MISSING_FROM_FINAL")
+        .containsEntry("keepCount", 2L)
+        .containsEntry("deleteCount", 2L);
+    assertThat(db.queryForObject("select count(*) from worksites", Long.class)).isEqualTo(4);
+    assertThat(execute(plan)).containsEntry("deleted", 2);
+    assertThat(
+            db.queryForList(
+                "select id from worksites where consumer_number is not null", Long.class))
+        .containsExactly(keep);
+    assertThat(
+            db.queryForList(
+                "select address from worksites where consumer_number is null", String.class))
+        .containsExactly("  Fictional retained address  ");
+  }
+
+  @Test
+  void finalPreviewRequiresAnIdentifiableMatchingWorkbookAndPreservesSettlementProtection()
+      throws Exception {
+    seed();
+    assertThatThrownBy(() -> finalPreview(finalFile("unrelated")))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("공통 수용가번호");
+    assertThatThrownBy(() -> finalPreview(finalFile("keep", "keep")))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("중복 수용가번호");
+    db.update(
+        """
+        insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee,settlement_status)
+        values(?,'START','2026-11-01',1,?,0,'CONFIRMED')
+        """,
+        drop,
+        actor);
+    var plan = finalPreview(finalFile("keep"));
+    assertThat(plan).containsEntry("deleteCount", 1L).containsEntry("protectedCount", 1L);
+    assertThatThrownBy(() -> execute(plan))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("정산");
+  }
+
   void seed() throws Exception {
     byte[] input = file("keep", "drop");
     tx.execute(s -> imports.importWorkbook(new ByteArrayInputStream(input), actor, false));

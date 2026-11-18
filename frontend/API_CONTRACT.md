@@ -162,3 +162,8 @@ Site에 optional `importRemark:string`을 추가하고 상세/지도 기본정�
 POST `/api/admin/imports`는 `updateExisting=true`이면 신규 번호는 등록하고 기존 번호의 비어 있지 않은 기본정보를 반영한다. 기본false는 기존 등록 전용 호환이다. 응답은 기존 ImportResult에 `updated`/`unchanged` 정수를 추가한다. 빈 값은 기존 값을 지우지 않으며 실제 차이가 없는 요청은 수정 시각/이력도 추가하지 않는다. 번호 없는 기존 주소는 업데이트하지 않고 오류다. 사진/현장 특이사항/검침/정산은 유지한다. 업데이트로 실제 지오코딩 주소(새주소 우선, 없으면 구주소)가 바뀌면 좌표를 NULL로 초기화하고 지도에서 주소로 좌표 등록을 다시 실행한다. 동일 주소·앞뒤 공백만 변경·사용하지 않는 구주소 변경이면 기존 좌표를 유지한다. 빈 값은 기존 주소를 지우지 않는다. 새 화면 기본 방식은 신규 등록+기존 업데이트이고, 등록 전용·빈 정보 보완도 선택 가능하다. 상세 매핑·보존·검증 기록은 docs/FINAL_EXCEL_IMPORT.md 참고.
 
 개별 한글 ZIP 항목명은 기존 `site-{DB PK}.hwpx`를 유지한다. 관리번호는 UNIQUE가 아니므로 파일 식별자로 사용하지 않는다.
+
+
+## 최종본에 없는 수용가 삭제
+
+ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 보낸다. FINAL 양식의 대상 시트 전체(숨김 행 포함)를 기준으로 비교한다. 응답은 기존 삭제 미리보기 형태에 `scope=MISSING_FROM_FINAL`, `fileRows`, `matchingNumbers`를 포함한다. 기존 플랜 실행 API로 소유자·유효기간·DB 변경 여부·정산 상태·확인 문구를 검증한다. 파일 50MiB, 요청 51MiB 한도다.

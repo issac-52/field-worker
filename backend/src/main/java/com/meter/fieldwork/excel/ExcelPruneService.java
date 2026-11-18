@@ -160,6 +160,64 @@ public class ExcelPruneService {
     result.put("visibleRowsWithoutIdentity", rows[5]);
     result.put("unmatchedHiddenNumbers", hidden.size() - matched.size());
     result.put("unmatchedHiddenIdentities", hidden.size() - matched.size());
+    result.put("hiddenRows", rows[1]);
+    return savePlan(actor, keep, result, "HIDDEN_ROWS");
+  }
+
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+  public Map<String, Object> previewMissingFromFinal(InputStream file, long actor) {
+    var numbers = new HashSet<String>();
+    var addresses = new HashSet<String>();
+    int[] rows = {0};
+    new ExcelRows()
+        .read(
+            file,
+            ExcelFormat.FINAL,
+            row -> {
+              if (++rows[0] > 50000) throw new ApiException(400, "TOO_MANY_ROWS", "최대 50,000행입니다.");
+              String number = row.cell("C");
+              String address = WorksiteIdentity.normalize(row.cell("E"));
+              if (number.isBlank() && address.isEmpty())
+                throw new ApiException(
+                    400,
+                    "FINAL_IDENTITY_MISSING",
+                    "수용가번호와 새주소가 모두 없는 행이 있습니다. 시트 " + row.number() + "행을 확인하세요.");
+              if (!number.isBlank() && !numbers.add(number))
+                throw new ApiException(
+                    400,
+                    "FINAL_DUPLICATE_NUMBER",
+                    "중복 수용가번호가 있습니다. 시트 " + row.number() + "행을 확인하세요.");
+              if (!address.isEmpty()) addresses.add(address);
+            });
+    var keepIds = new ArrayList<Long>();
+    int[] matchingNumbers = {0};
+    db.query(
+        "select id,consumer_number,address from worksites order by id",
+        (RowCallbackHandler)
+            row -> {
+              String number = row.getString("consumer_number");
+              if (number != null && numbers.contains(number)) {
+                matchingNumbers[0]++;
+                keepIds.add(row.getLong("id"));
+              } else if (number == null) {
+                String address = WorksiteIdentity.normalize(row.getString("address"));
+                // Preserve ambiguous unnumbered sites and addresses represented by any final row.
+                if (address.isEmpty() || addresses.contains(address))
+                  keepIds.add(row.getLong("id"));
+              }
+            });
+    if (matchingNumbers[0] == 0)
+      throw new ApiException(
+          400, "FINAL_NO_MATCHING_NUMBERS", "최종본과 DB에 공통 수용가번호가 없습니다. 파일을 확인하세요.");
+    String keep = encode(keepIds);
+    var result = summary(keep);
+    result.put("fileRows", rows[0]);
+    result.put("matchingNumbers", matchingNumbers[0]);
+    return savePlan(actor, keep, result, "MISSING_FROM_FINAL");
+  }
+
+  private Map<String, Object> savePlan(
+      long actor, String keep, Map<String, Object> result, String scope) {
     UUID id = UUID.randomUUID();
     db.update(
         "insert into excel_prune_plans(id,created_by,keep_numbers,keep_site_ids,fingerprint,result)"
@@ -168,9 +226,10 @@ public class ExcelPruneService {
         actor,
         keep,
         fingerprint(),
-        encode(Map.of("scope", "HIDDEN_ROWS", "identityVersion", 2)));
+        encode(Map.of("scope", scope, "identityVersion", 2)));
+    result.put("scope", scope);
+    result.put("identityVersion", 2);
     result.put("planId", id);
-    result.put("hiddenRows", rows[1]);
     result.put("confirmation", result.get("deleteCount") + "건 삭제");
     result.put("expiresInMinutes", 15);
     return result;
@@ -195,7 +254,7 @@ public class ExcelPruneService {
     if (plans.isEmpty())
       throw new ApiException(404, "PRUNE_PLAN_NOT_FOUND", "삭제 미리보기가 없거나 만료/실행됐습니다.");
     var plan = plans.getFirst();
-    if (!"HIDDEN_ROWS".equals(plan.get("prune_scope"))
+    if (!Arrays.asList("HIDDEN_ROWS", "MISSING_FROM_FINAL").contains(plan.get("prune_scope"))
         || !"2".equals(plan.get("identity_version"))
         || plan.get("keep_json") == null)
       throw new ApiException(409, "PRUNE_SCOPE_CHANGED", "삭제 범위 또는 식별 기준이 변경됐습니다. 미리보기를 다시 확인하세요.");
