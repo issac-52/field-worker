@@ -1,3 +1,4 @@
+import { PwaInstallGuide } from '../components/PwaInstallGuide';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { call, resetCsrf, ApiError } from '../api/client';
@@ -162,6 +163,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
               )}
             </div>
           </form>
+          {!user && <PwaInstallGuide />}
         </section>
       </main>
     );

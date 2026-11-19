@@ -1,3 +1,4 @@
+import { PwaInstallGuide } from '../components/PwaInstallGuide';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import {
@@ -96,6 +97,7 @@ export function HomePage() {
         </Button>
       </section>
       <SiteList sites={sites} onSelect={openSite} loading={loading} />
+      {!__MOCKS_ENABLED__ && <PwaInstallGuide />}
     </>
   );
 }

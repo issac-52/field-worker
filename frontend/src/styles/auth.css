@@ -84,3 +84,36 @@
     padding: 24px 20px;
   }
 }
+
+.pwa-install-guide {
+  margin-top: 20px;
+  padding: 10px 14px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pwa-install-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+.pwa-install-guide ul {
+  margin: 8px 0;
+  padding-inline-start: 18px;
+  list-style: disc;
+}
+
+.pwa-install-guide p {
+  color: var(--color-muted);
+}
+
+@media (display-mode: standalone) {
+  .pwa-install-guide {
+    display: none;
+  }
+}
