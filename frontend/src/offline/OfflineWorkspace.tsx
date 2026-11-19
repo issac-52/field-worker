@@ -123,11 +123,13 @@ export function OfflineWorkspace({ exit }: { exit: () => void }) {
     window.addEventListener('online', connection);
     window.addEventListener('offline', connection);
     window.addEventListener('storage', accessChange);
+    window.addEventListener('offline-sync-finished', accessChange);
     return () => {
       mounted = false;
       window.removeEventListener('online', connection);
       window.removeEventListener('offline', connection);
       window.removeEventListener('storage', accessChange);
+      window.removeEventListener('offline-sync-finished', accessChange);
     };
   }, []);
 
@@ -205,7 +207,9 @@ export function OfflineWorkspace({ exit }: { exit: () => void }) {
           </select>
         </label>
       ) : (
-        <p>저장된 수용가가 없습니다. 온라인에서 수용가 상세의 ‘오프라인 준비’를 사용하세요.</p>
+        <p>
+          저장된 수용가가 없습니다. 온라인에서 수용가 상세를 열면 최근 수용가가 자동으로 저장됩니다.
+        </p>
       )}
       {workspace && site && (
         <>

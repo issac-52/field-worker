@@ -32,7 +32,8 @@ export const siteApi = {
   measurement: (
     id: number,
     body: { phase: Phase; date: string; reading: number; workerId: number },
-  ) => call<Site>(`/sites/${id}/measurements`, json(body)),
+    signal?: AbortSignal,
+  ) => call<Site>(`/sites/${id}/measurements`, { ...json(body), signal }),
   photos: (id: number, photos: SitePhoto[]) => call<Site>(`/sites/${id}/photos`, json({ photos })),
   updateMeasurement: (
     id: number,

@@ -9,9 +9,13 @@ import {
   type User,
 } from '../types';
 import {
+  canReadOffline,
   editSavedSite,
+  readWorkspace,
   hasSameSiteIdentity,
   sameAccount,
+  saveSite,
+  pending,
   snapshot,
   type SavedSite,
   type Workspace,
@@ -36,12 +40,27 @@ export function validateReading(phase: Phase, date: string, raw: string, start?:
   return { date, reading };
 }
 
+const sending = new Set<number>();
+
 export async function sendSiteDraft(owner: Workspace['owner'], saved: SavedSite) {
+  if (sending.has(saved.id)) throw new Error('이 수용가를 전송 중입니다. 잠시 후 다시 시도하세요.');
+  sending.add(saved.id);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    return await send(owner, saved, controller.signal);
+  } finally {
+    clearTimeout(timeout);
+    sending.delete(saved.id);
+  }
+}
+
+async function send(owner: Workspace['owner'], saved: SavedSite, signal: AbortSignal) {
   if (!navigator.onLine) throw new Error('인터넷에 연결한 뒤 다시 전송하세요.');
-  const user = await call<User>('/me');
+  const user = await call<User>('/me', { signal });
   if (!sameAccount(owner, user) || !user.active || user.mustChangePassword)
     throw new Error('임시 저장한 계정으로 온라인 로그인한 뒤 전송하세요.');
-  let site = await siteApi.site(saved.id);
+  let site = await siteApi.site(saved.id, signal);
   if (!hasSameSiteIdentity(saved, snapshot(site)))
     throw new Error(
       '수용가 번호·주소·계량기 정보가 바뀌었습니다. 온라인 기록을 확인한 뒤 대기 항목을 정리하세요.',
@@ -59,7 +78,7 @@ export async function sendSiteDraft(owner: Workspace['owner'], saved: SavedSite)
     if (registered) {
       // A previous request may have succeeded before the connection dropped.
       if (
-        registered.workerId !== user.id ||
+        registered.workerId !== (reading.workerId ?? user.id) ||
         registered.date !== reading.date ||
         registered.reading !== reading.reading
       )
@@ -73,11 +92,19 @@ export async function sendSiteDraft(owner: Workspace['owner'], saved: SavedSite)
         String(reading.reading),
         site.inspections.START?.reading,
       );
-      site = await siteApi.measurement(site.id, { phase, workerId: user.id, ...reading });
+      site = await siteApi.measurement(
+        site.id,
+        { phase, ...reading, workerId: reading.workerId ?? user.id },
+        signal,
+      );
     }
     await persist((current) => {
       const latest = current.draft.readings[phase];
-      if (latest?.date === reading.date && latest.reading === reading.reading)
+      if (
+        latest?.date === reading.date &&
+        latest.reading === reading.reading &&
+        latest.workerId === reading.workerId
+      )
         delete current.draft.readings[phase];
     });
   }
@@ -91,7 +118,7 @@ export async function sendSiteDraft(owner: Workspace['owner'], saved: SavedSite)
       // Compare the stored JPEG to recognize a successful request whose response was lost.
       const url = new URL(existing.url, location.origin);
       if (url.origin !== location.origin) throw new Error('서버 사진을 확인하지 못했습니다.');
-      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', signal });
       if (!response.ok || !(await samePhoto(blob, await response.blob())))
         throw new Error(
           PHOTO_LABEL[slot] + '이 서버에 있습니다. 사진을 확인한 뒤 대기 항목을 정리하세요.',
@@ -100,7 +127,7 @@ export async function sendSiteDraft(owner: Workspace['owner'], saved: SavedSite)
       const body = new FormData();
       body.append('file', blob, 'photo.jpg');
       body.append('slot', slot);
-      site = await call<Site>('/sites/' + site.id + '/photos', { method: 'POST', body });
+      site = await call<Site>('/sites/' + site.id + '/photos', { method: 'POST', body, signal });
     }
     await persist((current) => {
       const latest = current.draft.photos[slot];
@@ -117,4 +144,32 @@ async function samePhoto(a: Blob, b: Blob) {
   );
   const other = new Uint8Array(hashes[1]);
   return new Uint8Array(hashes[0]).every((byte, i) => byte === other[i]);
+}
+
+/** Commit locally before attempting to send. A dropped response leaves a recoverable draft. */
+export async function stageAndSend(user: User, site: Site, stage: (saved: SavedSite) => void) {
+  const workspace = await saveSite(user, site, stage);
+  const saved = workspace?.sites.find(({ id }) => id === site.id);
+  if (!saved) throw new Error('이 기기에 임시 저장하지 못했습니다.');
+  if (!navigator.onLine) return false;
+  try {
+    await sendSiteDraft(user, saved);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function sendPendingWorkspace(user?: User) {
+  const workspace = await readWorkspace();
+  if (!workspace || !canReadOffline(workspace) || (user && !sameAccount(workspace.owner, user)))
+    return;
+  try {
+    for (const site of workspace.sites) {
+      if (!navigator.onLine) break;
+      if (pending(site.draft)) await sendSiteDraft(workspace.owner, site).catch(() => {});
+    }
+  } finally {
+    window.dispatchEvent(new Event('offline-sync-finished'));
+  }
 }

@@ -1,6 +1,6 @@
 import type { Phase, PhotoSlot, Site, User } from '../types';
 
-export type Reading = { date: string; reading: number };
+export type Reading = { date: string; reading: number; workerId?: number };
 export type Draft = {
   readings: Partial<Record<Phase, Reading>>;
   photos: Partial<Record<PhotoSlot, { id: string; blob: Blob }>>;
@@ -106,7 +106,7 @@ export function hasSameSiteIdentity(saved: SavedSite, latest: ReturnType<typeof 
   );
 }
 
-export async function saveSite(user: User, site: Site) {
+export async function saveSite(user: User, site: Site, stage?: (saved: SavedSite) => void) {
   const registration = await navigator.serviceWorker?.getRegistration();
   if (!registration?.active)
     throw new Error(
@@ -118,15 +118,30 @@ export async function saveSite(user: User, site: Site) {
     const state = current ?? { owner: { id: user.id, username: user.username }, sites: [] };
     if (!canReadOffline(state)) throw new Error('온라인으로 다시 로그인하세요.');
     const existing = state.sites.find(({ id }) => id === site.id);
-    if (!existing && state.sites.length >= 30)
-      throw new Error('최대 30개 수용가를 저장할 수 있습니다. 끝난 수용가를 먼저 지워 주세요.');
+    if (!existing && state.sites.length >= 30) {
+      const oldest = state.sites.findIndex((row) => !pending(row.draft));
+      if (oldest < 0) throw new Error('미전송 수용가가 30개입니다. 연결 후 먼저 전송하세요.');
+      state.sites.splice(oldest, 1);
+    }
     const latest = snapshot(site);
     if (existing && pending(existing.draft) && !hasSameSiteIdentity(existing, latest))
       throw new Error('수용가 기본정보가 바뀌었습니다. 오프라인 작업의 대기 항목을 확인하세요.');
     const saved = { ...latest, draft: existing?.draft ?? { readings: {}, photos: {} } };
+    stage?.(saved);
     state.sites = [...state.sites.filter(({ id }) => id !== site.id), saved];
+    checkPhotoLimit(state);
     return state;
   });
+}
+
+function checkPhotoLimit(workspace: Workspace) {
+  const bytes = workspace.sites.reduce(
+    (sum, site) =>
+      sum + Object.values(site.draft.photos).reduce((n, photo) => n + photo.blob.size, 0),
+    0,
+  );
+  if (bytes > 30 * 1024 * 1024)
+    throw new Error('사진 대기 용량은 최대 30MB입니다. 연결 후 먼저 전송하세요.');
 }
 
 export function editSavedSite(
@@ -143,13 +158,7 @@ export function editSavedSite(
     current.sites = current.sites.flatMap((site) =>
       site.id === siteId ? (after ? [after] : []) : [site],
     );
-    const bytes = current.sites.reduce(
-      (sum, site) =>
-        sum + Object.values(site.draft.photos).reduce((n, blob) => n + blob.blob.size, 0),
-      0,
-    );
-    if (bytes > 30 * 1024 * 1024)
-      throw new Error('사진 대기 용량은 최대 30MB입니다. 연결 후 먼저 전송하세요.');
+    checkPhotoLimit(current);
     return current.sites.length === 0 ? undefined : current;
   });
 }

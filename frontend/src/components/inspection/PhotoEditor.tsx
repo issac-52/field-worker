@@ -1,3 +1,5 @@
+import { useSession } from '../../context/session';
+import { stageAndSend } from '../../offline/sync';
 import { call } from '../../api/client';
 import { Button } from '../ui/button';
 import { useEffect, useRef, useState } from 'react';
@@ -19,6 +21,7 @@ export function PhotoEditor({
   onClose: () => void;
   inline?: boolean;
 }) {
+  const { user } = useSession();
   const [baseline, setBaseline] = useState(site.photos);
   const [images, setImages] = useState<DraftPhoto[]>(site.photos);
   const [reading, setReading] = useState(false);
@@ -173,6 +176,37 @@ export function PhotoEditor({
           const success = await save(
             async () => {
               if (!__MOCKS_ENABLED__) {
+                const releases = baseline.filter(
+                  (old) => old.id && !images.some((image) => image.slot === old.slot),
+                );
+                const replacements = images.filter(
+                  (image) => image.blob && baseline.some((old) => old.slot === image.slot),
+                );
+                const additions = images.filter(
+                  (image) => image.blob && !baseline.some((old) => old.slot === image.slot),
+                );
+                const stageLocally =
+                  user &&
+                  additions.length > 0 &&
+                  (await navigator.serviceWorker?.getRegistration())?.active;
+                let queued = false;
+                if (stageLocally) {
+                  queued = !(await stageAndSend(user, site, (saved) => {
+                    for (const image of additions) {
+                      saved.draft.photos[image.slot] = {
+                        id: crypto.randomUUID(),
+                        blob: image.blob!,
+                      };
+                    }
+                  }));
+                }
+                if (queued && !releases.length && !replacements.length) return 'queued';
+                if (!navigator.onLine && (releases.length || replacements.length))
+                  throw new Error(
+                    queued
+                      ? '새 사진은 기기에 저장했습니다. 기존 사진의 교체·삭제는 연결 후 다시 시도하세요.'
+                      : '기존 사진의 교체·삭제는 인터넷 연결 후 저장할 수 있습니다.',
+                  );
                 let latest = site;
                 try {
                   for (const old of baseline)
@@ -183,6 +217,7 @@ export function PhotoEditor({
                   for (const image of images)
                     if (image.blob) {
                       const old = baseline.find((value) => value.slot === image.slot);
+                      if (stageLocally && !old) continue;
                       const body = new FormData();
                       body.append('file', image.blob, 'photo.jpg');
                       body.append('slot', image.slot);
@@ -196,7 +231,7 @@ export function PhotoEditor({
                   setBaseline(latest.photos);
                   setImages(latest.photos);
                 }
-                return;
+                return queued ? 'queued' : undefined;
               }
               const photos: SitePhoto[] = [];
               for (const image of images)
@@ -207,6 +242,7 @@ export function PhotoEditor({
               await api.photos(site.id, photos);
             },
             __MOCKS_ENABLED__ ? '시연 이미지를 저장했습니다.' : '사진을 저장했습니다.',
+            '사진을 기기에 임시 저장했습니다. 오프라인 작업에서 전송 상태를 확인하세요.',
           );
           if (success) onClose();
         }}

@@ -1,3 +1,4 @@
+import { sendPendingWorkspace } from '../offline/sync';
 import { OfflineWorkspace } from '../offline/OfflineWorkspace';
 import {
   allowOfflineAccess,
@@ -58,9 +59,25 @@ export function SessionGate({ children }: { children: ReactNode }) {
         void refresh();
       });
     };
+    const connected = () => {
+      void sendPendingWorkspace()
+        .then(() => client.invalidateQueries())
+        .catch(() => {});
+    };
+    window.addEventListener('online', connected);
     window.addEventListener('session-invalidated', expired);
-    return () => window.removeEventListener('session-invalidated', expired);
+    return () => {
+      window.removeEventListener('online', connected);
+      document.removeEventListener('visibilitychange', connected);
+      window.removeEventListener('session-invalidated', expired);
+    };
   }, [refresh, client]);
+  useEffect(() => {
+    if (user && navigator.onLine)
+      void sendPendingWorkspace(user)
+        .then(() => client.invalidateQueries())
+        .catch(() => {});
+  }, [user, client]);
   async function logout() {
     if (user)
       await checkOfflineLogout(user).catch((error) => {

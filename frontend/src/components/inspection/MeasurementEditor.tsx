@@ -1,3 +1,5 @@
+import { useSession } from '../../context/session';
+import { stageAndSend, validateReading } from '../../offline/sync';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useState } from 'react';
@@ -20,6 +22,7 @@ export function MeasurementEditor({
   onClose: () => void;
   inline?: boolean;
 }) {
+  const { user } = useSession();
   const { role, users, refresh, currentUserId } = useWork();
   const availableWorkers = users.filter((user) => user.role === 'WORKER' && user.active);
   const year = phase === 'START' ? 2026 : 2027;
@@ -49,23 +52,34 @@ export function MeasurementEditor({
     )
       return;
     const success = await save(
-      () =>
-        editing
-          ? api.updateMeasurement(site.id, phase, {
-              date,
-              reading: Number(reading),
-              expectedUpdatedAt: expectedUpdatedAt!,
-            })
-          : api.measurement(site.id, {
-              phase,
-              date,
-              reading: Number(reading),
-              workerId,
-            }),
+      async () => {
+        if (editing)
+          return api.updateMeasurement(site.id, phase, {
+            date,
+            reading: Number(reading),
+            expectedUpdatedAt: expectedUpdatedAt!,
+          });
+        const body = { phase, date, reading: Number(reading), workerId };
+        if (!user || !(await navigator.serviceWorker?.getRegistration())?.active)
+          return api.measurement(site.id, body);
+        const sent = await stageAndSend(user, site, (saved) => {
+          const start = saved.draft.readings.START?.reading ?? saved.readings.START?.reading;
+          const draft = validateReading(phase, date, reading, start);
+          if (
+            phase === 'START' &&
+            saved.draft.readings.END &&
+            draft.reading > saved.draft.readings.END.reading
+          )
+            throw new Error('종료 지침보다 큰 시작 지침은 저장할 수 없습니다.');
+          saved.draft.readings[phase] = { ...draft, workerId };
+        });
+        if (!sent) return 'queued';
+      },
       `${PHASE_LABEL[phase]}을 ${editing ? '수정' : '등록'}했습니다.`,
+      '검침을 기기에 임시 저장했습니다. 오프라인 작업에서 전송 상태를 확인하세요.',
     );
     if (success) onClose();
-    else void refresh();
+    else if (navigator.onLine) void refresh();
   }
   const form = (
     <form
