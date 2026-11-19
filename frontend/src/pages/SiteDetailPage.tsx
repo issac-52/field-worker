@@ -1,3 +1,5 @@
+import { useSession } from '../context/session';
+import { saveSite } from '../offline/storage';
 import { ConsumerNumberEditor } from '../components/ConsumerNumberEditor';
 import { HwpxDownloads } from '../components/HwpxDownloads';
 import { Button } from '../components/ui/button';
@@ -15,6 +17,9 @@ import { specialConditionText } from '../lib/specialCondition';
 import type { Phase } from '../types';
 
 export function SiteDetailPage() {
+  const { user, openOffline } = useSession();
+  const [preparing, setPreparing] = useState(false);
+  const [offlineError, setOfflineError] = useState('');
   const { target: site, navigate, role } = useWork();
   const [phase, setPhase] = useState<Phase>('START');
   const [editor, setEditor] = useState<'measurement' | 'note' | 'consumerNumber'>();
@@ -65,6 +70,37 @@ export function SiteDetailPage() {
           지도 보기
         </Button>
       </section>
+      {user && (
+        <div className="offline-prepare">
+          <Button
+            variant="outline"
+            disabled={preparing}
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  '이 수용가의 주소와 검침 정보를 기기에 저장합니다. 본인만 사용하는 잠금 설정된 기기에서 계속할까요?',
+                )
+              )
+                return;
+              setPreparing(true);
+              setOfflineError('');
+              try {
+                await saveSite(user, site);
+                openOffline();
+              } catch (error) {
+                setOfflineError(
+                  error instanceof Error ? error.message : '이 기기에 저장하지 못했습니다.',
+                );
+              } finally {
+                setPreparing(false);
+              }
+            }}
+          >
+            {preparing ? '기기에 저장 중…' : '오프라인 준비'}
+          </Button>
+          {offlineError && <p role="alert">{offlineError}</p>}
+        </div>
+      )}
       <div className="detail-layout">
         <div className="detail-main">
           <section className="panel info-panel">
