@@ -14,8 +14,8 @@ let csrf: Promise<{ headerName: string; token: string }> | undefined;
 export function resetCsrf() {
   csrf = undefined;
 }
-async function csrfToken() {
-  csrf ??= fetch('/api/auth/csrf', { credentials: 'same-origin' })
+async function csrfToken(signal?: AbortSignal | null) {
+  csrf ??= fetch('/api/auth/csrf', { credentials: 'same-origin', signal })
     .then(async (response) => {
       if (!response.ok) throw new Error('보안 토큰을 가져오지 못했습니다.');
       const body = await response.json();
@@ -33,7 +33,7 @@ export async function request(path: string, init: RequestInit = {}): Promise<Res
     headers.set('Content-Type', 'application/json');
   if (__MOCKS_ENABLED__) headers.set('X-Demo-Role', getDemoRole());
   else if (!['GET', 'HEAD', 'OPTIONS'].includes((init.method ?? 'GET').toUpperCase())) {
-    const token = await csrfToken();
+    const token = await csrfToken(init.signal);
     headers.set(token.headerName, token.token);
   }
   const response = await fetch(`/api${path}`, { ...init, headers, credentials: 'same-origin' });

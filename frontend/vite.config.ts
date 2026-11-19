@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { env as processEnv } from 'node:process';
+import { offlineShell } from './config/offlineShell';
 import { environmentPolicy } from './config/environment';
 
 export default defineConfig(({ mode, command }) => {
@@ -13,7 +14,7 @@ export default defineConfig(({ mode, command }) => {
     : loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_');
   const policy = environmentPolicy(mode, command, env);
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), ...(production ? [offlineShell()] : [])],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     envDir: production ? false : undefined,
     server: {

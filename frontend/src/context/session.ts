@@ -4,5 +4,6 @@ export const SessionContext = createContext<{
   user: User | null;
   logout: () => Promise<void>;
   changePassword: () => void;
-}>({ user: null, logout: async () => {}, changePassword: () => {} });
+  openOffline: () => void;
+}>({ user: null, logout: async () => {}, changePassword: () => {}, openOffline: () => {} });
 export const useSession = () => useContext(SessionContext);

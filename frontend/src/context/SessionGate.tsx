@@ -1,3 +1,12 @@
+import { sendPendingWorkspace } from '../offline/sync';
+import { OfflineWorkspace } from '../offline/OfflineWorkspace';
+import {
+  allowOfflineAccess,
+  canReadOffline,
+  checkOfflineLogout,
+  clearOfflineSnapshots,
+  readWorkspace,
+} from '../offline/storage';
 import { PwaInstallGuide } from '../components/PwaInstallGuide';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,6 +17,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(!__MOCKS_ENABLED__);
+  const [offline, setOffline] = useState(false);
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -16,14 +26,27 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const [next, setNext] = useState('');
   const refresh = useCallback(async () => {
     setLoading(true);
+    const request = new AbortController();
+    const timeout = window.setTimeout(() => request.abort(), 10000);
     try {
-      setUser(await call<User>('/me'));
+      const session = await call<User>('/me', { signal: request.signal });
+      allowOfflineAccess(session);
+      setUser(session);
+      setOffline(false);
       setError('');
     } catch (e) {
       setUser(null);
+      if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+        allowOfflineAccess(null);
+        setOffline(false);
+      } else if (!navigator.onLine || e instanceof TypeError || request.signal.aborted) {
+        const saved = await readWorkspace().catch(() => undefined);
+        if (saved && canReadOffline(saved)) setOffline(true);
+      }
       if (!(e instanceof ApiError && e.status === 401))
         setError(e instanceof Error ? e.message : '연결 실패');
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   }, []);
@@ -36,11 +59,34 @@ export function SessionGate({ children }: { children: ReactNode }) {
         void refresh();
       });
     };
+    const connected = () => {
+      void sendPendingWorkspace()
+        .then(() => client.invalidateQueries())
+        .catch(() => {});
+    };
+    window.addEventListener('online', connected);
     window.addEventListener('session-invalidated', expired);
-    return () => window.removeEventListener('session-invalidated', expired);
+    return () => {
+      window.removeEventListener('online', connected);
+      document.removeEventListener('visibilitychange', connected);
+      window.removeEventListener('session-invalidated', expired);
+    };
   }, [refresh, client]);
+  useEffect(() => {
+    if (user && navigator.onLine)
+      void sendPendingWorkspace(user)
+        .then(() => client.invalidateQueries())
+        .catch(() => {});
+  }, [user, client]);
   async function logout() {
+    if (user)
+      await checkOfflineLogout(user).catch((error) => {
+        if (error instanceof DOMException) return;
+        throw error;
+      });
     await call('/auth/logout', { method: 'POST' });
+    allowOfflineAccess(null);
+    if (user) await clearOfflineSnapshots(user).catch(() => {});
     resetCsrf();
     await client.cancelQueries();
     client.clear();
@@ -57,6 +103,15 @@ export function SessionGate({ children }: { children: ReactNode }) {
           계정 확인 중…
         </p>
       </main>
+    );
+  if (offline)
+    return (
+      <OfflineWorkspace
+        exit={() => {
+          void client.invalidateQueries({ refetchType: 'none' });
+          void refresh();
+        }}
+      />
     );
   if (!user || user.mustChangePassword || changing)
     return (
@@ -85,6 +140,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
                     body: JSON.stringify({ currentPassword: password, newPassword: next }),
                   });
                   resetCsrf();
+                  allowOfflineAccess(null);
                   setUser(null);
                   setChanging(false);
                   await client.cancelQueries();
@@ -168,7 +224,14 @@ export function SessionGate({ children }: { children: ReactNode }) {
       </main>
     );
   return (
-    <SessionContext.Provider value={{ user, logout, changePassword: () => setChanging(true) }}>
+    <SessionContext.Provider
+      value={{
+        user,
+        logout,
+        changePassword: () => setChanging(true),
+        openOffline: () => setOffline(true),
+      }}
+    >
       {children}
     </SessionContext.Provider>
   );

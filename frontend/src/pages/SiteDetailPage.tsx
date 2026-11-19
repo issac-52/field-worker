@@ -1,7 +1,9 @@
+import { useSession } from '../context/session';
+import { saveSite } from '../offline/storage';
 import { ConsumerNumberEditor } from '../components/ConsumerNumberEditor';
 import { HwpxDownloads } from '../components/HwpxDownloads';
 import { Button } from '../components/ui/button';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, MapPin, MapPinned, ShieldCheck } from 'lucide-react';
 import { useWork } from '../context/work';
 import { StatusBadge } from '../components/StatusBadge';
@@ -15,9 +17,19 @@ import { specialConditionText } from '../lib/specialCondition';
 import type { Phase } from '../types';
 
 export function SiteDetailPage() {
+  const { user, openOffline } = useSession();
   const { target: site, navigate, role } = useWork();
   const [phase, setPhase] = useState<Phase>('START');
   const [editor, setEditor] = useState<'measurement' | 'note' | 'consumerNumber'>();
+  useEffect(() => {
+    if (!user || !site || !navigator.serviceWorker) return;
+    const remember = () => {
+      if (navigator.onLine) void saveSite(user, site).catch(() => {});
+    };
+    remember();
+    navigator.serviceWorker.addEventListener('controllerchange', remember);
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', remember);
+  }, [user, site]);
   if (!site) return <p className="loading">불러오는 중...</p>;
   const info = [
     ['관리번호', site.managementNo],
@@ -65,6 +77,13 @@ export function SiteDetailPage() {
           지도 보기
         </Button>
       </section>
+      {user && (
+        <div className="offline-prepare">
+          <Button variant="outline" onClick={openOffline}>
+            오프라인 전송 대기 확인
+          </Button>
+        </div>
+      )}
       <div className="detail-layout">
         <div className="detail-main">
           <section className="panel info-panel">

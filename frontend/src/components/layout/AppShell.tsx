@@ -1,6 +1,6 @@
 import { useSession } from '../../context/session';
 import { Button } from '../ui/button';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ClipboardList,
   Coins,
@@ -69,7 +69,9 @@ function NavItem({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { page, role, switchDemoRole, switchingRole } = useWork();
-  const { user, logout, changePassword } = useSession();
+  const { user, logout, changePassword, openOffline } = useSession();
+  const [accountError, setAccountError] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
   const admin = role === 'ADMIN';
   return (
     <div className="app-shell">
@@ -117,31 +119,56 @@ export function AppShell({ children }: { children: ReactNode }) {
             <b>{PAGE_TITLES[page]}</b>
           </div>
           <div className="top-actions">
-            {!__MOCKS_ENABLED__ && (
+            {__MOCKS_ENABLED__ ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="outline-btn"
-                  onClick={changePassword}
-                >
-                  비밀번호 변경
-                </Button>
-                <Button
-                  variant="outline"
-                  className="outline-btn"
-                  size="sm"
-                  onClick={() => void logout().catch(() => window.location.reload())}
-                >
-                  로그아웃
-                </Button>
+                <span className="demo-label">MOCK</span>
+                <span className="role-switch">
+                  <ShieldCheck size={15} />
+                  {admin ? '관리자' : '조사자'}
+                </span>
               </>
+            ) : (
+              <details className="account-menu">
+                <summary className="role-switch">
+                  <ShieldCheck size={15} />
+                  {admin ? '관리자' : '조사자'}
+                </summary>
+                <div className="account-options">
+                  <Button variant="outline" size="sm" className="outline-btn" onClick={openOffline}>
+                    오프라인 작업
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="outline-btn"
+                    onClick={changePassword}
+                  >
+                    비밀번호 변경
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="outline-btn"
+                    disabled={loggingOut}
+                    onClick={async () => {
+                      setLoggingOut(true);
+                      setAccountError('');
+                      try {
+                        await logout();
+                      } catch (error) {
+                        setAccountError(
+                          error instanceof Error ? error.message : '로그아웃에 실패했습니다.',
+                        );
+                        setLoggingOut(false);
+                      }
+                    }}
+                  >
+                    {loggingOut ? '로그아웃 중…' : '로그아웃'}
+                  </Button>
+                  {accountError && <p role="alert">{accountError}</p>}
+                </div>
+              </details>
             )}
-            {__MOCKS_ENABLED__ && <span className="demo-label">MOCK</span>}
-            <span className="role-switch">
-              <ShieldCheck size={15} />
-              {__MOCKS_ENABLED__ ? (admin ? '관리자' : '조사자') : admin ? '관리자' : '조사자'}
-            </span>
           </div>
         </header>
         <main className="content">
