@@ -13,7 +13,12 @@ export function MapPage() {
   return (
     <>
       <h1 className="sr-only">현장 지도</h1>
-      {role === 'ADMIN' && !__MOCKS_ENABLED__ && <GeocodingPanel />}
+      {role === 'ADMIN' && !__MOCKS_ENABLED__ && (
+        <details className="admin-disclosure">
+          <summary>주소로 좌표 등록</summary>
+          <GeocodingPanel />
+        </details>
+      )}
       <SiteSearch />
       <FieldMap onSelect={setSelected} />
       {selected !== undefined && (

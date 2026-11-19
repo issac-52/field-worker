@@ -45,7 +45,12 @@ export function AdminPage() {
   return (
     <>
       <h1 className="sr-only">관리자 메뉴</h1>
-      {!__MOCKS_ENABLED__ && <ImportPanel />}
+      {!__MOCKS_ENABLED__ && (
+        <details className="admin-disclosure">
+          <summary>수용가 Excel 등록</summary>
+          <ImportPanel />
+        </details>
+      )}
       <div className="admin-grid">
         {CARDS.map(({ page, label, description, color, Icon }) => (
           <Button variant="ghost" className="admin-card" key={page} onClick={() => navigate(page)}>
