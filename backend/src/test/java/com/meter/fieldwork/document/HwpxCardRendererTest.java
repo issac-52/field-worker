@@ -7,6 +7,65 @@ import org.junit.jupiter.api.Test;
 
 class HwpxCardRendererTest {
   @Test
+  void dropsAttachmentBadgeUsesSmallBlockAndKeepsBothDatesOnOneLine() throws Exception {
+    var snapshot =
+        new com.fasterxml.jackson.databind.ObjectMapper()
+            .readTree(
+                """
+                {"site":{"small_block":"가상 소블록"},"inspections":[
+                  {"phase":"START","inspection_date":"2026-11-19","reading":10},
+                  {"phase":"END","inspection_date":"2027-12-31","reading":11}
+                ]}
+                """);
+    var files = new java.util.HashMap<String, byte[]>();
+    byte[] result = new HwpxCardRenderer().render(snapshot, "Test", java.util.Map.of());
+    try (var zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(result))) {
+      for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null; )
+        files.put(entry.getName(), zip.readAllBytes());
+    }
+    var doc = HwpxCardRenderer.xml(files.get("Contents/section0.xml"));
+    assertThat(doc.getDocumentElement().getTextContent())
+        .doesNotContain("붙임.2")
+        .contains("검침카드 양식");
+    assertThat(cell(doc, "5", "2").getTextContent()).isEqualTo("가상 소블록");
+    var header = HwpxCardRenderer.xml(files.get("Contents/header.xml"));
+    var styles = header.getElementsByTagNameNS("http://www.hancom.co.kr/hwpml/2011/head", "charPr");
+    String[] columns = {"1", "5"};
+    String[] dates = {"2026-11-19", "2027-12-31"};
+    for (int i = 0; i < columns.length; i++) {
+      var date = cell(doc, "7", columns[i]);
+      assertThat(date.getTextContent()).isEqualTo(dates[i]);
+      var sub =
+          (org.w3c.dom.Element) date.getElementsByTagNameNS(HwpxCardRenderer.HP, "subList").item(0);
+      assertThat(sub.getAttribute("lineWrap")).isEqualTo("SQUEEZE");
+      var run =
+          (org.w3c.dom.Element) date.getElementsByTagNameNS(HwpxCardRenderer.HP, "run").item(0);
+      String styleId = run.getAttribute("charPrIDRef");
+      String size = null;
+      for (int j = 0; j < styles.getLength(); j++) {
+        var style = (org.w3c.dom.Element) styles.item(j);
+        if (style.getAttribute("id").equals(styleId)) size = style.getAttribute("height");
+      }
+      assertThat(size).isEqualTo("900");
+    }
+  }
+
+  private static org.w3c.dom.Element cell(org.w3c.dom.Document doc, String row, String column) {
+    var table =
+        (org.w3c.dom.Element) doc.getElementsByTagNameNS(HwpxCardRenderer.HP, "tbl").item(1);
+    var cells = table.getElementsByTagNameNS(HwpxCardRenderer.HP, "tc");
+    for (int i = 0; i < cells.getLength(); i++) {
+      var cell = (org.w3c.dom.Element) cells.item(i);
+      var address =
+          (org.w3c.dom.Element)
+              cell.getElementsByTagNameNS(HwpxCardRenderer.HP, "cellAddr").item(0);
+      if (row.equals(address.getAttribute("rowAddr"))
+          && column.equals(address.getAttribute("colAddr"))) return cell;
+    }
+    throw new AssertionError("Missing HWPX cell " + row + ":" + column);
+  }
+
+  @Test
   void conditionCellUsesSelectionOrOtherTextAndNeverLegacyNote() throws Exception {
     var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
     var renderer = new HwpxCardRenderer();
