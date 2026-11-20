@@ -12,7 +12,7 @@ import { MeasurementEditor } from '../components/inspection/MeasurementEditor';
 import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
 import { formatDate, formatWon } from '../lib/format';
-import { PHOTO_SLOTS } from '../types';
+import { LIVE_PHOTO_SLOTS, PHOTO_SLOTS } from '../types';
 import { specialConditionText } from '../lib/specialCondition';
 import type { Phase } from '../types';
 
@@ -31,18 +31,17 @@ export function SiteDetailPage() {
     return () => navigator.serviceWorker.removeEventListener('controllerchange', remember);
   }, [user, site]);
   if (!site) return <p className="loading">불러오는 중...</p>;
-  const info = [
-    ['관리번호', site.managementNo],
-    ['중블록', site.middleBlockId],
-    ['소블록', site.zone],
-    ['성명', site.name],
+  const primaryInfo: [string, string | undefined][] = [
     ['수용가번호', site.consumerNumber || '미등록'],
+    ['계량기번호', site.meterNo],
+    ['관리번호', site.managementNo],
+    ['중블록 / 소블록', [site.middleBlockId, site.zone].filter(Boolean).join(' / ')],
+  ];
+  const extraInfo: [string, string | undefined][] = [
     ['급수전번호', site.waterNo],
     ['업종', site.industry],
-    ['계량기번호', site.meterNo],
     ['봉인여부', site.sealed == null ? '미확인' : site.sealed ? '봉인' : '미봉인'],
     ['급수구역', site.supplyArea],
-    ['도로명주소', site.address],
     ['기존 주소', site.oldAddress],
     ['상호', site.businessName],
     ['구경', site.meterDiameter],
@@ -61,7 +60,6 @@ export function SiteDetailPage() {
         <ArrowLeft size={17} />
         수용가 목록
       </Button>
-      {role === 'ADMIN' && !__MOCKS_ENABLED__ && <HwpxDownloads key={site.id} siteId={site.id} />}
       <section className="detail-head">
         <div>
           <h1>
@@ -72,21 +70,18 @@ export function SiteDetailPage() {
             {site.address}
           </p>
         </div>
-        <Button variant="outline" className="outline-btn" onClick={() => navigate('map')}>
+        <Button
+          variant="outline"
+          className="outline-btn detail-map-link"
+          onClick={() => navigate('map')}
+        >
           <MapPinned size={16} />
           지도 보기
         </Button>
       </section>
-      {user && (
-        <div className="offline-prepare">
-          <Button variant="outline" onClick={openOffline}>
-            오프라인 전송 대기 확인
-          </Button>
-        </div>
-      )}
       <div className="detail-layout">
         <div className="detail-main">
-          <section className="panel info-panel">
+          <section className="panel info-panel site-primary-info">
             <div className="panel-title">
               <h3>수용가 기본정보</h3>
               <span className="readonly">
@@ -94,14 +89,11 @@ export function SiteDetailPage() {
                 읽기 전용
               </span>
             </div>
-            <dl className="info-grid">
-              {info.map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value || '미기재'}</dd>
-                </div>
-              ))}
-            </dl>
+            <InfoGrid rows={primaryInfo} />
+            <details className="site-extra-info">
+              <summary>세부정보 더 보기</summary>
+              <InfoGrid rows={extraInfo} />
+            </details>
             {role === 'ADMIN' && !site.consumerNumber && (
               <Button
                 variant="outline"
@@ -113,11 +105,19 @@ export function SiteDetailPage() {
             )}
           </section>
 
+          <InspectionPanel
+            site={site}
+            phase={phase}
+            setPhase={setPhase}
+            admin={role === 'ADMIN'}
+            onMeasure={() => setEditor('measurement')}
+          />
           <section className="panel photos-panel">
             <div className="panel-title">
               <h3>현장 사진</h3>
               <span className="muted">
-                {site.photos.length}/{PHOTO_SLOTS.length}개 영역
+                {site.photos.length}/{(__MOCKS_ENABLED__ ? PHOTO_SLOTS : LIVE_PHOTO_SLOTS).length}개
+                영역
               </span>
             </div>
             <PhotoEditor key={site.id} site={site} inline onClose={() => {}} />
@@ -132,13 +132,16 @@ export function SiteDetailPage() {
             </div>
             <p>{specialConditionText(site.specialCondition) || '등록된 특이사항이 없습니다.'}</p>
           </section>
-          <InspectionPanel
-            site={site}
-            phase={phase}
-            setPhase={setPhase}
-            admin={role === 'ADMIN'}
-            onMeasure={() => setEditor('measurement')}
-          />
+          {role === 'ADMIN' && !__MOCKS_ENABLED__ && (
+            <HwpxDownloads key={site.id} siteId={site.id} />
+          )}
+          {user && (
+            <div className="offline-prepare">
+              <Button variant="outline" onClick={openOffline}>
+                오프라인 전송 대기 확인
+              </Button>
+            </div>
+          )}
         </div>
         <aside className="detail-side">
           <section className="panel summary-card">
@@ -183,5 +186,18 @@ export function SiteDetailPage() {
       )}
       {editor === 'note' && <NoteEditor site={site} onClose={() => setEditor(undefined)} />}
     </>
+  );
+}
+
+function InfoGrid({ rows }: { rows: [string, string | undefined][] }) {
+  return (
+    <dl className="info-grid">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value || '미기재'}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -19,9 +19,11 @@ import org.w3c.dom.*;
 
 @Component
 public class HwpxCardRenderer {
-  public static final String VERSION = "card-2";
+  public static final String VERSION = "card-3";
   static final String HP = "http://www.hancom.co.kr/hwpml/2011/paragraph";
   static final String HC = "http://www.hancom.co.kr/hwpml/2011/core";
+  private static final String HH = "http://www.hancom.co.kr/hwpml/2011/head";
+  private static final String DATE_STYLE = "51";
   private final Map<String, byte[]> template;
 
   public HwpxCardRenderer() throws IOException {
@@ -32,13 +34,42 @@ public class HwpxCardRenderer {
       for (ZipEntry e; (e = in.getNextEntry()) != null; )
         template.put(e.getName(), in.readAllBytes());
     }
+    template.put("Contents/header.xml", withDateStyle(template.get("Contents/header.xml")));
+  }
+
+  private static byte[] withDateStyle(byte[] headerXml) throws IOException {
+    try {
+      Document header = xml(headerXml);
+      NodeList styles = header.getElementsByTagNameNS(HH, "charPr");
+      for (int i = 0; i < styles.getLength(); i++) {
+        Element base = (Element) styles.item(i);
+        if (!"38".equals(base.getAttribute("id"))) continue;
+        Element date = (Element) base.cloneNode(true);
+        date.setAttribute("id", DATE_STYLE);
+        date.setAttribute("height", "900");
+        Element parent = (Element) base.getParentNode();
+        parent.setAttribute("itemCnt", Integer.toString(styles.getLength() + 1));
+        parent.appendChild(date);
+        return bytes(header);
+      }
+      throw new IOException("Missing HWPX card text style");
+    } catch (Exception ex) {
+      throw new IOException("Cannot prepare HWPX date style", ex);
+    }
   }
 
   public byte[] render(JsonNode snapshot, String title, Map<String, byte[]> photos)
       throws Exception {
     var files = new LinkedHashMap<>(template);
     Document section = xml(files.get("Contents/section0.xml"));
-    Element table = (Element) section.getElementsByTagNameNS(HP, "tbl").item(1);
+    NodeList tables = section.getElementsByTagNameNS(HP, "tbl");
+    Element heading = (Element) tables.item(0);
+    NodeList headingCells = heading.getElementsByTagNameNS(HP, "tc");
+    Element attachmentBadge = (Element) headingCells.item(0);
+    text(attachmentBadge, "");
+    attachmentBadge.setAttribute("borderFillIDRef", "28"); // Transparent template style.
+    ((Element) headingCells.item(1)).setAttribute("borderFillIDRef", "28");
+    Element table = (Element) tables.item(1);
     var cells = new HashMap<String, Element>();
     NodeList all = table.getElementsByTagNameNS(HP, "tc");
     for (int i = 0; i < all.getLength(); i++) {
@@ -55,8 +86,8 @@ public class HwpxCardRenderer {
     text(cells.get("3:2"), supply.isBlank() ? value(site, "consumer_number") : supply);
     text(cells.get("3:7"), value(site, "industry"));
     text(cells.get("4:2"), value(site, "meter_number"));
-    text(cells.get("4:7"), "미확인");
-    text(cells.get("5:2"), "미기재");
+    text(cells.get("4:7"), "봉인있음");
+    text(cells.get("5:2"), value(site, "small_block"));
     SpecialCondition condition =
         SpecialCondition.valueOf(site.path("special_condition").asText("NONE"));
     text(cells.get("5:7"), condition.displayText(site.path("special_description").asText("")));
@@ -65,8 +96,8 @@ public class HwpxCardRenderer {
       if (i.path("phase").asText().equals("START")) start = i;
       else end = i;
     }
-    text(cells.get("7:1"), start == null ? "" : value(start, "inspection_date"));
-    text(cells.get("7:5"), end == null ? "" : value(end, "inspection_date"));
+    inspectionDate(cells.get("7:1"), start);
+    inspectionDate(cells.get("7:5"), end);
     text(
         cells.get("8:1"),
         start == null ? "" : start.path("reading").decimalValue().toPlainString() + " ㎥");
@@ -138,6 +169,13 @@ public class HwpxCardRenderer {
   private static String value(JsonNode node, String key) {
     String v = node.path(key).asText("");
     return v.isBlank() ? "미기재" : v;
+  }
+
+  private static void inspectionDate(Element cell, JsonNode inspection) {
+    Element run = text(cell, inspection == null ? "" : value(inspection, "inspection_date"));
+    run.setAttribute("charPrIDRef", DATE_STYLE);
+    Element subList = (Element) run.getParentNode().getParentNode();
+    subList.setAttribute("lineWrap", "SQUEEZE");
   }
 
   private static Element text(Element cell, String value) {

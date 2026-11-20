@@ -32,11 +32,13 @@ export function HwpxDownloads({
 }) {
   const client = useQueryClient();
   const [title, setTitle] = useState('지방상수도 현대화사업 성과측정을 위한');
+  const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const history = useQuery({
     queryKey: ['document-jobs'],
+    enabled: open,
     queryFn: () => call<History[]>('/exports/cards'),
     refetchInterval: (q) =>
       q.state.data?.some((item) => ['QUEUED', 'RUNNING', 'DELETING'].includes(item.status))
@@ -46,7 +48,7 @@ export function HwpxDownloads({
   const job = useQuery({
     queryKey: ['document-job', jobId],
     queryFn: () => call<Job>(`/exports/cards/${jobId}`),
-    enabled: !!jobId,
+    enabled: open && !!jobId,
     refetchInterval: (q) =>
       q.state.error instanceof ApiError && q.state.error.status === 404
         ? false
@@ -116,115 +118,122 @@ export function HwpxDownloads({
     }
   }
   return (
-    <section className="panel hwpx-panel">
-      <h2>한글 검침카드 (HWPX)</h2>
-      <p>
-        {siteId ? '이 수용가' : smallBlock || middleBlock || '전체 수용가'}의 검침카드를 생성합니다.
-        원경·시작 근경·완료 근경 사진을 넣고 위치도는 비워 둡니다.
-      </p>
-      <label className="field">
-        문서 상단 사업명
-        <input
-          value={title}
-          maxLength={100}
-          onChange={(e) => setTitle(e.target.value)}
-          disabled={busy}
-        />
-      </label>
-      <Button
-        className="primary-btn"
-        onClick={() => void create()}
-        disabled={busy || !title.trim()}
-      >
-        검침카드 생성 요청
-      </Button>
-      <p className="form-help">
-        화면을 닫아도 생성은 계속됩니다. 변경 없는 문서는 재사용하며, 생성이 완료되면 전체를 ZIP
-        하나로 내려받습니다. 파일은 7일간 보관합니다. 사진·정보 변경 후에는 다시 생성해 주세요.
-      </p>
-      {(error || job.error || history.error) && (
-        <p role="alert" className="form-error">
-          {error || job.error?.message || history.error?.message}
+    <details
+      className="admin-disclosure hwpx-disclosure"
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>한글 검침카드 생성</summary>
+      <section className="panel hwpx-panel" aria-label="한글 검침카드 생성 및 다운로드">
+        <p>
+          {siteId ? '이 수용가' : smallBlock || middleBlock || '전체 수용가'}의 검침카드를
+          생성합니다. 원경·시작 근경·완료 근경 사진을 넣고 위치도는 비워 둡니다.
         </p>
-      )}
-      {job.isFetching && !job.data && <p role="status">작업을 확인하는 중…</p>}
-      {job.data && (
-        <div aria-live="polite">
-          <p>
-            {labels[job.data.status] ?? job.data.status} · {job.data.completed.toLocaleString()} /{' '}
-            {job.data.total.toLocaleString()}건
+        <label className="field">
+          문서 상단 사업명
+          <input
+            value={title}
+            maxLength={100}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={busy}
+          />
+        </label>
+        <Button
+          className="primary-btn"
+          onClick={() => void create()}
+          disabled={busy || !title.trim()}
+        >
+          검침카드 생성 요청
+        </Button>
+        <p className="form-help">
+          화면을 닫아도 생성은 계속됩니다. 변경 없는 문서는 재사용하며, 생성이 완료되면 전체를 ZIP
+          하나로 내려받습니다. 파일은 7일간 보관합니다. 사진·정보 변경 후에는 다시 생성해 주세요.
+        </p>
+        {(error || job.error || history.error) && (
+          <p role="alert" className="form-error">
+            {error || job.error?.message || history.error?.message}
           </p>
-          <div className="hwpx-parts">
-            {['QUEUED', 'RUNNING'].includes(job.data.status) && (
-              <Button
-                variant="outline"
-                className="outline-btn"
-                disabled={busy}
-                onClick={() => void manage(job.data!.id, 'cancel')}
-              >
-                생성 취소
-              </Button>
-            )}
-            {job.data.status !== 'DELETING' && (
-              <Button
-                variant="outline"
-                className="outline-btn"
-                disabled={busy}
-                onClick={() => void manage(job.data!.id, 'delete')}
-              >
-                생성 결과 삭제
-              </Button>
-            )}
-          </div>
-          <p className="form-help">
-            취소는 처리 중인 한 건이 끝난 뒤 멈춥니다. 결과 삭제는 다른 작업이 사용하는 문서를
-            보존하며 저장소 삭제는 순차 처리됩니다.
-          </p>
-          {job.data.error && <p className="form-error">{job.data.error}</p>}
-          <Button
-            variant="outline"
-            className="outline-btn"
-            disabled={busy || job.data.status !== 'READY'}
-            onClick={() => void download()}
-          >
-            {busy ? '다운로드 준비 중…' : `전체 ${job.data.total.toLocaleString()}건 ZIP 다운로드`}
-          </Button>
-        </div>
-      )}
-      <details>
-        <summary>최근 생성 요청 (보관 기간 7일)</summary>
-        <ul>
-          {history.data?.map((item) => (
-            <li key={item.id}>
-              <Button variant="ghost" className="text-btn" onClick={() => setJobId(item.id)}>
-                {new Date(item.createdAt).toLocaleString('ko-KR')} · {item.total.toLocaleString()}건
-                보기 · {labels[item.status] ?? item.status} · {item.completed.toLocaleString()}건
-                처리
-              </Button>
-              {['QUEUED', 'RUNNING'].includes(item.status) && (
+        )}
+        {job.isFetching && !job.data && <p role="status">작업을 확인하는 중…</p>}
+        {job.data && (
+          <div aria-live="polite">
+            <p>
+              {labels[job.data.status] ?? job.data.status} · {job.data.completed.toLocaleString()} /{' '}
+              {job.data.total.toLocaleString()}건
+            </p>
+            <div className="hwpx-parts">
+              {['QUEUED', 'RUNNING'].includes(job.data.status) && (
                 <Button
                   variant="outline"
                   className="outline-btn"
                   disabled={busy}
-                  onClick={() => void manage(item.id, 'cancel')}
+                  onClick={() => void manage(job.data!.id, 'cancel')}
                 >
                   생성 취소
                 </Button>
               )}
-              {item.status !== 'DELETING' && (
+              {job.data.status !== 'DELETING' && (
                 <Button
                   variant="outline"
                   className="outline-btn"
                   disabled={busy}
-                  onClick={() => void manage(item.id, 'delete')}
+                  onClick={() => void manage(job.data!.id, 'delete')}
                 >
-                  결과 삭제
+                  생성 결과 삭제
                 </Button>
               )}
-            </li>
-          ))}
-        </ul>
-      </details>
-    </section>
+            </div>
+            <p className="form-help">
+              취소는 처리 중인 한 건이 끝난 뒤 멈춥니다. 결과 삭제는 다른 작업이 사용하는 문서를
+              보존하며 저장소 삭제는 순차 처리됩니다.
+            </p>
+            {job.data.error && <p className="form-error">{job.data.error}</p>}
+            <Button
+              variant="outline"
+              className="outline-btn"
+              disabled={busy || job.data.status !== 'READY'}
+              onClick={() => void download()}
+            >
+              {busy
+                ? '다운로드 준비 중…'
+                : `전체 ${job.data.total.toLocaleString()}건 ZIP 다운로드`}
+            </Button>
+          </div>
+        )}
+        <details>
+          <summary>최근 생성 요청 (보관 기간 7일)</summary>
+          <ul>
+            {history.data?.map((item) => (
+              <li key={item.id}>
+                <Button variant="ghost" className="text-btn" onClick={() => setJobId(item.id)}>
+                  {new Date(item.createdAt).toLocaleString('ko-KR')} · {item.total.toLocaleString()}
+                  건 보기 · {labels[item.status] ?? item.status} · {item.completed.toLocaleString()}
+                  건 처리
+                </Button>
+                {['QUEUED', 'RUNNING'].includes(item.status) && (
+                  <Button
+                    variant="outline"
+                    className="outline-btn"
+                    disabled={busy}
+                    onClick={() => void manage(item.id, 'cancel')}
+                  >
+                    생성 취소
+                  </Button>
+                )}
+                {item.status !== 'DELETING' && (
+                  <Button
+                    variant="outline"
+                    className="outline-btn"
+                    disabled={busy}
+                    onClick={() => void manage(item.id, 'delete')}
+                  >
+                    결과 삭제
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      </section>
+    </details>
   );
 }

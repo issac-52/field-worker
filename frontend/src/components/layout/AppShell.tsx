@@ -1,6 +1,6 @@
 import { useSession } from '../../context/session';
 import { Button } from '../ui/button';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ClipboardList,
   Coins,
@@ -70,6 +70,16 @@ function NavItem({
 export function AppShell({ children }: { children: ReactNode }) {
   const { page, role, switchDemoRole, switchingRole } = useWork();
   const { user, logout, changePassword, openOffline } = useSession();
+  const accountMenu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    function closeOutside(event: PointerEvent) {
+      const menu = accountMenu.current;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target))
+        menu.open = false;
+    }
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, []);
   const [accountError, setAccountError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
   const admin = role === 'ADMIN';
@@ -128,7 +138,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </span>
               </>
             ) : (
-              <details className="account-menu">
+              <details
+                className="account-menu"
+                ref={accountMenu}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Escape' || !event.currentTarget.open) return;
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector('summary')?.focus();
+                }}
+              >
                 <summary className="role-switch">
                   <ShieldCheck size={15} />
                   {admin ? '관리자' : '조사자'}
