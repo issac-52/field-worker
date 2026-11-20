@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class HwpxCardRendererTest {
   @Test
-  void dropsAttachmentBadgeUsesSmallBlockAndKeepsBothDatesOnOneLine() throws Exception {
+  void startsWithTheCardTableAndKeepsBothDatesOnOneLine() throws Exception {
     var snapshot =
         new com.fasterxml.jackson.databind.ObjectMapper()
             .readTree(
@@ -24,9 +24,15 @@ class HwpxCardRendererTest {
         files.put(entry.getName(), zip.readAllBytes());
     }
     var doc = HwpxCardRenderer.xml(files.get("Contents/section0.xml"));
-    assertThat(doc.getDocumentElement().getTextContent())
-        .doesNotContain("붙임.2")
-        .contains("검침카드 양식");
+    var firstParagraph = (org.w3c.dom.Element) doc.getDocumentElement().getFirstChild();
+    assertThat(firstParagraph.getLocalName()).isEqualTo("p");
+    assertThat(firstParagraph.getElementsByTagNameNS(HwpxCardRenderer.HP, "secPr").getLength())
+        .isEqualTo(1);
+    assertThat(firstParagraph.getElementsByTagNameNS(HwpxCardRenderer.HP, "tbl").getLength())
+        .isEqualTo(1);
+    assertThat(doc.getElementsByTagNameNS(HwpxCardRenderer.HP, "tbl").getLength()).isEqualTo(1);
+    assertThat(doc.getDocumentElement().getTextContent()).doesNotContain("붙임.2", "검침카드 양식");
+    assertThat(cell(doc, "0", "0").getTextContent()).isEqualTo("Test 수용가 검침 카드");
     assertThat(cell(doc, "4", "7").getTextContent()).isEqualTo("봉인있음");
     assertThat(cell(doc, "5", "2").getTextContent()).isEqualTo("가상 소블록");
     var header = HwpxCardRenderer.xml(files.get("Contents/header.xml"));
@@ -53,7 +59,7 @@ class HwpxCardRendererTest {
 
   private static org.w3c.dom.Element cell(org.w3c.dom.Document doc, String row, String column) {
     var table =
-        (org.w3c.dom.Element) doc.getElementsByTagNameNS(HwpxCardRenderer.HP, "tbl").item(1);
+        (org.w3c.dom.Element) doc.getElementsByTagNameNS(HwpxCardRenderer.HP, "tbl").item(0);
     var cells = table.getElementsByTagNameNS(HwpxCardRenderer.HP, "tc");
     for (int i = 0; i < cells.getLength(); i++) {
       var cell = (org.w3c.dom.Element) cells.item(i);
@@ -118,14 +124,20 @@ class HwpxCardRendererTest {
             .render(snapshot, "Test", java.util.Map.of("OVERVIEW", source.toByteArray()));
     boolean found = false;
     try (var zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(result))) {
-      for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null; )
-        if (entry.getName().endsWith(".jpg")) {
+      for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null; ) {
+        if (entry.getName().equals("Contents/section0.xml")) {
+          var doc = HwpxCardRenderer.xml(zip.readAllBytes());
+          var photoCell = cell(doc, "10", "4");
+          assertThat(photoCell.getElementsByTagNameNS(HwpxCardRenderer.HP, "pic").getLength())
+              .isEqualTo(1);
+        } else if (entry.getName().endsWith(".jpg")) {
           found = true;
           assertThat(entry.getMethod()).isEqualTo(java.util.zip.ZipEntry.STORED);
           assertThat(
                   javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(zip.readAllBytes())))
               .isNotNull();
         }
+      }
     }
     assertThat(found).isTrue();
   }

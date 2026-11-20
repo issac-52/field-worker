@@ -19,7 +19,7 @@ import org.w3c.dom.*;
 
 @Component
 public class HwpxCardRenderer {
-  public static final String VERSION = "card-3";
+  public static final String VERSION = "card-4";
   static final String HP = "http://www.hancom.co.kr/hwpml/2011/paragraph";
   static final String HC = "http://www.hancom.co.kr/hwpml/2011/core";
   private static final String HH = "http://www.hancom.co.kr/hwpml/2011/head";
@@ -64,12 +64,11 @@ public class HwpxCardRenderer {
     Document section = xml(files.get("Contents/section0.xml"));
     NodeList tables = section.getElementsByTagNameNS(HP, "tbl");
     Element heading = (Element) tables.item(0);
-    NodeList headingCells = heading.getElementsByTagNameNS(HP, "tc");
-    Element attachmentBadge = (Element) headingCells.item(0);
-    text(attachmentBadge, "");
-    attachmentBadge.setAttribute("borderFillIDRef", "28"); // Transparent template style.
-    ((Element) headingCells.item(1)).setAttribute("borderFillIDRef", "28");
     Element table = (Element) tables.item(1);
+    Node cardParagraph = table.getParentNode().getParentNode();
+    // The first paragraph holds section and page settings. Replace only its heading table.
+    heading.getParentNode().replaceChild(table, heading);
+    cardParagraph.getParentNode().removeChild(cardParagraph);
     var cells = new HashMap<String, Element>();
     NodeList all = table.getElementsByTagNameNS(HP, "tc");
     for (int i = 0; i < all.getLength(); i++) {
