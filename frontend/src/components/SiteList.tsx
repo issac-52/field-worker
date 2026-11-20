@@ -25,11 +25,19 @@ export function SiteList({
             onClick={() => onSelect(site.id)}
           >
             <SiteStatusIcon site={site} phase={phase} />
-            <strong className="site-name">{site.name || '성명 미기재'}</strong>
-            <span className="mini-index">#{site.managementNo}</span>
-            <span className="site-zone">{site.zone}</span>
+            <strong className="site-name" title={site.name}>
+              {site.name || '성명 미기재'}
+            </strong>
+            <span className="site-row-meta">
+              <span className="mini-index" title={site.managementNo}>
+                {site.managementNo && '#' + site.managementNo}
+              </span>
+              <span className="site-zone" title={site.zone}>
+                {site.zone}
+              </span>
+            </span>
             <span className="site-address" title={site.address}>
-              {site.address.replace('경산시 ', '')}
+              {site.address.replace(/^경산시 /, '') || '주소 미기재'}
             </span>
           </Button>
         ))}
