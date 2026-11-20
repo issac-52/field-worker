@@ -49,7 +49,12 @@ public class DocumentService {
     this.tx = new TransactionTemplate(manager);
   }
 
-  public record Request(Long siteId, String middleBlock, String smallBlock, String title) {}
+  public record Request(
+      Long siteId, String middleBlock, String smallBlock, String title, boolean groupedByBlock) {
+    public Request(Long siteId, String middleBlock, String smallBlock, String title) {
+      this(siteId, middleBlock, smallBlock, title, false);
+    }
+  }
 
   public UUID create(Request request, long actor) {
     String title = Objects.toString(request.title(), "").strip();
@@ -78,27 +83,56 @@ public class DocumentService {
             where += " and small_block=?";
             args.add(request.smallBlock());
           }
-          var ids =
+          var sites =
               db.queryForList(
-                  "select id from worksites where " + where + " order by id limit 50001",
-                  Long.class,
+                  "select id, middle_block, small_block from worksites where "
+                      + where
+                      + (request.groupedByBlock()
+                          ? " order by middle_block,small_block,id"
+                          : " order by id")
+                      + " limit 50001",
                   args.toArray());
-          if (ids.isEmpty()) throw new ApiException(400, "EMPTY_EXPORT", "선택한 조건에 수용가가 없습니다.");
-          if (ids.size() > 50000)
+          if (sites.isEmpty()) throw new ApiException(400, "EMPTY_EXPORT", "선택한 조건에 수용가가 없습니다.");
+          if (sites.size() > 50000)
             throw new ApiException(400, "EXPORT_LIMIT", "블록을 나누어 50,000건 이하로 요청하세요.");
           UUID id = UUID.randomUUID();
           db.update(
-              "insert into document_jobs(id,created_by,title,total) values(?,?,?,?)",
+              "insert into document_jobs(id,created_by,title,total,grouped_by_block)"
+                  + " values(?,?,?,?,?)",
               id,
               actor,
               title,
-              ids.size());
+              sites.size(),
+              request.groupedByBlock());
           var rows = new ArrayList<Object[]>();
-          for (int i = 0; i < ids.size(); i++) rows.add(new Object[] {id, i + 1, ids.get(i)});
+          List<String> previous = null;
+          String filename = null;
+          int group = 0;
+          for (var site : sites) {
+            if (request.groupedByBlock()) {
+              var key =
+                  Arrays.asList(
+                      (String) site.get("middle_block"), (String) site.get("small_block"));
+              if (!key.equals(previous)) {
+                previous = key;
+                filename =
+                    (++group) + "-" + fileLabel(key.get(0)) + "-" + fileLabel(key.get(1)) + ".hwpx";
+              }
+            }
+            rows.add(new Object[] {id, rows.size() + 1, site.get("id"), filename});
+          }
           db.batchUpdate(
-              "insert into document_job_items(job_id,ordinal,site_id) values(?,?,?)", rows);
+              "insert into document_job_items(job_id,ordinal,site_id,block_file) values(?,?,?,?)",
+              rows);
           return id;
         });
+  }
+
+  private static String fileLabel(String value) {
+    if (value == null || value.isBlank()) return "미기재";
+    String clean = value.strip().replaceAll("[^\\p{L}\\p{N} _.-]", "_");
+    return clean.substring(
+        0, clean.offsetByCodePoints(0, Math.min(26, clean.codePointCount(0, clean.length()))));
   }
 
   public void cancel(UUID id, long actor) {
@@ -195,10 +229,10 @@ public class DocumentService {
 
   public List<Map<String, Object>> list(long actor) {
     return db.queryForList(
-        "select id,title,case when delete_requested then 'DELETING' else status end as"
-            + " status,total,completed,error,created_at as \"createdAt\",expires_at as"
-            + " \"expiresAt\" from document_jobs where created_by=? and expires_at>now() order by"
-            + " created_at desc limit 20",
+        "select id,title,grouped_by_block as \"groupedByBlock\",case when delete_requested then"
+            + " 'DELETING' else status end as status,total,completed,error,created_at as"
+            + " \"createdAt\",expires_at as \"expiresAt\" from document_jobs where created_by=? and"
+            + " expires_at>now() order by created_at desc limit 20",
         actor);
   }
 
@@ -228,6 +262,8 @@ public class DocumentService {
         job.get("completed"),
         "error",
         Objects.toString(job.get("error"), ""),
+        "groupedByBlock",
+        job.get("grouped_by_block"),
         "parts",
         db.queryForList(
             "select part,first_ordinal as \"firstOrdinal\",last_ordinal as \"lastOrdinal\" from"
@@ -300,18 +336,42 @@ jsonb_build_object('site',to_jsonb(s),
     // Flatten the existing batches: the final ZIP contains HWPX files, not nested ZIPs.
     try (var zip = new ZipOutputStream(output)) {
       zip.setLevel(settings.zipCompressionLevel());
-      for (String key : parts) {
-        try (var input = new ZipInputStream(new ByteArrayInputStream(storage.get(key)))) {
-          for (ZipEntry entry; (entry = input.getNextEntry()) != null; ) {
-            if (!entry.getName().matches("site-[0-9]+\\.hwpx"))
-              throw new IOException("Invalid document entry");
-            zip.putNextEntry(new ZipEntry(entry.getName()));
-            input.transferTo(zip);
-            zip.closeEntry();
+      var groups =
+          db.queryForList(
+              "select block_file from document_job_items where job_id=? and block_file is not null"
+                  + " order by ordinal",
+              String.class,
+              id);
+      String previous = null;
+      BlockBook book = null;
+      int ordinal = 0;
+      try {
+        for (String key : parts) {
+          try (var input = new ZipInputStream(new ByteArrayInputStream(storage.get(key)))) {
+            for (ZipEntry entry; (entry = input.getNextEntry()) != null; ) {
+              if (!entry.getName().matches("site-[0-9]+\\.hwpx"))
+                throw new IOException("Invalid document entry");
+              if (!groups.isEmpty()) {
+                String filename = groups.get(ordinal++);
+                if (!filename.equals(previous)) {
+                  if (book != null) book.close();
+                  zip.putNextEntry(new ZipEntry(filename));
+                  book = new BlockBook(zip);
+                  previous = filename;
+                }
+                book.append(input.readAllBytes());
+                continue;
+              }
+              zip.putNextEntry(new ZipEntry(entry.getName()));
+              input.transferTo(zip);
+              zip.closeEntry();
+            }
           }
+          zip.flush();
+          output.flush();
         }
-        zip.flush();
-        output.flush();
+      } finally {
+        if (book != null) book.close();
       }
       zip.finish();
       zip.flush();

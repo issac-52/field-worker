@@ -6,13 +6,16 @@ import { Button } from './ui/button';
 type Job = {
   id: string;
   title: string;
+  groupedByBlock?: boolean;
   status: string;
   total: number;
   completed: number;
   error: string;
   parts: { part: number; firstOrdinal: number; lastOrdinal: number }[];
 };
-type History = Pick<Job, 'id' | 'title' | 'status' | 'total' | 'completed'> & { createdAt: string };
+type History = Pick<Job, 'id' | 'title' | 'groupedByBlock' | 'status' | 'total' | 'completed'> & {
+  createdAt: string;
+};
 const labels: Record<string, string> = {
   QUEUED: '대기 중',
   RUNNING: '생성 중',
@@ -31,6 +34,7 @@ export function HwpxDownloads({
   smallBlock?: string;
 }) {
   const client = useQueryClient();
+  const [groupedByBlock, setGroupedByBlock] = useState(false);
   const [title, setTitle] = useState('지방상수도 현대화사업 성과측정을 위한');
   const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState<string>();
@@ -67,6 +71,7 @@ export function HwpxDownloads({
           middleBlock: middleBlock || undefined,
           smallBlock: smallBlock || undefined,
           title: title.trim(),
+          groupedByBlock: !siteId && groupedByBlock,
         }),
       });
       setJobId(result.id);
@@ -128,6 +133,19 @@ export function HwpxDownloads({
           {siteId ? '이 수용가' : smallBlock || middleBlock || '전체 수용가'}의 검침카드를
           생성합니다. 원경·시작 근경·완료 근경 사진을 넣고 위치도는 비워 둡니다.
         </p>
+        {!siteId && (
+          <label className="field">
+            파일 구성
+            <select
+              value={groupedByBlock ? 'block' : 'site'}
+              onChange={(event) => setGroupedByBlock(event.target.value === 'block')}
+              disabled={busy}
+            >
+              <option value="site">수용가별 개별 파일</option>
+              <option value="block">소블록별 한 파일 (수용가당 한 페이지)</option>
+            </select>
+          </label>
+        )}
         <label className="field">
           문서 상단 사업명
           <input
@@ -157,6 +175,7 @@ export function HwpxDownloads({
         {job.data && (
           <div aria-live="polite">
             <p>
+              {job.data.groupedByBlock ? '소블록별' : '수용가별'} ·{' '}
               {labels[job.data.status] ?? job.data.status} · {job.data.completed.toLocaleString()} /{' '}
               {job.data.total.toLocaleString()}건
             </p>
@@ -205,6 +224,7 @@ export function HwpxDownloads({
             {history.data?.map((item) => (
               <li key={item.id}>
                 <Button variant="ghost" className="text-btn" onClick={() => setJobId(item.id)}>
+                  {item.groupedByBlock ? '소블록별' : '수용가별'} ·{' '}
                   {new Date(item.createdAt).toLocaleString('ko-KR')} · {item.total.toLocaleString()}
                   건 보기 · {labels[item.status] ?? item.status} · {item.completed.toLocaleString()}
                   건 처리
