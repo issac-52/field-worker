@@ -339,7 +339,7 @@ public class HwpxCardRenderer {
     return f.newDocumentBuilder().parse(new ByteArrayInputStream(input));
   }
 
-  private static byte[] bytes(Document doc) throws Exception {
+  static byte[] bytes(Document doc) throws Exception {
     var f = TransformerFactory.newInstance();
     f.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
     f.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");

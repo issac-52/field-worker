@@ -317,6 +317,61 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void groupsCardsAcrossWorkerPartsAndKeepsTheirPhotosSeparate() throws Exception {
+    db.update("update worksites set small_block='A/B' where id=?", site);
+    db.update(
+        "insert into"
+            + " worksites(consumer_number,middle_block,small_block,source_cells,source_sheet,source_row,import_job_id)"
+            + " select ?||n,?,case when n<=50 then 'A/B' else null end,'{}','Test',3,? from"
+            + " generate_series(1,51)n",
+        UUID.randomUUID().toString(),
+        block,
+        importId);
+    var picture =
+        new java.awt.image.BufferedImage(10, 10, java.awt.image.BufferedImage.TYPE_INT_RGB);
+    var bytes = new ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(picture, "png", bytes);
+    for (long target :
+        db.queryForList(
+            "select id from worksites where middle_block=? order by id limit 2", Long.class, block))
+      photos.upload(target, PhotoService.Slot.OVERVIEW, bytes.toByteArray(), actor, null, true);
+    UUID job = service.create(new DocumentService.Request(null, block, null, "가상군", true), actor);
+    service.tick();
+    service.tick();
+    assertThat(service.status(job, actor).get("groupedByBlock")).isEqualTo(true);
+    var output = new ByteArrayOutputStream();
+    service.writeWholeZip(job, actor, output);
+    var books = unzip(output.toByteArray());
+    assertThat(books).hasSize(2);
+    var first =
+        books.entrySet().stream()
+            .filter(e -> e.getKey().endsWith("-A_B.hwpx"))
+            .findFirst()
+            .orElseThrow();
+    var entries = unzip(first.getValue());
+    assertThat(entries)
+        .containsKeys(
+            "Contents/section50.xml", "BinData/s0_cardImage1.jpg", "BinData/s1_cardImage1.jpg");
+    for (int i = 0; i < 2; i++)
+      assertThat(
+              new String(
+                  entries.get("Contents/section" + i + ".xml"),
+                  java.nio.charset.StandardCharsets.UTF_8))
+          .contains("binaryItemIDRef=\"s" + i + "_cardImage1\"");
+    Path sample = Files.createTempFile("grouped-card-", ".hwpx");
+    try {
+      Files.write(sample, first.getValue());
+      assertThat(
+              kr.dogfoot.hwpxlib.reader.HWPXReader.fromFile(sample.toFile())
+                  .sectionXMLFileList()
+                  .count())
+          .isEqualTo(51);
+    } finally {
+      Files.deleteIfExists(sample);
+    }
+  }
+
+  @Test
   void splitsJobsAndExpiresArtifacts() throws Exception {
     db.update(
         "insert into"

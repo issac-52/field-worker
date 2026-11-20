@@ -167,3 +167,5 @@ POST `/api/admin/imports`는 `updateExisting=true`이면 신규 번호는 등록
 ## 최종본에 없는 수용가 삭제
 
 ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 보낸다. FINAL 양식의 대상 시트 전체(숨김 행 포함)를 기준으로 비교한다. 응답은 기존 삭제 미리보기 형태에 `scope=MISSING_FROM_FINAL`, `fileRows`, `matchingNumbers`를 포함한다. 기존 플랜 실행 API로 소유자·유효기간·DB 변경 여부·정산 상태·확인 문구를 검증한다. 파일 50MiB, 요청 51MiB 한도다.
+
+검침카드 생성 요청 `POST /api/exports/cards`의 선택 필드 `groupedByBlock`은 기본값이 false다. true이면 전체 다운로드 ZIP에 중블록·소블록 조합별 HWPX를 담는다. 작업 목록과 상세 응답에도 선택한 값이 포함된다. 개별 수용가 화면은 기존 개별 파일 형식을 요청한다.
