@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { ChevronRight, Download, FileText, Plus, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { call, ApiError } from '../api/client';
 import { Button } from './ui/button';
@@ -21,6 +22,28 @@ const labels: Record<string, string> = {
   CANCELLED: '취소됨',
   DELETING: '삭제 중',
 };
+const historyDate = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const isGenerating = (status: string) => status === 'QUEUED' || status === 'RUNNING';
+
+function formatJobTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '요청 시각 미기재' : historyDate.format(date);
+}
+
+function Status({ status }: { status: string }) {
+  return (
+    <span className="hwpx-status" data-status={status}>
+      {labels[status] ?? status}
+    </span>
+  );
+}
+
 export function HwpxDownloads({
   siteId,
   middleBlock,
@@ -34,7 +57,10 @@ export function HwpxDownloads({
   const [title, setTitle] = useState('지방상수도 현대화사업 성과측정을 위한');
   const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'create' | 'cancel' | 'delete' | 'download'>();
+  const [showHistory, setShowHistory] = useState(false);
+  const currentJob = useRef<HTMLElement>(null);
+  const jobHeading = useId();
   const [error, setError] = useState('');
   const history = useQuery({
     queryKey: ['document-jobs'],
@@ -56,8 +82,19 @@ export function HwpxDownloads({
           ? 2000
           : false,
   });
+  function selectJob(id: string) {
+    setJobId(id);
+    setError('');
+    window.requestAnimationFrame(() => {
+      currentJob.current?.focus({ preventScroll: true });
+      currentJob.current?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
   async function create() {
-    setBusy(true);
+    const documentTitle = title.replace(/[\r\n]+/g, ' ').trim();
+    if (busy || !documentTitle) return;
+    setBusy('create');
     setError('');
     try {
       const result = await call<{ id: string }>('/exports/cards', {
@@ -66,18 +103,19 @@ export function HwpxDownloads({
           siteId,
           middleBlock: middleBlock || undefined,
           smallBlock: smallBlock || undefined,
-          title: title.trim(),
+          title: documentTitle,
         }),
       });
-      setJobId(result.id);
+      selectJob(result.id);
       await client.invalidateQueries({ queryKey: ['document-jobs'] });
     } catch (e) {
       setError(e instanceof Error ? e.message : '문서 생성 요청 실패');
     } finally {
-      setBusy(false);
+      setBusy(undefined);
     }
   }
   async function manage(id: string, action: 'cancel' | 'delete') {
+    if (busy) return;
     if (
       action === 'delete' &&
       !window.confirm(
@@ -85,7 +123,7 @@ export function HwpxDownloads({
       )
     )
       return;
-    setBusy(true);
+    setBusy(action);
     setError('');
     try {
       await call(`/exports/cards/${id}${action === 'cancel' ? '/cancel' : ''}`, {
@@ -97,11 +135,12 @@ export function HwpxDownloads({
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업 변경 실패');
     } finally {
-      setBusy(false);
+      setBusy(undefined);
     }
   }
   async function download() {
-    setBusy(true);
+    if (busy || job.data?.status !== 'READY') return;
+    setBusy('download');
     setError('');
     try {
       await call(`/exports/cards/${jobId}/download-check`);
@@ -114,125 +153,193 @@ export function HwpxDownloads({
     } catch (e) {
       setError(e instanceof Error ? e.message : '다운로드 실패');
     } finally {
-      setBusy(false);
+      setBusy(undefined);
     }
   }
+  const scope = siteId ? '이 수용가' : smallBlock || middleBlock || '전체 수용가';
+  const selected = job.data;
+  const records = history.data ?? [];
+  const visibleHistory = showHistory ? records : records.slice(0, 3);
   return (
     <details
       className="admin-disclosure hwpx-disclosure"
       onToggle={(e) => setOpen(e.currentTarget.open)}
     >
-      <summary>한글 검침카드 생성</summary>
-      <section className="panel hwpx-panel" aria-label="한글 검침카드 생성 및 다운로드">
-        <p>
-          {siteId ? '이 수용가' : smallBlock || middleBlock || '전체 수용가'}의 검침카드를
-          생성합니다. 원경·시작 근경·완료 근경 사진을 넣고 위치도는 비워 둡니다.
-        </p>
-        <label className="field">
-          문서 상단 사업명
-          <input
-            value={title}
-            maxLength={100}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={busy}
-          />
-        </label>
-        <Button
-          className="primary-btn"
-          onClick={() => void create()}
-          disabled={busy || !title.trim()}
+      <summary>
+        <span className="hwpx-trigger">
+          <span className="hwpx-icon">
+            <FileText size={20} aria-hidden="true" />
+          </span>
+          <span>
+            <strong>한글 검침카드 생성</strong>
+            <small>{scope}</small>
+          </span>
+        </span>
+      </summary>
+      <section className="hwpx-panel" aria-label="한글 검침카드 생성 및 다운로드">
+        <form
+          className="hwpx-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void create();
+          }}
         >
-          검침카드 생성 요청
-        </Button>
-        <p className="form-help">
-          화면을 닫아도 생성은 계속됩니다. 변경 없는 문서는 재사용하며, 생성이 완료되면 전체를 ZIP
-          하나로 내려받습니다. 파일은 7일간 보관합니다. 사진·정보 변경 후에는 다시 생성해 주세요.
-        </p>
-        {(error || job.error || history.error) && (
+          <label className="hwpx-title">
+            <span>문서 상단 사업명</span>
+            <textarea
+              rows={2}
+              value={title}
+              maxLength={100}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={!!busy}
+            />
+          </label>
+          <Button type="submit" className="primary-btn" disabled={!!busy || !title.trim()}>
+            <Plus size={17} aria-hidden="true" />
+            {busy === 'create' ? '요청 중…' : '검침카드 생성 요청'}
+          </Button>
+        </form>
+        {error && (
           <p role="alert" className="form-error">
-            {error || job.error?.message || history.error?.message}
+            {error}
           </p>
         )}
-        {job.isFetching && !job.data && <p role="status">작업을 확인하는 중…</p>}
-        {job.data && (
-          <div aria-live="polite">
-            <p>
-              {labels[job.data.status] ?? job.data.status} · {job.data.completed.toLocaleString()} /{' '}
-              {job.data.total.toLocaleString()}건
-            </p>
-            <div className="hwpx-parts">
-              {['QUEUED', 'RUNNING'].includes(job.data.status) && (
-                <Button
-                  variant="outline"
-                  className="outline-btn"
-                  disabled={busy}
-                  onClick={() => void manage(job.data!.id, 'cancel')}
-                >
-                  생성 취소
-                </Button>
-              )}
-              {job.data.status !== 'DELETING' && (
-                <Button
-                  variant="outline"
-                  className="outline-btn"
-                  disabled={busy}
-                  onClick={() => void manage(job.data!.id, 'delete')}
-                >
-                  생성 결과 삭제
-                </Button>
-              )}
+        {jobId && (
+          <section ref={currentJob} tabIndex={-1} className="hwpx-job" aria-labelledby={jobHeading}>
+            <div className="hwpx-job-heading">
+              <h3 id={jobHeading}>{selected?.title || '선택한 작업'}</h3>
+              {selected && <Status status={selected.status} />}
             </div>
-            <p className="form-help">
-              취소는 처리 중인 한 건이 끝난 뒤 멈춥니다. 결과 삭제는 다른 작업이 사용하는 문서를
-              보존하며 저장소 삭제는 순차 처리됩니다.
-            </p>
-            {job.data.error && <p className="form-error">{job.data.error}</p>}
-            <Button
-              variant="outline"
-              className="outline-btn"
-              disabled={busy || job.data.status !== 'READY'}
-              onClick={() => void download()}
-            >
-              {busy
-                ? '다운로드 준비 중…'
-                : `전체 ${job.data.total.toLocaleString()}건 ZIP 다운로드`}
-            </Button>
-          </div>
-        )}
-        <details>
-          <summary>최근 생성 요청 (보관 기간 7일)</summary>
-          <ul>
-            {history.data?.map((item) => (
-              <li key={item.id}>
-                <Button variant="ghost" className="text-btn" onClick={() => setJobId(item.id)}>
-                  {new Date(item.createdAt).toLocaleString('ko-KR')} · {item.total.toLocaleString()}
-                  건 보기 · {labels[item.status] ?? item.status} · {item.completed.toLocaleString()}
-                  건 처리
+            {job.error ? (
+              <>
+                <p role="alert">{job.error.message}</p>
+                <Button type="button" variant="outline" onClick={() => void job.refetch()}>
+                  작업 다시 불러오기
                 </Button>
-                {['QUEUED', 'RUNNING'].includes(item.status) && (
+              </>
+            ) : !selected ? (
+              <p role="status">작업을 불러오는 중…</p>
+            ) : (
+              <>
+                <div className="hwpx-job-progress">
+                  <span>{selected.status === 'READY' ? '생성 완료' : '처리 건수'}</span>
+                  <strong>
+                    {selected.completed.toLocaleString()} / {selected.total.toLocaleString()}건
+                  </strong>
+                </div>
+                {isGenerating(selected.status) && (
+                  <>
+                    <progress
+                      max={Math.max(1, selected.total)}
+                      value={selected.completed}
+                      aria-label="검침카드 생성 진행률"
+                    />
+                    <p>이 화면을 닫아도 생성은 계속됩니다.</p>
+                  </>
+                )}
+                {selected.error && (
+                  <p role="alert" className="form-error">
+                    {selected.error}
+                  </p>
+                )}
+                {selected.status === 'READY' && (
                   <Button
-                    variant="outline"
-                    className="outline-btn"
-                    disabled={busy}
-                    onClick={() => void manage(item.id, 'cancel')}
+                    type="button"
+                    className="primary-btn hwpx-download"
+                    disabled={!!busy}
+                    onClick={() => void download()}
                   >
-                    생성 취소
+                    <Download size={18} aria-hidden="true" />
+                    {busy === 'download' ? '다운로드 준비 중…' : '전체 ZIP 다운로드'}
                   </Button>
                 )}
-                {item.status !== 'DELETING' && (
-                  <Button
-                    variant="outline"
-                    className="outline-btn"
-                    disabled={busy}
-                    onClick={() => void manage(item.id, 'delete')}
-                  >
-                    결과 삭제
-                  </Button>
+                {selected.status !== 'DELETING' && (
+                  <details className="hwpx-job-options" key={selected.id}>
+                    <summary>작업 관리</summary>
+                    <div>
+                      {isGenerating(selected.status) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!!busy}
+                          onClick={() => void manage(selected.id, 'cancel')}
+                        >
+                          {busy === 'cancel' ? '취소 중…' : '생성 취소'}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="hwpx-delete"
+                        disabled={!!busy}
+                        onClick={() => void manage(selected.id, 'delete')}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                        {busy === 'delete' ? '삭제 중…' : '결과 삭제'}
+                      </Button>
+                    </div>
+                  </details>
                 )}
-              </li>
-            ))}
-          </ul>
-        </details>
+              </>
+            )}
+          </section>
+        )}
+        <section className="hwpx-history" aria-label="내 최근 생성 작업">
+          <div className="hwpx-history-heading">
+            <h3>최근 작업</h3>
+            <span>7일 보관</span>
+          </div>
+          {history.error ? (
+            <div className="hwpx-history-message">
+              <p role="alert">{history.error.message}</p>
+              <Button type="button" variant="outline" onClick={() => void history.refetch()}>
+                목록 다시 불러오기
+              </Button>
+            </div>
+          ) : history.isPending ? (
+            <p role="status" className="hwpx-history-message">
+              최근 작업을 불러오는 중…
+            </p>
+          ) : records.length === 0 ? (
+            <p className="hwpx-history-message">아직 생성 요청이 없습니다.</p>
+          ) : (
+            <>
+              <ul className="hwpx-history-list">
+                {visibleHistory.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="hwpx-history-item"
+                      aria-current={item.id === jobId ? 'true' : undefined}
+                      disabled={!!busy}
+                      onClick={() => selectJob(item.id)}
+                    >
+                      <span className="hwpx-history-label">
+                        <strong>{item.title}</strong>
+                        <small>
+                          {formatJobTime(item.createdAt)} · {item.total.toLocaleString()}건
+                        </small>
+                      </span>
+                      <Status status={item.status} />
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {records.length > 3 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="hwpx-history-more"
+                  aria-expanded={showHistory}
+                  onClick={() => setShowHistory((value) => !value)}
+                >
+                  {showHistory ? '최근 3건만 보기' : `최근 작업 ${records.length}건 모두 보기`}
+                </Button>
+              )}
+            </>
+          )}
+        </section>
       </section>
     </details>
   );

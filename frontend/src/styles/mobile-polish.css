@@ -31,10 +31,6 @@
   transform: rotate(225deg);
 }
 
-.hwpx-disclosure .hwpx-panel {
-  margin-bottom: 0;
-}
-
 .site-extra-info {
   margin-top: 10px;
   border-top: 1px solid var(--color-border);
