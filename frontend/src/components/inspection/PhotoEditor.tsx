@@ -119,18 +119,16 @@ export function PhotoEditor({
                 )}
               </Button>
               <div className="photo-slot-actions">
-                {!inline && (
-                  <Button
-                    variant="outline"
-                    className="outline-btn"
-                    aria-label={`${PHOTO_LABEL[slot]} 촬영`}
-                    disabled={busy || reading}
-                    onClick={() => choose(slot, true)}
-                  >
-                    <Camera size={16} />
-                    촬영
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="outline-btn"
+                  aria-label={`${PHOTO_LABEL[slot]} 촬영`}
+                  disabled={busy || reading}
+                  onClick={() => choose(slot, true)}
+                >
+                  <Camera size={16} />
+                  촬영
+                </Button>
                 {!inline && (
                   <Button
                     variant="outline"

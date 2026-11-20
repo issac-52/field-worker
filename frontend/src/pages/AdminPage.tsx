@@ -29,7 +29,7 @@ const CARDS = [
   {
     page: 'reports',
     label: '문서 출력',
-    description: '출력 대상 조회 · HWP 준비 중',
+    description: '한글 검침카드 · Excel 다운로드',
     color: 'blue',
     Icon: FileText,
   },

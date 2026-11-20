@@ -1,0 +1,252 @@
+.admin-disclosure > summary,
+.site-extra-info > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-disclosure > summary::-webkit-details-marker,
+.site-extra-info > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-disclosure > summary::after,
+.site-extra-info > summary::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  flex: none;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.admin-disclosure[open] > summary::after,
+.site-extra-info[open] > summary::after {
+  transform: rotate(225deg);
+}
+
+.hwpx-disclosure .hwpx-panel {
+  margin-bottom: 0;
+}
+
+.site-extra-info {
+  margin-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.site-extra-info summary {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.site-extra-info[open] .info-grid {
+  padding: 8px 0;
+}
+
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-field .ui-input {
+  min-width: 0;
+  box-shadow: none;
+}
+
+.search-clear {
+  flex: none;
+  margin-inline-end: -8px;
+}
+
+.site-row-meta {
+  display: contents;
+}
+
+@media (max-width: 760px) {
+  .content {
+    padding-top: 15px;
+  }
+
+  .detail-head {
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .detail-head > div {
+    min-width: 0;
+  }
+
+  .detail-head h1,
+  .detail-head p {
+    overflow-wrap: anywhere;
+  }
+
+  .detail-map-link {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+
+  .detail-layout .detail-main {
+    gap: 12px;
+  }
+
+  .reading-panel .phase-empty {
+    padding: 14px 0;
+  }
+
+  .reading-panel > .primary-btn {
+    width: 100%;
+  }
+
+  .site-primary-info .info-grid {
+    gap: 10px 14px;
+  }
+
+  .search-panel {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .search-field {
+    min-height: 46px;
+  }
+
+  .search-field .ui-input {
+    font-size: 16px;
+  }
+
+  .compact-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin: 8px 0 10px;
+  }
+
+  .compact-filters button {
+    min-height: 44px;
+    padding-inline: 3px;
+    white-space: nowrap;
+  }
+
+  .site-panel {
+    overflow-x: hidden;
+  }
+
+  .site-row {
+    min-width: 0;
+    width: 100%;
+    min-height: 62px;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'status name meta'
+      'status address address';
+    gap: 3px 8px;
+    padding: 9px 12px;
+    justify-items: start;
+  }
+
+  .site-row > .site-status-icon {
+    grid-area: status;
+    position: static;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .site-row:hover > .site-status-icon {
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .site-row .site-name {
+    grid-area: name;
+    max-width: 100%;
+  }
+
+  .site-row-meta {
+    grid-area: meta;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    max-width: min(38vw, 180px);
+  }
+
+  .site-row-meta > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--color-muted);
+  }
+
+  .site-row .site-address {
+    grid-area: address;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    color: var(--color-muted);
+    text-align: left;
+  }
+
+  .site-status-legend {
+    gap: 7px 10px;
+    flex-wrap: wrap;
+  }
+
+  .quick-grid .quick-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    justify-items: center;
+    text-align: center;
+    gap: 6px;
+    min-height: 82px;
+    padding: 9px 5px;
+  }
+
+  .quick-grid .quick-card :is(.quick-icon, b) {
+    grid-area: auto;
+  }
+
+  .quick-grid .quick-card b {
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .quick-grid .quick-card small {
+    display: none;
+  }
+
+  .stat-card {
+    padding: 12px;
+    gap: 5px;
+  }
+
+  .stat-card strong {
+    font-size: 24px;
+  }
+
+  .block-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    margin-bottom: 12px;
+  }
+
+  .block-filters > label {
+    min-width: 0;
+  }
+
+  .block-filters > small {
+    grid-column: 1 / -1;
+  }
+}
