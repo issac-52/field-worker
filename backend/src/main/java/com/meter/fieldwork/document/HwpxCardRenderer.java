@@ -86,7 +86,7 @@ public class HwpxCardRenderer {
     text(cells.get("3:2"), supply.isBlank() ? value(site, "consumer_number") : supply);
     text(cells.get("3:7"), value(site, "industry"));
     text(cells.get("4:2"), value(site, "meter_number"));
-    text(cells.get("4:7"), "미확인");
+    text(cells.get("4:7"), "봉인있음");
     text(cells.get("5:2"), value(site, "small_block"));
     SpecialCondition condition =
         SpecialCondition.valueOf(site.path("special_condition").asText("NONE"));

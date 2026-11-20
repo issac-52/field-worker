@@ -27,6 +27,7 @@ class HwpxCardRendererTest {
     assertThat(doc.getDocumentElement().getTextContent())
         .doesNotContain("붙임.2")
         .contains("검침카드 양식");
+    assertThat(cell(doc, "4", "7").getTextContent()).isEqualTo("봉인있음");
     assertThat(cell(doc, "5", "2").getTextContent()).isEqualTo("가상 소블록");
     var header = HwpxCardRenderer.xml(files.get("Contents/header.xml"));
     var styles = header.getElementsByTagNameNS("http://www.hancom.co.kr/hwpml/2011/head", "charPr");
