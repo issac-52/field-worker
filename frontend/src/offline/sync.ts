@@ -2,6 +2,10 @@ import { call } from '../api/client';
 import { siteApi } from '../api/sites';
 import {
   LIVE_PHOTO_SLOTS,
+  START_PHOTO_SLOTS,
+  hasStartPhotos,
+  START_PHOTO_HELP,
+  type PhotoSlot,
   PHASE_LABEL,
   PHOTO_LABEL,
   type Phase,
@@ -73,6 +77,39 @@ async function send(owner: Workspace['owner'], saved: SavedSite, signal: AbortSi
       return { ...current, ...snapshot(site) };
     });
 
+  const sendPhoto = async (slot: PhotoSlot) => {
+    const draft = saved.draft.photos[slot];
+    if (!draft) return;
+    const { blob } = draft;
+    const existing = site.photos.find((photo) => photo.slot === slot);
+    if (existing) {
+      // Compare the stored JPEG to recognize a successful request whose response was lost.
+      const url = new URL(existing.url, location.origin);
+      if (url.origin !== location.origin) throw new Error('서버 사진을 확인하지 못했습니다.');
+      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', signal });
+      if (!response.ok || !(await samePhoto(blob, await response.blob())))
+        throw new Error(
+          PHOTO_LABEL[slot] + '이 서버에 있습니다. 사진을 확인한 뒤 대기 항목을 정리하세요.',
+        );
+    } else {
+      const body = new FormData();
+      body.append('file', blob, 'photo.jpg');
+      body.append('slot', slot);
+      site = await call<Site>('/sites/' + site.id + '/photos', { method: 'POST', body, signal });
+    }
+    await persist((current) => {
+      const latest = current.draft.photos[slot];
+      // If another tab replaced the draft meanwhile, preserve the new photo.
+      if (latest?.id === draft.id) delete current.draft.photos[slot];
+    });
+  };
+
+  const requiredFirst = saved.draft.readings.START && !site.inspections.START;
+  if (requiredFirst) {
+    for (const slot of START_PHOTO_SLOTS) await sendPhoto(slot);
+    if (!hasStartPhotos(site.photos.map((photo) => photo.slot))) throw new Error(START_PHOTO_HELP);
+  }
+
   for (const phase of ['START', 'END'] as const) {
     const reading = saved.draft.readings[phase];
     if (!reading) continue;
@@ -112,30 +149,8 @@ async function send(owner: Workspace['owner'], saved: SavedSite, signal: AbortSi
   }
 
   for (const slot of LIVE_PHOTO_SLOTS) {
-    const draft = saved.draft.photos[slot];
-    if (!draft) continue;
-    const { blob } = draft;
-    const existing = site.photos.find((photo) => photo.slot === slot);
-    if (existing) {
-      // Compare the stored JPEG to recognize a successful request whose response was lost.
-      const url = new URL(existing.url, location.origin);
-      if (url.origin !== location.origin) throw new Error('서버 사진을 확인하지 못했습니다.');
-      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', signal });
-      if (!response.ok || !(await samePhoto(blob, await response.blob())))
-        throw new Error(
-          PHOTO_LABEL[slot] + '이 서버에 있습니다. 사진을 확인한 뒤 대기 항목을 정리하세요.',
-        );
-    } else {
-      const body = new FormData();
-      body.append('file', blob, 'photo.jpg');
-      body.append('slot', slot);
-      site = await call<Site>('/sites/' + site.id + '/photos', { method: 'POST', body, signal });
-    }
-    await persist((current) => {
-      const latest = current.draft.photos[slot];
-      // If another tab replaced the draft meanwhile, preserve the new photo.
-      if (latest?.id === draft.id) delete current.draft.photos[slot];
-    });
+    if (requiredFirst && START_PHOTO_SLOTS.some((required) => required === slot)) continue;
+    await sendPhoto(slot);
   }
 }
 

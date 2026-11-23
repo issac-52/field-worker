@@ -169,6 +169,14 @@ describe('api regression', () => {
       ).status,
     ).toBe(400);
     await update({ active: true });
+    const imageUrl =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+    const fourPhotos = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP', 'TEMPORARY'].map((slot) => ({
+      slot,
+      url: imageUrl,
+    }));
+    for (const id of [5, 7])
+      await call('/sites/' + id + '/photos', { photos: fourPhotos.slice(0, 2) });
     const recorded = await call('/sites/5/measurements', {
       phase: 'START',
       date: '2026-11-04',
@@ -208,6 +216,11 @@ describe('api regression', () => {
     expect(
       (await workerPost('/sites/6/measurements', { ...measurement, workerId: 12 })).status,
     ).toBe(403);
+    for (const photo of fourPhotos.slice(0, 2)) {
+      await workerPost('/sites/6/photos', { photos: [photo] });
+      expect((await workerPost('/sites/6/measurements', measurement)).status).toBe(400);
+    }
+    await workerPost('/sites/6/photos', { photos: fourPhotos.slice(0, 2) });
     const saved = await workerPost('/sites/6/measurements', measurement);
     expect(saved.status).toBe(200);
     expect(saved.data.inspections.START.workerId).toBe(11);
@@ -222,12 +235,6 @@ describe('api regression', () => {
         })
       ).status,
     ).toBe(200);
-    const imageUrl =
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-    const fourPhotos = ['OVERVIEW', 'START_CLOSEUP', 'END_CLOSEUP', 'TEMPORARY'].map((slot) => ({
-      slot,
-      url: imageUrl,
-    }));
     const savedFour = await workerPost('/sites/6/photos', { photos: fourPhotos });
     expect(savedFour.status).toBe(200);
     expect(savedFour.data.photos.length).toBe(4);

@@ -11,6 +11,11 @@ export const PHOTO_LABEL: Record<PhotoSlot, string> = {
   EXTRA_1: '추가 사진 1',
   EXTRA_2: '추가 사진 2',
 };
+export const START_PHOTO_SLOTS = ['OVERVIEW', 'START_CLOSEUP'] as const;
+export const START_PHOTO_HELP = '시작검침을 완료하려면 원경과 시작 근경 사진을 모두 저장하세요.';
+export function hasStartPhotos(slots: readonly PhotoSlot[]) {
+  return START_PHOTO_SLOTS.every((slot) => slots.includes(slot));
+}
 export type SitePhoto = { id?: number; slot: PhotoSlot; url: string };
 export type Site = {
   id: number;

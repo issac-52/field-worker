@@ -47,6 +47,14 @@ public class InspectionService {
             site,
             phase.name())
         != 0) throw new ApiException(409, "ALREADY_RECORDED", "이미 등록된 단계입니다.");
+    if (phase == Phase.START
+        && db.queryForObject(
+                "select count(distinct slot) from photos where site_id=? and slot in"
+                    + " ('OVERVIEW','START_CLOSEUP')",
+                Integer.class,
+                site)
+            != 2)
+      throw new ApiException(400, "START_PHOTOS_REQUIRED", "시작검침을 완료하려면 원경과 시작 근경 사진을 모두 저장하세요.");
     pair(site, phase, reading);
     var rates =
         db.queryForList(

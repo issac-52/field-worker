@@ -332,8 +332,44 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
     mvc.perform(get("/api/sites/0").with(user(actor))).andExpect(status().isNotFound());
   }
 
+  private void addPhoto(String slot) {
+    jdbc.update(
+        "insert into photos(site_id,slot,object_key,content_type,size_bytes,uploaded_by)"
+            + " values(?,?,?,'image/jpeg',1,?)",
+        site,
+        slot,
+        UUID.randomUUID().toString(),
+        actor.id());
+  }
+
+  @Test
+  void startRequiresOverviewAndStartCloseup() throws Exception {
+    var request =
+        post("/api/sites/" + site + "/measurements")
+            .with(user(actor))
+            .with(csrf())
+            .contentType("application/json")
+            .content(
+                "{\"phase\":\"START\",\"date\":\"2026-11-05\",\"reading\":1,\"workerId\":"
+                    + actor.id()
+                    + "}");
+    addPhoto("END_CLOSEUP");
+    for (String slot : java.util.List.of("OVERVIEW", "START_CLOSEUP")) {
+      addPhoto(slot);
+      mvc.perform(request)
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("START_PHOTOS_REQUIRED"));
+      jdbc.update("delete from photos where site_id=? and slot=?", site, slot);
+    }
+    addPhoto("OVERVIEW");
+    addPhoto("START_CLOSEUP");
+    mvc.perform(request).andExpect(status().isOk());
+  }
+
   @Test
   void independentEndThenStartValidatesUsageAndConcurrentCorrection() throws Exception {
+    addPhoto("OVERVIEW");
+    addPhoto("START_CLOSEUP");
     mvc.perform(
             post("/api/sites/" + site + "/measurements")
                 .with(user(actor))
@@ -475,6 +511,8 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
 
   @Test
   void ratesDoNotRewriteSnapshotsAndPaidSettlementCannotBeAdjusted() throws Exception {
+    addPhoto("OVERVIEW");
+    addPhoto("START_CLOSEUP");
     long adminId =
         jdbc.queryForObject(
             "insert into users(login_id,nickname,password,role,must_change_password) values(?,'Test"
@@ -608,6 +646,8 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
 
   @Test
   void anotherWorkerCannotCorrectAnExistingInspection() throws Exception {
+    addPhoto("OVERVIEW");
+    addPhoto("START_CLOSEUP");
     String response =
         mvc.perform(
                 post("/api/sites/" + site + "/measurements")
