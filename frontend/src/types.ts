@@ -40,6 +40,7 @@ export type Site = {
   longitude: number | null;
   note: string;
   photos: SitePhoto[];
+  hasStartPhotos?: boolean;
   inspections: Partial<
     Record<
       Phase,
@@ -81,10 +82,19 @@ export const PHASE_LABEL: Record<Phase, string> = {
   START: '시작 검침',
   END: '종료 검침',
 };
-export const statusOf = (site: Pick<Site, 'inspections'>): 'DONE' | 'IN_PROGRESS' | 'TODO' =>
-  site.inspections.END ? 'DONE' : site.inspections.START ? 'IN_PROGRESS' : 'TODO';
-export const isPhaseComplete = (site: Pick<Site, 'inspections'>, phase: Phase) =>
-  !!site.inspections[phase];
+export type InspectionStatusInput = Pick<Site, 'inspections'> &
+  Partial<Pick<Site, 'photos' | 'hasStartPhotos'>>;
+export function hasRequiredStartPhotos(photos: SitePhoto[]) {
+  return (['OVERVIEW', 'START_CLOSEUP'] as const).every((slot) =>
+    photos.some((photo) => photo.slot === slot),
+  );
+}
+export const isPhaseComplete = (site: InspectionStatusInput, phase: Phase) =>
+  !!site.inspections[phase] &&
+  (phase === 'END' ||
+    (site.photos ? hasRequiredStartPhotos(site.photos) : site.hasStartPhotos === true));
+export const statusOf = (site: InspectionStatusInput): 'DONE' | 'IN_PROGRESS' | 'TODO' =>
+  site.inspections.END ? 'DONE' : isPhaseComplete(site, 'START') ? 'IN_PROGRESS' : 'TODO';
 
 export type Block = { id: string; name: string; parentId?: string };
 export type FeeAdjustmentRequest = {

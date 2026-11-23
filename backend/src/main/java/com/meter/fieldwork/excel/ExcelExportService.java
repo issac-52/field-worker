@@ -60,14 +60,15 @@ public class ExcelExportService {
                       a.inspection_date as start_date,a.reading as start_reading,au.nickname as start_worker,
                       b.inspection_date as end_date,b.reading as end_reading,bu.nickname as end_worker,
                       b.reading-a.reading as usage,s.special_condition,s.special_description,
-                      case when b.id is not null then 'DONE' when a.id is not null then 'IN_PROGRESS' else 'TODO' end as status,
+                      case when b.id is not null then 'DONE' when a.id is not null and %s then 'IN_PROGRESS' else 'TODO' end as status,
                       (select count(*) from photos p where p.site_id=s.id) as photo_count,
                       s.source_cells->>'H' as meter_presence_source
                     from worksites s left join inspections a on a.site_id=s.id and a.phase='START'
                     left join inspections b on b.site_id=s.id and b.phase='END'
                     left join users au on au.id=a.worker_id left join users bu on bu.id=b.worker_id
                     where (?::text is null or s.middle_block=?) and (?::text is null or s.small_block=?) order by s.id
-                    """);
+                    """
+                        .formatted(com.meter.fieldwork.worksite.WorksiteService.HAS_START_PHOTOS));
             query.setFetchSize(200);
             query.setString(1, middle);
             query.setString(2, middle);

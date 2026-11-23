@@ -26,6 +26,43 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   String number;
 
   @Test
+  void savedStartReadingBecomesCompleteOnlyWhenBothPhotoSlotsExist() throws Exception {
+    jdbc.update("update worksites set middle_block=? where id=?", number, site);
+    mvc.perform(
+            post("/api/sites/" + site + "/measurements")
+                .with(user(actor))
+                .with(csrf())
+                .contentType("application/json")
+                .content(
+                    "{\"phase\":\"START\",\"date\":\"2026-11-05\",\"reading\":12,\"workerId\":"
+                        + actor.id()
+                        + "}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.inspections.START.reading").value(12));
+    for (String slot : java.util.List.of("END_CLOSEUP", "START_CLOSEUP", "OVERVIEW")) {
+      jdbc.update(
+          "insert into photos(site_id,slot,object_key,content_type,size_bytes,uploaded_by)"
+              + " values(?,?,?,'image/jpeg',1,?)",
+          site,
+          slot,
+          UUID.randomUUID().toString(),
+          actor.id());
+      boolean complete = slot.equals("OVERVIEW");
+      mvc.perform(
+              get("/api/sites")
+                  .with(user(actor))
+                  .param("middleBlockId", number)
+                  .param("status", complete ? "IN_PROGRESS" : "TODO"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.total").value(1))
+          .andExpect(jsonPath("$.data.items[0].hasStartPhotos").value(complete));
+      mvc.perform(get("/api/site-summary").with(user(actor)).param("middleBlockId", number))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.progress").value(complete ? 1 : 0));
+    }
+  }
+
+  @Test
   void mapUsesBoundsInsteadOfListFiltersAndRejectsWideQueries() throws Exception {
     jdbc.update("update worksites set latitude=35.82,longitude=128.74 where id=?", site);
     mvc.perform(

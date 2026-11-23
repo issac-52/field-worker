@@ -19,9 +19,20 @@ public class WorksiteService {
     this.json = json;
   }
 
+  // All consumers alias the current worksite as s.
+  public static final String HAS_START_PHOTOS =
+      "(exists(select 1 from photos p where p.site_id=s.id and p.slot='OVERVIEW')"
+          + " and exists(select 1 from photos p where p.site_id=s.id and p.slot='START_CLOSEUP'))";
+  private static final String START_COMPLETE =
+      "(exists(select 1 from inspections i where i.site_id=s.id and i.phase='START') and "
+          + HAS_START_PHOTOS
+          + ")";
+
   private static final String SITE_QUERY =
-      "select *,source_cells->>'H' as meter_presence_source,source_cells->>'AZ' as"
-          + " supply_number,source_cells->>'J' as meter_diameter,source_cells->>'K' as"
+      "select *, "
+          + HAS_START_PHOTOS
+          + " as has_start_photos,source_cells->>'H' as meter_presence_source,source_cells->>'AZ'"
+          + " as supply_number,source_cells->>'J' as meter_diameter,source_cells->>'K' as"
           + " household_count,source_cells->>'L' as sewer_raw,source_cells->>'AX' as"
           + " business_name,source_cells->>'BC' as source_reader,source_cells->>'BD' as"
           + " regular_reading_day from worksites s";
@@ -127,7 +138,7 @@ public class WorksiteService {
       if (!List.of("TODO", "IN_PROGRESS", "DONE").contains(filter.status()))
         throw new IllegalArgumentException();
       String end = "exists(select 1 from inspections i where i.site_id=s.id and i.phase='END')";
-      String start = "exists(select 1 from inspections i where i.site_id=s.id and i.phase='START')";
+      String start = START_COMPLETE;
       where
           .append(" and ")
           .append(
@@ -186,6 +197,7 @@ public class WorksiteService {
     long id = ((Number) row.get("id")).longValue();
     var site = new LinkedHashMap<String, Object>();
     site.put("id", id);
+    site.put("hasStartPhotos", row.get("has_start_photos"));
     site.put("middleBlockId", text(row, "middle_block"));
     site.put("smallBlockId", text(row, "small_block"));
     site.put("name", text(row, "name"));
@@ -291,7 +303,8 @@ public class WorksiteService {
         db.queryForObject(
             "select count(*) from worksites s where "
                 + where
-                + " and exists(select 1 from inspections i where i.site_id=s.id and phase='START')"
+                + " and "
+                + START_COMPLETE
                 + " and not exists(select 1 from inspections i where i.site_id=s.id and"
                 + " phase='END')",
             params,
