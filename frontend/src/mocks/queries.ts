@@ -1,16 +1,30 @@
 import { statusOf, isPhaseComplete } from '../types';
 import type { PageResponse, Phase, Site, SiteSummary, SettlementRow } from '../types';
 
-export function filterSites(sites: Site[], params: URLSearchParams) {
+export function filterSites(sites: Site[], params: URLSearchParams, actor?: number) {
   const middle = params.get('middleBlockId');
   const small = params.get('smallBlockId');
   const q = (params.get('q') ?? '').trim().toLocaleLowerCase();
   const status = params.get('status');
   const phase = params.get('inspectionPhase') as Phase | null;
   const completion = params.get('inspectionStatus');
+  const own = params.get('ownWork');
+  const missing = params.get('missingStartPhotos') === 'true';
   return sites
     .filter(
       (s) =>
+        (!own ||
+          (['START', 'END'] as const).some(
+            (p) =>
+              (own === 'ANY' || own === p) &&
+              s.inspections[p] &&
+              s.inspections[p]?.workerId === actor,
+          )) &&
+        (!missing ||
+          (!!s.inspections.START &&
+            ['OVERVIEW', 'START_CLOSEUP'].some(
+              (slot) => !s.photos.some((photo) => photo.slot === slot),
+            ))) &&
         (!middle || s.middleBlockId === middle) &&
         (!small || s.smallBlockId === small) &&
         (!status || statusOf(s) === status) &&
@@ -65,7 +79,8 @@ export function summarize(sites: Site[], admin: boolean): SiteSummary {
       const m = site.inspections[phase];
       if (!m) continue;
       result[phase === 'START' ? 'startCount' : 'endCount']++;
-      if (m.workerId === 11) result[phase === 'START' ? 'ownStartCount' : 'ownEndCount']++;
+      if (m.workerId === (admin ? 1 : 11))
+        result[phase === 'START' ? 'ownStartCount' : 'ownEndCount']++;
       if (admin) {
         const worker = workers.get(m.workerId) ?? {
           workerId: m.workerId,

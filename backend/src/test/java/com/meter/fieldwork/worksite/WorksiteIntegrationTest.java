@@ -118,6 +118,55 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
         .andExpect(jsonPath("$.data.clusters[0].count").value(2));
   }
 
+  @Test
+  void filtersOwnPhaseAndMissingStartPhotosBeforePagination() throws Exception {
+    jdbc.update("update worksites set middle_block=? where id=?", number, site);
+    assertMatches("START", 0);
+    jdbc.update(
+        "insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee)"
+            + " values(?,'START','2026-01-01',1,?,0)",
+        site,
+        actor.id());
+    long other =
+        jdbc.queryForObject(
+            "insert into users(login_id,nickname,password,role,must_change_password)"
+                + " values(?,'Other','unused','WORKER',false) returning id",
+            Long.class,
+            UUID.randomUUID().toString());
+    jdbc.update(
+        "insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee)"
+            + " values(?,'END','2027-01-01',2,?,0)",
+        site,
+        other);
+    assertMatches("START", 1);
+    assertMatches("ANY", 1);
+    assertMatches("END", 0);
+    for (String slot : java.util.List.of("END_CLOSEUP", "START_CLOSEUP", "OVERVIEW")) {
+      jdbc.update(
+          "insert into photos(site_id,slot,object_key,content_type,size_bytes,uploaded_by)"
+              + " values(?,?,?,'image/jpeg',1,?)",
+          site,
+          slot,
+          UUID.randomUUID().toString(),
+          actor.id());
+      assertMatches("START", slot.equals("OVERVIEW") ? 0 : 1);
+    }
+    jdbc.update("delete from photos where site_id=? and slot='START_CLOSEUP'", site);
+    assertMatches("START", 1);
+  }
+
+  private void assertMatches(String ownWork, int expected) throws Exception {
+    for (String url : java.util.List.of("/api/sites", "/api/site-summary"))
+      mvc.perform(
+              get(url)
+                  .with(user(actor))
+                  .param("middleBlockId", number)
+                  .param("ownWork", ownWork)
+                  .param("missingStartPhotos", "true"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.total").value(expected));
+  }
+
   @BeforeEach
   void setup() {
     String key = UUID.randomUUID().toString();

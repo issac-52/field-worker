@@ -5,7 +5,16 @@ import { useRef } from 'react';
 import { useWork } from '../context/work';
 
 export function SiteSearch() {
-  const { query, setQuery, filter, setFilter } = useWork();
+  const {
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    ownWork,
+    setOwnWork,
+    missingStartPhotos,
+    setMissingStartPhotos,
+  } = useWork();
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -51,6 +60,33 @@ export function SiteSearch() {
             {status === '시작검침완료' ? '시작 완료' : status}
           </Button>
         ))}
+      </div>
+      <div className="site-work-filters">
+        <label>
+          검침 담당
+          <select
+            value={ownWork ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              setOwnWork(
+                value === 'ANY' || value === 'START' || value === 'END' ? value : undefined,
+              );
+            }}
+          >
+            <option value="">전체 조사자</option>
+            <option value="ANY">내가 작업한 수용가</option>
+            <option value="START">내가 시작검침한 수용가</option>
+            <option value="END">내가 종료검침한 수용가</option>
+          </select>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={missingStartPhotos}
+            onChange={(e) => setMissingStartPhotos(e.target.checked)}
+          />
+          시작검침 사진 누락 (원경 또는 시작 근경)
+        </label>
       </div>
     </>
   );

@@ -37,6 +37,17 @@ export function useWorkController() {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('전체');
+  const [ownWork, setOwnWork] = useState<SiteFilter['ownWork']>();
+  const [missingStartPhotos, setMissingStartPhotos] = useState(false);
+  function openOwnSites(phase: Phase) {
+    listPosition.setPage(1);
+    setOwnWork(phase);
+    setMissingStartPhotos(false);
+    setFilter('전체');
+    setQuery('');
+    setSearch('');
+    route.navigate('sites');
+  }
   const [middle, setMiddle] = useState('');
   const [small, setSmall] = useState('');
   const [settleWorker, setSettleWorker] = useState('');
@@ -54,10 +65,15 @@ export function useWorkController() {
       middleBlockId: middle || undefined,
       smallBlockId: small || undefined,
       ...(['sites', 'map'].includes(route.page)
-        ? { q: search || undefined, status: STATUS_FILTERS[filter] }
+        ? {
+            q: search || undefined,
+            status: STATUS_FILTERS[filter],
+            ownWork,
+            missingStartPhotos: missingStartPhotos || undefined,
+          }
         : {}),
     }),
-    [middle, small, route.page, search, filter],
+    [middle, small, route.page, search, filter, ownWork, missingStartPhotos],
   );
   const settlementFilter = useMemo<SettlementFilter>(
     () => ({
@@ -84,6 +100,8 @@ export function useWorkController() {
   });
 
   function resetFilters() {
+    setOwnWork(undefined);
+    setMissingStartPhotos(false);
     setMiddle('');
     setSmall('');
     setQuery('');
@@ -108,6 +126,11 @@ export function useWorkController() {
     role,
     currentUserId,
     adminOnly: ADMIN_PAGES.includes(route.page),
+    openOwnSites,
+    ownWork,
+    setOwnWork,
+    missingStartPhotos,
+    setMissingStartPhotos,
     switchDemoRole,
     switchingRole,
     query,
