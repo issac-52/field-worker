@@ -9,6 +9,7 @@ import {
   type User,
 } from '../types';
 import {
+  accountKey,
   canReadOffline,
   editSavedSite,
   readWorkspace,
@@ -40,18 +41,19 @@ export function validateReading(phase: Phase, date: string, raw: string, start?:
   return { date, reading };
 }
 
-const sending = new Set<number>();
+const sending = new Set<string>();
 
 export async function sendSiteDraft(owner: Workspace['owner'], saved: SavedSite) {
-  if (sending.has(saved.id)) throw new Error('이 수용가를 전송 중입니다. 잠시 후 다시 시도하세요.');
-  sending.add(saved.id);
+  const key = accountKey(owner) + '/' + saved.id;
+  if (sending.has(key)) throw new Error('이 수용가를 전송 중입니다. 잠시 후 다시 시도하세요.');
+  sending.add(key);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     return await send(owner, saved, controller.signal);
   } finally {
     clearTimeout(timeout);
-    sending.delete(saved.id);
+    sending.delete(key);
   }
 }
 
