@@ -8,7 +8,7 @@ import { useWork } from '../../context/work';
 import { useSaveAction } from '../../hooks/useSaveAction';
 import { today } from '../../lib/format';
 import type { Phase, Site } from '../../types';
-import { PHASE_LABEL, START_PHOTO_SLOTS, hasStartPhotos, START_PHOTO_HELP } from '../../types';
+import { PHASE_LABEL } from '../../types';
 import { Modal } from '../Modal';
 
 export function MeasurementEditor({
@@ -60,20 +60,9 @@ export function MeasurementEditor({
             expectedUpdatedAt: expectedUpdatedAt!,
           });
         const body = { phase, date, reading: Number(reading), workerId };
-        if (!user || !(await navigator.serviceWorker?.getRegistration())?.active) {
-          if (phase === 'START' && !hasStartPhotos(site.photos.map((p) => p.slot)))
-            throw new Error(START_PHOTO_HELP);
+        if (!user || !(await navigator.serviceWorker?.getRegistration())?.active)
           return api.measurement(site.id, body);
-        }
         const sent = await stageAndSend(user, site, (saved) => {
-          if (
-            navigator.onLine &&
-            phase === 'START' &&
-            !START_PHOTO_SLOTS.every(
-              (slot) => saved.occupiedSlots.includes(slot) || saved.draft.photos[slot],
-            )
-          )
-            throw new Error(START_PHOTO_HELP);
           const start = saved.draft.readings.START?.reading ?? saved.readings.START?.reading;
           const draft = validateReading(phase, date, reading, start);
           if (
@@ -111,9 +100,6 @@ export function MeasurementEditor({
         {year}년 {PHASE_LABEL[phase]}
         {editing ? ' 수정' : ''}
       </p>
-      {phase === 'START' && !editing && !hasStartPhotos(site.photos.map((p) => p.slot)) && (
-        <p className="form-help">{START_PHOTO_HELP}</p>
-      )}
       <label className="field">
         검침일자
         <Input

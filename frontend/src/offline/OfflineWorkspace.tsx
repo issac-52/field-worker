@@ -1,14 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '../components/ui/button';
 import { preparePhoto } from '../lib/photos';
-import {
-  LIVE_PHOTO_SLOTS,
-  START_PHOTO_HELP,
-  PHASE_LABEL,
-  PHOTO_LABEL,
-  type Phase,
-  type PhotoSlot,
-} from '../types';
+import { LIVE_PHOTO_SLOTS, PHASE_LABEL, PHOTO_LABEL, type Phase, type PhotoSlot } from '../types';
 import {
   canReadOffline,
   editSavedSite,
@@ -60,7 +53,6 @@ function DraftReading({
       )}
       {!recorded && (phase === 'START' || hasStart) && (
         <form onSubmit={submit}>
-          {phase === 'START' && <p>{START_PHOTO_HELP} 검침값은 먼저 임시 저장할 수 있습니다.</p>}
           <label className="field">
             검침일자
             <input

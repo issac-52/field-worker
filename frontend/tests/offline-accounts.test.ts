@@ -78,26 +78,10 @@ it('migrates old pending work and lets another login save and sync the same site
   expect(await readWorkspace()).toBeUndefined();
   allowOfflineAccess(b);
   network.onLine = true;
-  const withOverview = { ...site, photos: [{ slot: 'OVERVIEW' as const, url: '/test/overview' }] };
-  const complete = {
-    ...site,
-    photos: [...withOverview.photos, { slot: 'START_CLOSEUP' as const, url: '/test/close' }],
-  };
-  const calls = vi.spyOn(client, 'call').mockResolvedValue(b);
+  vi.spyOn(client, 'call').mockResolvedValue(b);
   vi.spyOn(siteApi, 'site').mockResolvedValue(site);
   const save = vi.spyOn(siteApi, 'measurement').mockResolvedValue(site);
   await sendPendingWorkspace();
-  expect(save).not.toHaveBeenCalled();
-  expect((await readWorkspace())?.sites[0].draft.readings.START?.reading).toBe(20);
-  calls.mockResolvedValueOnce(b).mockResolvedValueOnce(complete);
-  vi.mocked(siteApi.site).mockResolvedValue(withOverview);
-  await expect(
-    stageAndSend(b, withOverview, (saved) => {
-      saved.draft.photos.START_CLOSEUP = { id: 'close', blob: new Blob(['close']) };
-    }),
-  ).resolves.toBe(true);
-  expect(calls.mock.calls.at(-1)?.[0]).toBe('/sites/5/photos');
-  expect(calls.mock.invocationCallOrder.at(-1)!).toBeLessThan(save.mock.invocationCallOrder[0]);
   expect(save).toHaveBeenCalledTimes(1);
   expect(save.mock.calls[0][1]).toMatchObject({ workerId: b.id, reading: 20 });
   expect((await readWorkspace())?.sites[0].draft.readings).toEqual({});

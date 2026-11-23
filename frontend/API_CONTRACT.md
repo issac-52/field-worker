@@ -172,6 +172,6 @@ ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 
 
 수용가 목록과 집계(`GET /api/sites`, `GET /api/site-summary`)는 같은 선택 조건을 사용한다. `ownWork=ANY|START|END`는 로그인 계정이 해당 단계(ANY는 시작 또는 종료)의 검침 담당자인 수용가만 조회한다. `missingStartPhotos=true`는 시작검침 기록이 있고 OVERVIEW 또는 START_CLOSEUP 사진이 빠진 수용가를 조회한다. 두 조건은 블록·검색·상태 조건과 함께 적용한다.
 
-### 시작검침 완료 조건
+### 시작검침 저장과 완료 상태
 
-신규 START 검침은 같은 수용가에 원경(OVERVIEW)과 시작 근경(START_CLOSEUP) 사진이 모두 저장되어야 등록할 수 있다. 누락 시 HTTP 400 및 START_PHOTOS_REQUIRED를 반환한다. 기기의 임시 검침은 사진이 갖춰질 때까지 대기하며, 재연결 시 필요한 사진을 먼저 전송한다.
+사진 수에 관계없이 시작 지침과 날짜를 저장할 수 있다. 종료검침 전에는 저장된 시작검침, 원경, 시작 근경이 모두 있는 수용가만 시작검침완료로 표시한다. 사진 추가·삭제 후 조회하면 현재 사진 기준으로 상태가 반영된다. 작업자별 검침 건수는 저장한 기록을 기준으로 집계한다.

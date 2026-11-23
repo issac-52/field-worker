@@ -2,7 +2,7 @@ import { useWork } from '../../context/work';
 import { Button } from '../ui/button';
 import { Check, Clock3, Plus } from 'lucide-react';
 import type { Phase, Site } from '../../types';
-import { PHASE_LABEL } from '../../types';
+import { isPhaseComplete, PHASE_LABEL } from '../../types';
 import { formatDate, formatWon } from '../../lib/format';
 
 export function InspectionPanel({
@@ -20,6 +20,7 @@ export function InspectionPanel({
 }) {
   const { currentUserId } = useWork();
   const measurement = site.inspections[phase];
+  const complete = isPhaseComplete(site, phase);
   return (
     <section className="panel reading-panel">
       <div className="panel-title">
@@ -39,12 +40,12 @@ export function InspectionPanel({
         ))}
       </div>
       <div className="phase-top">
-        <div className={`phase-icon ${measurement ? 'complete' : 'waiting'}`}>
-          {measurement ? <Check size={21} /> : <Clock3 size={21} />}
+        <div className={`phase-icon ${complete ? 'complete' : 'waiting'}`}>
+          {complete ? <Check size={21} /> : <Clock3 size={21} />}
         </div>
         <b>{PHASE_LABEL[phase]}</b>
-        <span className={`status ${measurement ? 'done' : 'todo'}`}>
-          {measurement ? '등록 완료' : '미등록'}
+        <span className={`status ${complete ? 'done' : 'todo'}`}>
+          {complete ? '등록 완료' : measurement ? '검침값 저장됨' : '미등록'}
         </span>
       </div>
       {measurement ? (

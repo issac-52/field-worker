@@ -5,7 +5,7 @@ import { filterSites, paginate, summarize } from '../queries';
 import type { Phase, SitePhoto } from '../../types';
 import { validViewport, validMapArea } from '../../lib/mapViewport';
 import { hasCoordinates } from '../../lib/coordinates';
-import { statusOf, PHOTO_SLOTS, hasStartPhotos, START_PHOTO_HELP } from '../../types';
+import { statusOf, hasRequiredStartPhotos, PHOTO_SLOTS } from '../../types';
 import { blocks } from '../data';
 import { SPECIAL_CONDITIONS, conditionPayload } from '../../lib/specialCondition';
 
@@ -93,7 +93,11 @@ export const sitesHandlers = [
       ...page,
       items: page.items.map((s) => {
         const { photos, note, ...item } = publicSite(s, request);
-        return { ...item, photoCount: photos.length };
+        return {
+          ...item,
+          photoCount: photos.length,
+          hasStartPhotos: hasRequiredStartPhotos(photos),
+        };
       }),
     });
   }),
@@ -172,8 +176,6 @@ export const sitesHandlers = [
     if (!isAdmin(request) && b.workerId !== 11) return err('본인 검침만 등록할 수 있습니다.', 403);
     const worker = store.users.find((u) => u.id === b.workerId && u.role === 'WORKER' && u.active);
     if (!worker) return err('작업자를 찾을 수 없습니다');
-    if (b.phase === 'START' && !hasStartPhotos(x.photos.map((p) => p.slot)))
-      return err(START_PHOTO_HELP);
     x.inspections[b.phase] = {
       date: b.date,
       reading: b.reading,
