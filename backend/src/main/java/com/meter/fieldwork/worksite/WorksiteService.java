@@ -26,12 +26,33 @@ public class WorksiteService {
           + " business_name,source_cells->>'BC' as source_reader,source_cells->>'BD' as"
           + " regular_reading_day from worksites s";
 
-  public record Filter(String middleBlockId, String smallBlockId, String q, String status) {}
+  public record Filter(
+      String middleBlockId,
+      String smallBlockId,
+      String q,
+      String status,
+      OwnWork ownWork,
+      Boolean missingStartPhotos) {
+    public Filter(String middleBlockId, String smallBlockId, String q, String status) {
+      this(middleBlockId, smallBlockId, q, status, null, null);
+    }
+  }
+
+  public enum OwnWork {
+    ANY,
+    START,
+    END
+  }
 
   public Map<String, Object> page(Filter filter, int requestedPage, int size, boolean admin) {
+    return page(filter, requestedPage, size, admin, null);
+  }
+
+  public Map<String, Object> page(
+      Filter filter, int requestedPage, int size, boolean admin, Long actor) {
     if (requestedPage < 1 || size < 1 || size > 100) throw new IllegalArgumentException();
     var params = new HashMap<String, Object>();
-    String where = where(filter, params);
+    String where = where(filter, params, actor);
     long total =
         db.queryForObject("select count(*) from worksites s where " + where, params, Long.class);
     long pages = Math.max(1, (total + size - 1) / size);
@@ -82,7 +103,7 @@ public class WorksiteService {
         "items", items, "page", page, "pageSize", size, "total", total, "totalPages", pages);
   }
 
-  private String where(Filter filter, Map<String, Object> params) {
+  private String where(Filter filter, Map<String, Object> params, Long actor) {
     StringBuilder where = new StringBuilder("true");
     if (filter.middleBlockId() != null) {
       where.append(" and s.middle_block=:middle");
@@ -115,6 +136,24 @@ public class WorksiteService {
                 case "IN_PROGRESS" -> start + " and not " + end;
                 default -> "not " + start + " and not " + end;
               });
+    }
+    if (Boolean.TRUE.equals(filter.missingStartPhotos())) {
+      where.append(
+          " and exists(select 1 from inspections m where m.site_id=s.id and m.phase='START') and"
+              + " (not exists(select 1 from photos p where p.site_id=s.id and p.slot='OVERVIEW') or"
+              + " not exists(select 1 from photos p where p.site_id=s.id and"
+              + " p.slot='START_CLOSEUP'))");
+    }
+    if (filter.ownWork() != null) {
+      if (actor == null) throw new IllegalArgumentException("로그인 계정이 필요합니다.");
+      where.append(
+          " and exists(select 1 from inspections m where m.site_id=s.id and m.worker_id=:owner");
+      params.put("owner", actor);
+      if (filter.ownWork() != OwnWork.ANY) {
+        where.append(" and m.phase=:ownPhase");
+        params.put("ownPhase", filter.ownWork().name());
+      }
+      where.append(")");
     }
     return where.toString();
   }
@@ -230,7 +269,7 @@ public class WorksiteService {
 
   public Map<String, Object> summary(Filter filter, long actor, boolean admin) {
     var params = new HashMap<String, Object>();
-    String where = where(filter, params);
+    String where = where(filter, params, actor);
     long total =
         db.queryForObject("select count(*) from worksites s where " + where, params, Long.class);
     var counts =

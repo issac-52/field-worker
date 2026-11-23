@@ -23,7 +23,7 @@ public class WorksiteController {
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
       @AuthenticationPrincipal SessionUser actor) {
-    return ApiResult.ok(sites.page(filter, page, pageSize, admin(actor)));
+    return ApiResult.ok(sites.page(filter, page, pageSize, admin(actor), actor.id()));
   }
 
   @GetMapping("/api/sites/{id}")

@@ -79,11 +79,16 @@ export const sitesHandlers = [
   }),
   http.get('/api/blocks', () => ok(blocks)),
   http.get('/api/site-summary', ({ request }) =>
-    ok(summarize(filterSites(store.sites, new URL(request.url).searchParams), isAdmin(request))),
+    ok(
+      summarize(
+        filterSites(store.sites, new URL(request.url).searchParams, isAdmin(request) ? 1 : 11),
+        isAdmin(request),
+      ),
+    ),
   ),
   http.get('/api/sites', ({ request }) => {
     const params = new URL(request.url).searchParams;
-    const page = paginate(filterSites(store.sites, params), params);
+    const page = paginate(filterSites(store.sites, params, isAdmin(request) ? 1 : 11), params);
     return ok({
       ...page,
       items: page.items.map((s) => {

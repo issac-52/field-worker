@@ -106,6 +106,8 @@ export type FeeAdjustmentResult = {
 };
 export type BlockFilter = { middleBlockId?: string; smallBlockId?: string };
 export type SiteFilter = BlockFilter & {
+  ownWork?: Phase | 'ANY';
+  missingStartPhotos?: boolean;
   q?: string;
   status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
   inspectionPhase?: Phase;
