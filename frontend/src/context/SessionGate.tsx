@@ -3,7 +3,6 @@ import { OfflineWorkspace } from '../offline/OfflineWorkspace';
 import {
   allowOfflineAccess,
   canReadOffline,
-  checkOfflineLogout,
   clearOfflineSnapshots,
   readWorkspace,
 } from '../offline/storage';
@@ -79,11 +78,6 @@ export function SessionGate({ children }: { children: ReactNode }) {
         .catch(() => {});
   }, [user, client]);
   async function logout() {
-    if (user)
-      await checkOfflineLogout(user).catch((error) => {
-        if (error instanceof DOMException) return;
-        throw error;
-      });
     await call('/auth/logout', { method: 'POST' });
     allowOfflineAccess(null);
     if (user) await clearOfflineSnapshots(user).catch(() => {});

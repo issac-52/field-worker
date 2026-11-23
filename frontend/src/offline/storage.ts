@@ -16,7 +16,7 @@ export type SavedSite = {
 };
 export type Workspace = { owner: Pick<User, 'id' | 'username'>; sites: SavedSite[] };
 const ACCESS_KEY = 'fieldwork-offline-account';
-const accountKey = (user: Pick<User, 'id' | 'username'>) =>
+export const accountKey = (user: Pick<User, 'id' | 'username'>) =>
   JSON.stringify([user.id, user.username]);
 export const sameAccount = (a: Pick<User, 'id' | 'username'>, b: Pick<User, 'id' | 'username'>) =>
   accountKey(a) === accountKey(b);
@@ -41,21 +41,38 @@ export function canReadOffline(workspace: Workspace) {
 
 function openDatabase() {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('fieldwork-offline', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('workspace');
+    const request = indexedDB.open('fieldwork-offline', 2);
+    request.onupgradeneeded = (event) => {
+      if (event.oldVersion === 0) {
+        request.result.createObjectStore('workspace');
+        return;
+      }
+      const store = request.transaction!.objectStore('workspace');
+      const legacy = store.get('data');
+      legacy.onsuccess = () => {
+        const workspace = legacy.result as Workspace | undefined;
+        if (workspace) {
+          store.put(workspace, accountKey(workspace.owner));
+          store.delete('data');
+        }
+      };
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error('다른 수도관리 창을 닫고 다시 시도하세요.'));
   });
 }
 
-async function workspaceTransaction(change?: (current?: Workspace) => Workspace | undefined) {
+async function workspaceTransaction(
+  key: string,
+  change?: (current?: Workspace) => Workspace | undefined,
+) {
   const db = await openDatabase();
   try {
     return await new Promise<Workspace | undefined>((resolve, reject) => {
       const tx = db.transaction('workspace', change ? 'readwrite' : 'readonly');
       const store = tx.objectStore('workspace');
-      const request = store.get('data');
+      const request = store.get(key);
       let state: Workspace | undefined;
       tx.oncomplete = () => resolve(state);
       tx.onabort = () => reject(tx.error ?? new Error('기기에 저장하지 못했습니다.'));
@@ -64,8 +81,8 @@ async function workspaceTransaction(change?: (current?: Workspace) => Workspace 
         if (!change) return;
         try {
           state = change(state);
-          if (state) store.put(state, 'data');
-          else store.delete('data');
+          if (state) store.put(state, key);
+          else store.delete(key);
         } catch (error) {
           reject(error);
           tx.abort();
@@ -77,7 +94,10 @@ async function workspaceTransaction(change?: (current?: Workspace) => Workspace 
   }
 }
 
-export const readWorkspace = () => workspaceTransaction();
+export async function readWorkspace() {
+  const key = localStorage.getItem(ACCESS_KEY);
+  return key ? workspaceTransaction(key) : undefined;
+}
 export const pending = (draft: Draft) =>
   Object.keys(draft.readings).length + Object.keys(draft.photos).length;
 
@@ -112,9 +132,7 @@ export async function saveSite(user: User, site: Site, stage?: (saved: SavedSite
     throw new Error(
       '오프라인 화면을 준비 중입니다. 인터넷 연결을 확인하고 잠시 후 다시 시도하세요.',
     );
-  return workspaceTransaction((current) => {
-    if (current && !sameAccount(current.owner, user))
-      throw new Error('이 기기에 다른 계정의 오프라인 작업이 저장되어 있습니다.');
+  return workspaceTransaction(accountKey(user), (current) => {
     const state = current ?? { owner: { id: user.id, username: user.username }, sites: [] };
     if (!canReadOffline(state)) throw new Error('온라인으로 다시 로그인하세요.');
     const existing = state.sites.find(({ id }) => id === site.id);
@@ -149,7 +167,7 @@ export function editSavedSite(
   siteId: number,
   change: (site: SavedSite) => SavedSite | undefined,
 ) {
-  return workspaceTransaction((current) => {
+  return workspaceTransaction(accountKey(owner), (current) => {
     if (!current || !sameAccount(current.owner, owner) || !canReadOffline(current))
       throw new Error('저장된 작업의 계정으로 다시 로그인하세요.');
     const before = current.sites.find(({ id }) => id === siteId);
@@ -163,18 +181,10 @@ export function editSavedSite(
   });
 }
 
-export async function checkOfflineLogout(user: User) {
-  const state = await readWorkspace();
-  if (state && sameAccount(state.owner, user) && state.sites.some((site) => pending(site.draft)))
-    throw new Error('미전송 검침·사진이 있습니다. 오프라인 작업에서 먼저 전송하거나 삭제하세요.');
-}
-
 export function clearOfflineSnapshots(user: User) {
-  return workspaceTransaction((current) =>
-    current &&
-    sameAccount(current.owner, user) &&
-    !current.sites.some((site) => pending(site.draft))
-      ? undefined
-      : current,
-  );
+  return workspaceTransaction(accountKey(user), (current) => {
+    if (!current) return undefined;
+    current.sites = current.sites.filter((site) => pending(site.draft));
+    return current.sites.length ? current : undefined;
+  });
 }
