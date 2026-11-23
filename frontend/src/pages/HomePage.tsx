@@ -15,7 +15,7 @@ import { useWork } from '../context/work';
 import { SiteList } from '../components/SiteList';
 
 export function HomePage() {
-  const { role, summary, sites, navigate, openSite, loading } = useWork();
+  const { role, summary, sites, openOwnSites, navigate, openSite, loading } = useWork();
   const cards = [
     { label: '전체 수용가', value: summary.total, Icon: ClipboardList },
     { label: '검침 완료', value: summary.done, Icon: CheckCircle2 },
@@ -58,20 +58,24 @@ export function HomePage() {
         <section className="panel own-count spaced">
           <h3>내 검침 건수</h3>
           <div>
-            <span>
-              시작
-              <strong>
-                {summary.ownStartCount.toLocaleString()}
-                <small>건</small>
-              </strong>
-            </span>
-            <span>
-              종료
-              <strong>
-                {summary.ownEndCount.toLocaleString()}
-                <small>건</small>
-              </strong>
-            </span>
+            {(['START', 'END'] as const).map((phase) => (
+              <Button
+                key={phase}
+                variant="outline"
+                className="outline-btn"
+                onClick={() => openOwnSites(phase)}
+              >
+                {phase === 'START' ? '시작' : '종료'}
+                <strong>
+                  {(phase === 'START'
+                    ? summary.ownStartCount
+                    : summary.ownEndCount
+                  ).toLocaleString()}
+                  <small>건</small>
+                </strong>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Button>
+            ))}
           </div>
         </section>
       )}

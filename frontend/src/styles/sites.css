@@ -198,3 +198,25 @@
     text-align: center;
   }
 }
+
+.site-work-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 12px;
+}
+.site-work-filters label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.site-work-filters select {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding-inline: 8px;
+  background: white;
+}
