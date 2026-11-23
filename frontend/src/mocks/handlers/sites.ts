@@ -5,7 +5,7 @@ import { filterSites, paginate, summarize } from '../queries';
 import type { Phase, SitePhoto } from '../../types';
 import { validViewport, validMapArea } from '../../lib/mapViewport';
 import { hasCoordinates } from '../../lib/coordinates';
-import { statusOf, PHOTO_SLOTS } from '../../types';
+import { statusOf, hasRequiredStartPhotos, PHOTO_SLOTS } from '../../types';
 import { blocks } from '../data';
 import { SPECIAL_CONDITIONS, conditionPayload } from '../../lib/specialCondition';
 
@@ -93,7 +93,11 @@ export const sitesHandlers = [
       ...page,
       items: page.items.map((s) => {
         const { photos, note, ...item } = publicSite(s, request);
-        return { ...item, photoCount: photos.length };
+        return {
+          ...item,
+          photoCount: photos.length,
+          hasStartPhotos: hasRequiredStartPhotos(photos),
+        };
       }),
     });
   }),

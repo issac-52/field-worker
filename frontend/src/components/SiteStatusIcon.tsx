@@ -1,5 +1,5 @@
 import { Check, Circle, CircleDashed } from 'lucide-react';
-import type { Phase, Site } from '../types';
+import type { Phase, InspectionStatusInput } from '../types';
 import { isPhaseComplete, statusOf } from '../types';
 
 const states = {
@@ -20,13 +20,7 @@ function StatusIcon({ state, label }: { state: keyof typeof states; label?: stri
     </span>
   );
 }
-export function SiteStatusIcon({
-  site,
-  phase,
-}: {
-  site: Pick<Site, 'inspections'>;
-  phase?: Phase;
-}) {
+export function SiteStatusIcon({ site, phase }: { site: InspectionStatusInput; phase?: Phase }) {
   if (phase) {
     const complete = isPhaseComplete(site, phase);
     return (

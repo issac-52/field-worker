@@ -171,3 +171,7 @@ ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 
 검침카드 생성 요청 `POST /api/exports/cards`의 선택 필드 `groupedByBlock`은 기본값이 false다. true이면 전체 다운로드 ZIP에 중블록·소블록 조합별 HWPX를 담는다. 작업 목록과 상세 응답에도 선택한 값이 포함된다. 개별 수용가 화면은 기존 개별 파일 형식을 요청한다.
 
 수용가 목록과 집계(`GET /api/sites`, `GET /api/site-summary`)는 같은 선택 조건을 사용한다. `ownWork=ANY|START|END`는 로그인 계정이 해당 단계(ANY는 시작 또는 종료)의 검침 담당자인 수용가만 조회한다. `missingStartPhotos=true`는 시작검침 기록이 있고 OVERVIEW 또는 START_CLOSEUP 사진이 빠진 수용가를 조회한다. 두 조건은 블록·검색·상태 조건과 함께 적용한다.
+
+### 시작검침 저장과 완료 상태
+
+사진 수에 관계없이 시작 지침과 날짜를 저장할 수 있다. 종료검침 전에는 저장된 시작검침, 원경, 시작 근경이 모두 있는 수용가만 시작검침완료로 표시한다. 사진 추가·삭제 후 조회하면 현재 사진 기준으로 상태가 반영된다. 작업자별 검침 건수는 저장한 기록을 기준으로 집계한다.

@@ -26,6 +26,12 @@ const call = async (path: string, body?: unknown) => {
 };
 describe('api regression', () => {
   it('preserves the existing api workflow and validation', async () => {
+    for (const site of store.sites.filter((site) => site.inspections.START)) {
+      site.photos = [
+        { slot: 'OVERVIEW', url: '/test/overview' },
+        { slot: 'START_CLOSEUP', url: '/test/start-closeup' },
+      ];
+    }
     const { data: blocks } = await call('/blocks');
     const { data: sitePage } = await call('/sites');
     const sites = sitePage.items;

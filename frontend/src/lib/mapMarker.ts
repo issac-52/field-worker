@@ -1,11 +1,11 @@
-import type { Site } from '../types';
+import type { InspectionStatusInput } from '../types';
 import { statusOf } from '../types';
 const states = {
   TODO: { label: '미처리', className: 'pending', zIndex: 300 },
   IN_PROGRESS: { label: '시작검침완료', className: 'started', zIndex: 200 },
   DONE: { label: '검침완료', className: 'complete', zIndex: 100 },
 };
-export function mapMarker(site: Pick<Site, 'inspections'>) {
+export function mapMarker(site: InspectionStatusInput) {
   return mapMarkerForStatus(statusOf(site));
 }
 export function mapMarkerForStatus(status: keyof typeof states) {

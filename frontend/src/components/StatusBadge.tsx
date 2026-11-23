@@ -1,5 +1,5 @@
 import { Badge } from './ui/badge';
-import type { Phase, Site } from '../types';
+import type { Phase, InspectionStatusInput } from '../types';
 import { statusOf, isPhaseComplete } from '../types';
 
 const STATUS_PRESENTATION = {
@@ -7,7 +7,7 @@ const STATUS_PRESENTATION = {
   IN_PROGRESS: { className: 'progress', label: '시작검침완료' },
   TODO: { className: 'todo', label: '미처리' },
 };
-export function StatusBadge({ site, phase }: { site: Pick<Site, 'inspections'>; phase?: Phase }) {
+export function StatusBadge({ site, phase }: { site: InspectionStatusInput; phase?: Phase }) {
   if (phase)
     return (
       <Badge className={`status ${isPhaseComplete(site, phase) ? 'done' : 'pending'}`}>

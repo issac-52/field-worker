@@ -94,12 +94,19 @@ describe('map without network', () => {
         },
       },
     };
-    expect(mapMarker(started).label).toBe('시작검침완료');
-    expect(mapMarker(started).content.includes('inspection-marker started')).toBeTruthy();
+    expect(mapMarker(started).label).toBe('미처리');
+    const overview = { slot: 'OVERVIEW' as const, url: '/overview' };
+    expect(mapMarker({ ...started, photos: [overview] }).label).toBe('미처리');
+    const complete = {
+      ...started,
+      photos: [overview, { slot: 'START_CLOSEUP' as const, url: '/close' }],
+    };
+    expect(mapMarker(complete).label).toBe('시작검침완료');
+    expect(mapMarker(complete).content.includes('inspection-marker started')).toBeTruthy();
     expect(mapMarker({ inspections: {} }).label).toBe('미처리');
     expect(mapMarker(seedSites[0]).label).toBe('검침완료');
-    expect(mapMarker({ inspections: {} }).zIndex > mapMarker(started).zIndex).toBeTruthy();
-    expect(!mapMarker(started).content.includes('<b ')).toBeTruthy();
+    expect(mapMarker({ inspections: {} }).zIndex > mapMarker(complete).zIndex).toBeTruthy();
+    expect(!mapMarker(complete).content.includes('<b ')).toBeTruthy();
   });
   it('handles SDK deduplication, failures and retries', async () => {
     vi.resetModules();
