@@ -26,6 +26,66 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   String number;
 
   @Test
+  void settlementGroupPreviewsThenConfirmsAndPaysOnlyMatchingRecords() throws Exception {
+    long adminId =
+        jdbc.queryForObject(
+            "insert into users(login_id,nickname,password,role,must_change_password)"
+                + " values(?,'Test Admin','unused','ADMIN',false) returning id",
+            Long.class,
+            UUID.randomUUID().toString());
+    var admin = new SessionUser(users.findById(adminId).orElseThrow());
+    jdbc.update(
+        "insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee)"
+            + " values(?,'START','2026-11-24',1,?,1000),(?,'END','2027-11-24',1,?,2000)",
+        site,
+        actor.id(),
+        site,
+        actor.id());
+    String filter =
+        "{\"startDate\":\"2026-11-24\",\"endDate\":\"2026-11-24\",\"workerId\":" + actor.id() + "}";
+    var json = new com.fasterxml.jackson.databind.ObjectMapper();
+    for (boolean pay : new boolean[] {false, true}) {
+      String body = "{\"filter\":" + filter + ",\"pay\":" + pay;
+      var preview =
+          mvc.perform(
+                  post("/api/admin/settlements/group")
+                      .with(user(admin))
+                      .with(csrf())
+                      .contentType("application/json")
+                      .content(body + "}"))
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.data.count").value(1))
+              .andExpect(jsonPath("$.data.fee").value(1000))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String token = json.readTree(preview).at("/data/token").asText();
+      String commit = body + ",\"token\":\"" + token + "\"}";
+      mvc.perform(
+              post("/api/admin/settlements/group")
+                  .with(user(admin))
+                  .with(csrf())
+                  .contentType("application/json")
+                  .content(commit))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.updatedCount").value(1));
+      mvc.perform(
+              post("/api/admin/settlements/group")
+                  .with(user(admin))
+                  .with(csrf())
+                  .contentType("application/json")
+                  .content(commit))
+          .andExpect(status().isConflict());
+    }
+    assertThat(
+            jdbc.queryForList(
+                "select settlement_status from inspections where site_id=? order by phase",
+                String.class,
+                site))
+        .containsExactly("OPEN", "PAID");
+  }
+
+  @Test
   void dailyWorkMatchesTheSameInspectionAndFiltersBySpecialCondition() throws Exception {
     jdbc.update(
         "update worksites set middle_block=?, special_condition='HOPE' where id=?", number, site);

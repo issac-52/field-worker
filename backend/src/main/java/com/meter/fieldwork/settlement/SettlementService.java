@@ -281,6 +281,42 @@ public class SettlementService {
   }
 
   @Transactional
+  public Map<String, Object> transitionGroup(
+      Filter filter, long actor, boolean pay, String expectedToken) {
+    if (filter == null
+        || (filter.workerId() == null && (filter.startDate() == null || filter.endDate() == null)))
+      throw new IllegalArgumentException("조사자 또는 검침 기간을 지정하세요.");
+    if (expectedToken != null) lock();
+    var params = new HashMap<String, Object>();
+    String condition = where(filter, params);
+    params.put("state", pay ? "CONFIRMED" : "OPEN");
+    var rows =
+        db.queryForList(
+            "select i.id,coalesce(r.fee,i.fee) as fee"
+                + JOIN
+                + "where "
+                + condition
+                + " and i.settlement_status=:state order by i.id"
+                + (expectedToken == null ? "" : " for update of i"),
+            params);
+    String token =
+        UUID.nameUUIDFromBytes(json(rows).getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            .toString();
+    if (expectedToken == null)
+      return Map.of(
+          "count",
+          rows.size(),
+          "fee",
+          rows.stream().mapToLong(row -> ((Number) row.get("fee")).longValue()).sum(),
+          "token",
+          token);
+    if (rows.isEmpty() || !token.equals(expectedToken))
+      throw new ApiException(409, "SETTLEMENT_GROUP_CHANGED", "정산 대상이 변경되었습니다. 다시 확인하세요.");
+    return applyTransition(
+        rows.stream().map(row -> ((Number) row.get("id")).longValue()).toList(), actor, pay);
+  }
+
+  @Transactional
   public Map<String, Object> transition(List<Long> ids, long actor, boolean pay) {
     if (ids == null
         || ids.isEmpty()
@@ -298,20 +334,31 @@ public class SettlementService {
         || rows.stream()
             .anyMatch(r -> !r.get("settlement_status").equals(pay ? "CONFIRMED" : "OPEN")))
       throw new ApiException(409, "INVALID_SETTLEMENT_STATE", "정산 상태가 변경되었거나 요청 상태와 다릅니다.");
+    return applyTransition(ids, actor, pay);
+  }
+
+  private Map<String, Object> applyTransition(List<Long> ids, long actor, boolean pay) {
+    // Bind one SQL array so a group is processed in one transaction regardless of page size.
+    var p =
+        Map.<String, Object>of(
+            "ids",
+            new org.springframework.jdbc.support.SqlArrayValue("bigint", ids.toArray()),
+            "actor",
+            actor);
     if (pay)
       db.update(
-          "update settlement_records set paid_by=:actor,paid_at=now() where inspection_id in"
-              + " (:ids)",
+          "update settlement_records set paid_by=:actor,paid_at=now() where inspection_id = any"
+              + "(:ids)",
           p);
     else
       db.update(
           "insert into settlement_records(inspection_id,worker_id,snapshot_date,fee,confirmed_by)"
-              + " select id,worker_id,inspection_date,fee,:actor from inspections where id in"
-              + " (:ids)",
+              + " select id,worker_id,inspection_date,fee,:actor from inspections where id = any"
+              + "(:ids)",
           p);
     var update = new HashMap<String, Object>(p);
     update.put("state", pay ? "PAID" : "CONFIRMED");
-    db.update("update inspections set settlement_status=:state where id in (:ids)", update);
+    db.update("update inspections set settlement_status=:state where id = any(:ids)", update);
     return Map.of("updatedCount", ids.size(), "status", pay ? "PAID" : "CONFIRMED");
   }
 

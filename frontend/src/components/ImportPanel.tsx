@@ -110,53 +110,59 @@ export function ImportPanel() {
   return (
     <section className="panel import-panel">
       <h2>수용가 Excel 등록</h2>
-      <label className="field">
-        엑셀 양식
-        <select
-          value={format}
-          disabled={busy}
-          onChange={(e) => {
-            setFormat(e.target.value as 'FINAL' | 'LEGACY');
-            setPlan(undefined);
-            setResult(undefined);
-            setSkipPage(0);
-            setError('');
-            setConfirmation('');
-          }}
-        >
-          <option value="FINAL">신규 양식 (최종본 · 3행 헤더)</option>
-          <option value="LEGACY">구 양식 (기존 자료 · 2행 헤더)</option>
-        </select>
-      </label>
-      <p>
-        {format === 'FINAL'
-          ? '신규 양식은 @@@수용가 전수(검침조사) 시트만 읽습니다. 월별 사용량과 참고 시트는 가져오지 않습니다.'
-          : '구 양식은 기존 2행 헤더와 열 배치를 사용합니다. 월별 자료는 가져오지 않습니다.'}
-      </p>
-      <label className="field">
-        업로드 방식
-        <select
-          value={mode}
-          disabled={busy}
-          onChange={(e) => {
-            setMode(e.target.value as 'upsert' | 'register' | 'repair');
-            setPlan(undefined);
-            setResult(undefined);
-            setSkipPage(0);
-          }}
-        >
-          <option value="upsert">신규 등록 + 기존 기본정보 업데이트</option>
-          <option value="register">신규 수용가 등록</option>
-          <option value="repair">기존 수용가의 빈 기본정보 보완</option>
-        </select>
-      </label>
-      <p>
-        {mode === 'upsert'
-          ? '수용가번호가 없으면 신규 등록만 합니다. 번호가 있으면 새 수용가는 등록하고 기존 수용가는 엑셀의 비어 있지 않은 기본정보로 업데이트합니다. 빈 값으로 기존 정보를 지우지 않습니다. 사진·현장 검침·정산·특이사항은 유지합니다. 좌표 변환에 쓰는 주소가 바뀌면 기존 좌표를 비웁니다. 이후 지도에서 주소로 좌표 등록을 다시 실행하세요. 번호 없는 기존 주소는 오류로 제외합니다.'
-          : mode === 'repair'
-            ? '수용가번호로만 기존 자료의 빈 기본정보를 보완합니다. 번호가 없는 행은 오류로 제외하며 주소로 기존 자료를 찾아 보완하지 않습니다. 기존 검침·사진·좌표를 유지합니다.'
-            : '번호가 있으면 기존 수용가번호 기준으로 등록합니다. 번호가 없으면 이름 없이도 새주소로 등록할 수 있습니다. 이미 등록된 주소이거나 같은 파일에서 먼저 등록한 주소라면 해당 행은 오류로 제외하며 기존 자료를 수정하지 않습니다.'}
-      </p>
+      <div className="import-options">
+        <div>
+          <label className="field">
+            엑셀 양식
+            <select
+              value={format}
+              disabled={busy}
+              onChange={(e) => {
+                setFormat(e.target.value as 'FINAL' | 'LEGACY');
+                setPlan(undefined);
+                setResult(undefined);
+                setSkipPage(0);
+                setError('');
+                setConfirmation('');
+              }}
+            >
+              <option value="FINAL">신규 양식 (최종본 · 3행 헤더)</option>
+              <option value="LEGACY">구 양식 (기존 자료 · 2행 헤더)</option>
+            </select>
+          </label>
+          <p>
+            {format === 'FINAL'
+              ? '신규 양식은 @@@수용가 전수(검침조사) 시트만 읽습니다. 월별 사용량과 참고 시트는 가져오지 않습니다.'
+              : '구 양식은 기존 2행 헤더와 열 배치를 사용합니다. 월별 자료는 가져오지 않습니다.'}
+          </p>
+        </div>
+        <div>
+          <label className="field">
+            업로드 방식
+            <select
+              value={mode}
+              disabled={busy}
+              onChange={(e) => {
+                setMode(e.target.value as 'upsert' | 'register' | 'repair');
+                setPlan(undefined);
+                setResult(undefined);
+                setSkipPage(0);
+              }}
+            >
+              <option value="upsert">신규 등록 + 기존 기본정보 업데이트</option>
+              <option value="register">신규 수용가 등록</option>
+              <option value="repair">기존 수용가의 빈 기본정보 보완</option>
+            </select>
+          </label>
+          <p>
+            {mode === 'upsert'
+              ? '수용가번호가 없으면 신규 등록만 합니다. 번호가 있으면 새 수용가는 등록하고 기존 수용가는 엑셀의 비어 있지 않은 기본정보로 업데이트합니다. 빈 값으로 기존 정보를 지우지 않습니다. 사진·현장 검침·정산·특이사항은 유지합니다. 좌표 변환에 쓰는 주소가 바뀌면 기존 좌표를 비웁니다. 이후 지도에서 주소로 좌표 등록을 다시 실행하세요. 번호 없는 기존 주소는 오류로 제외합니다.'
+              : mode === 'repair'
+                ? '수용가번호로만 기존 자료의 빈 기본정보를 보완합니다. 번호가 없는 행은 오류로 제외하며 주소로 기존 자료를 찾아 보완하지 않습니다. 기존 검침·사진·좌표를 유지합니다.'
+                : '번호가 있으면 기존 수용가번호 기준으로 등록합니다. 번호가 없으면 이름 없이도 새주소로 등록할 수 있습니다. 이미 등록된 주소이거나 같은 파일에서 먼저 등록한 주소라면 해당 행은 오류로 제외하며 기존 자료를 수정하지 않습니다.'}
+          </p>
+        </div>
+      </div>
       <label className="field">
         <span>
           <input
