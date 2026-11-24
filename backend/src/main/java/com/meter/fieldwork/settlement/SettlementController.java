@@ -86,4 +86,12 @@ public class SettlementController {
   ApiResult<?> pay(@RequestBody Selection body, @AuthenticationPrincipal SessionUser actor) {
     return ApiResult.ok(settlements.transition(body.inspectionIds(), actor.id(), true));
   }
+
+  public record GroupSelection(SettlementService.Filter filter, boolean pay, String token) {}
+
+  @PostMapping("/api/admin/settlements/group")
+  ApiResult<?> group(@RequestBody GroupSelection body, @AuthenticationPrincipal SessionUser actor) {
+    return ApiResult.ok(
+        settlements.transitionGroup(body.filter(), actor.id(), body.pay(), body.token()));
+  }
 }

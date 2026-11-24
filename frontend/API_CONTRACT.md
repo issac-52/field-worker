@@ -179,3 +179,11 @@ ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 
 ### 검침일과 특이사항 조회
 
 `GET /api/sites`와 `GET /api/site-summary`는 선택적으로 `workDate`(YYYY-MM-DD)와 `specialCondition`(NONE, HOPE, LOCATION_UNKNOWN, STACKED, OTHER)을 받는다. 검침일과 내 작업을 함께 선택하면 같은 검침 기록에서 날짜와 조사자를 확인한다. 작업 건수는 해당 날짜에 입력된 검침일 기준으로 집계한다.
+
+### 검침일별 검침카드 생성
+
+검침카드 생성 요청에 `workDate`(YYYY-MM-DD)를 지정하면 해당 검침일에 기록이 있는 수용가를 선택한다. `inspectionPhase`(START 또는 END)는 검침일과 함께 전달할 수 있다. 블록과 날짜 조건을 모두 만족하는 수용가만 작업에 포함하며, 같은 수용가는 한 번만 포함한다.
+
+### 일괄 정산
+
+`POST /api/admin/settlements/group`에 `filter`와 `pay`를 전송하면 처리 가능한 대상의 건수, 금액, 확인용 토큰을 반환한다. 조사자 또는 시작일과 종료일을 지정한다. 동일한 조건에 `token`을 추가해 다시 보내면 전 페이지의 대상을 한 트랜잭션에서 처리한다. 확정은 미확정 기록을, 지급 처리는 확정 기록을 대상으로 한다. 미리보기 이후 대상이나 금액이 달라지면 HTTP 409를 반환한다.
