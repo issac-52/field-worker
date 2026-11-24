@@ -1,11 +1,15 @@
+import { BlockFilters } from './BlockFilters';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Search, X } from 'lucide-react';
+import { SPECIAL_CONDITIONS } from '../lib/specialCondition';
 import { useRef } from 'react';
 import { useWork } from '../context/work';
 
 export function SiteSearch() {
   const {
+    middle,
+    small,
     query,
     setQuery,
     filter,
@@ -14,6 +18,10 @@ export function SiteSearch() {
     setOwnWork,
     missingStartPhotos,
     setMissingStartPhotos,
+    workDate,
+    setWorkDate,
+    specialCondition,
+    setSpecialCondition,
   } = useWork();
   const input = useRef<HTMLInputElement>(null);
   return (
@@ -47,47 +55,76 @@ export function SiteSearch() {
           )}
         </div>
       </div>
-      <div className="filters compact-filters" aria-label="검침 상태">
-        {['전체', '미처리', '시작검침완료', '검침완료'].map((status) => (
-          <Button
-            variant="ghost"
-            key={status}
-            className={filter === status ? 'selected' : ''}
-            aria-pressed={filter === status}
-            aria-label={status}
-            onClick={() => setFilter(status)}
-          >
-            {status === '시작검침완료' ? '시작 완료' : status}
-          </Button>
-        ))}
-      </div>
-      <div className="site-work-filters">
-        <label>
-          검침 담당
-          <select
-            value={ownWork ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setOwnWork(
-                value === 'ANY' || value === 'START' || value === 'END' ? value : undefined,
-              );
-            }}
-          >
-            <option value="">전체 조사자</option>
-            <option value="ANY">내가 작업한 수용가</option>
-            <option value="START">내가 시작검침한 수용가</option>
-            <option value="END">내가 종료검침한 수용가</option>
-          </select>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={missingStartPhotos}
-            onChange={(e) => setMissingStartPhotos(e.target.checked)}
-          />
-          시작검침 사진 누락 (원경 또는 시작 근경)
-        </label>
-      </div>
+      <details className="site-filter-panel">
+        <summary>
+          조회 필터{' '}
+          {[
+            middle || small,
+            filter !== '전체',
+            ownWork,
+            missingStartPhotos,
+            workDate,
+            specialCondition,
+          ].filter(Boolean).length || ''}
+        </summary>
+        <BlockFilters />
+        <div className="filters compact-filters" aria-label="검침 상태">
+          {['전체', '미처리', '시작검침완료', '검침완료'].map((status) => (
+            <Button
+              variant="ghost"
+              key={status}
+              className={filter === status ? 'selected' : ''}
+              aria-pressed={filter === status}
+              aria-label={status}
+              onClick={() => setFilter(status)}
+            >
+              {status === '시작검침완료' ? '시작 완료' : status}
+            </Button>
+          ))}
+        </div>
+        <div className="site-work-filters">
+          <label>
+            검침일{' '}
+            <Input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} />
+          </label>
+          <label>
+            특이사항
+            <select value={specialCondition} onChange={(e) => setSpecialCondition(e.target.value)}>
+              <option value="">전체</option>
+              {Object.entries(SPECIAL_CONDITIONS).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            검침 담당
+            <select
+              value={ownWork ?? ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setOwnWork(
+                  value === 'ANY' || value === 'START' || value === 'END' ? value : undefined,
+                );
+              }}
+            >
+              <option value="">전체 조사자</option>
+              <option value="ANY">내가 작업한 수용가</option>
+              <option value="START">내가 시작검침한 수용가</option>
+              <option value="END">내가 종료검침한 수용가</option>
+            </select>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={missingStartPhotos}
+              onChange={(e) => setMissingStartPhotos(e.target.checked)}
+            />
+            시작검침 사진 누락 (원경 또는 시작 근경)
+          </label>
+        </div>
+      </details>
     </>
   );
 }

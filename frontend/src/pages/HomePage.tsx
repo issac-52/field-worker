@@ -1,4 +1,5 @@
 import { PwaInstallGuide } from '../components/PwaInstallGuide';
+import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import {
@@ -15,7 +16,8 @@ import { useWork } from '../context/work';
 import { SiteList } from '../components/SiteList';
 
 export function HomePage() {
-  const { role, summary, sites, openOwnSites, navigate, openSite, loading } = useWork();
+  const { role, summary, sites, openOwnSites, navigate, openSite, loading, homeDate, setHomeDate } =
+    useWork();
   const cards = [
     { label: '전체 수용가', value: summary.total, Icon: ClipboardList },
     { label: '검침 완료', value: summary.done, Icon: CheckCircle2 },
@@ -54,31 +56,47 @@ export function HomePage() {
         )}
       </div>
       <h1 className="sr-only">검침 현황</h1>
-      {role === 'WORKER' && (
-        <section className="panel own-count spaced">
-          <h3>내 검침 건수</h3>
-          <div>
-            {(['START', 'END'] as const).map((phase) => (
+      <section className="panel own-count spaced">
+        <h3>{role === 'WORKER' ? '내 작업현황' : '전체 작업현황'}</h3>
+        <label className="field">
+          검침일 (비우면 전체 기간)
+          <Input
+            type="date"
+            value={homeDate}
+            onChange={(event) => setHomeDate(event.target.value)}
+          />
+        </label>
+        <div>
+          {(['START', 'END'] as const).map((phase) => {
+            const label = phase === 'START' ? '시작검침' : '종료검침';
+            const count =
+              phase === 'START'
+                ? role === 'WORKER'
+                  ? summary.ownStartCount
+                  : summary.startCount
+                : role === 'WORKER'
+                  ? summary.ownEndCount
+                  : summary.endCount;
+            const value = loading ? '조회 중' : count.toLocaleString() + '건';
+            return role === 'WORKER' ? (
               <Button
                 key={phase}
                 variant="outline"
                 className="outline-btn"
+                disabled={loading}
                 onClick={() => openOwnSites(phase)}
               >
-                {phase === 'START' ? '시작' : '종료'}
-                <strong>
-                  {(phase === 'START'
-                    ? summary.ownStartCount
-                    : summary.ownEndCount
-                  ).toLocaleString()}
-                  <small>건</small>
-                </strong>
+                {label} <strong>{value}</strong>
                 <ArrowRight size={14} aria-hidden="true" />
               </Button>
-            ))}
-          </div>
-        </section>
-      )}
+            ) : (
+              <p key={phase}>
+                {label} <strong>{value}</strong>
+              </p>
+            );
+          })}
+        </div>
+      </section>
       <div className="stats-grid spaced">
         {cards.map(({ label, value, Icon }) => (
           <Card className="stat-card" key={label}>
@@ -95,7 +113,7 @@ export function HomePage() {
       </div>
       <section className="section-heading spaced">
         <h3 className="sr-only">검침 대상</h3>
-        <Button variant="ghost" className="text-btn" onClick={() => navigate('sites')}>
+        <Button variant="ghost" className="text-btn" onClick={() => openOwnSites()}>
           전체보기
           <ArrowRight size={15} />
         </Button>

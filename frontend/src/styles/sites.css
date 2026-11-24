@@ -220,3 +220,20 @@
   padding-inline: 8px;
   background: white;
 }
+
+.site-filter-panel {
+  margin-block: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.site-filter-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.site-filter-panel[open] summary {
+  margin-bottom: 10px;
+}
+.site-work-filters input[type='date'] {
+  width: auto;
+}

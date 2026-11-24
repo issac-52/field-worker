@@ -83,6 +83,7 @@ export const sitesHandlers = [
       summarize(
         filterSites(store.sites, new URL(request.url).searchParams, isAdmin(request) ? 1 : 11),
         isAdmin(request),
+        new URL(request.url).searchParams.get('workDate'),
       ),
     ),
   ),

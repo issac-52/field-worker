@@ -3,7 +3,9 @@ package com.meter.fieldwork.worksite;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meter.fieldwork.global.ApiException;
+import java.time.LocalDate;
 import java.util.*;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,9 +45,11 @@ public class WorksiteService {
       String q,
       String status,
       OwnWork ownWork,
-      Boolean missingStartPhotos) {
+      Boolean missingStartPhotos,
+      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workDate,
+      SpecialCondition specialCondition) {
     public Filter(String middleBlockId, String smallBlockId, String q, String status) {
-      this(middleBlockId, smallBlockId, q, status, null, null);
+      this(middleBlockId, smallBlockId, q, status, null, null, null, null);
     }
   }
 
@@ -155,14 +159,24 @@ public class WorksiteService {
               + " not exists(select 1 from photos p where p.site_id=s.id and"
               + " p.slot='START_CLOSEUP'))");
     }
-    if (filter.ownWork() != null) {
-      if (actor == null) throw new IllegalArgumentException("로그인 계정이 필요합니다.");
-      where.append(
-          " and exists(select 1 from inspections m where m.site_id=s.id and m.worker_id=:owner");
-      params.put("owner", actor);
-      if (filter.ownWork() != OwnWork.ANY) {
-        where.append(" and m.phase=:ownPhase");
-        params.put("ownPhase", filter.ownWork().name());
+    if (filter.specialCondition() != null) {
+      where.append(" and s.special_condition=:condition");
+      params.put("condition", filter.specialCondition().name());
+    }
+    if (filter.ownWork() != null || filter.workDate() != null) {
+      where.append(" and exists(select 1 from inspections m where m.site_id=s.id");
+      if (filter.workDate() != null) {
+        where.append(" and m.inspection_date=:workDate");
+        params.put("workDate", filter.workDate());
+      }
+      if (filter.ownWork() != null) {
+        if (actor == null) throw new IllegalArgumentException("로그인 계정이 필요합니다.");
+        where.append(" and m.worker_id=:owner");
+        params.put("owner", actor);
+        if (filter.ownWork() != OwnWork.ANY) {
+          where.append(" and m.phase=:ownPhase");
+          params.put("ownPhase", filter.ownWork().name());
+        }
       }
       where.append(")");
     }
@@ -284,13 +298,15 @@ public class WorksiteService {
     String where = where(filter, params, actor);
     long total =
         db.queryForObject("select count(*) from worksites s where " + where, params, Long.class);
+    String inspectionWhere =
+        where + (filter.workDate() == null ? "" : " and i.inspection_date=:workDate");
     var counts =
         db.queryForMap(
             "select count(*) filter(where phase='START') as starts,count(*) filter(where"
                 + " phase='END') as ends,count(*) filter(where phase='START' and worker_id=:actor)"
                 + " as own_start,count(*) filter(where phase='END' and worker_id=:actor) as own_end"
                 + " from inspections i join worksites s on s.id=i.site_id where "
-                + where,
+                + inspectionWhere,
             withActor(params, actor));
     long done =
         db.queryForObject(
@@ -315,7 +331,7 @@ public class WorksiteService {
                 "select worker_id as \"workerId\",count(*) filter(where phase='START') as"
                     + " \"startCount\",count(*) filter(where phase='END') as \"endCount\" from"
                     + " inspections i join worksites s on s.id=i.site_id where "
-                    + where
+                    + inspectionWhere
                     + " group by worker_id",
                 params)
             : List.of();
