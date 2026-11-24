@@ -52,6 +52,7 @@ export type Site = {
         fee?: number;
         recordedAt: string;
         updatedAt?: string;
+        resettable?: boolean;
       }
     >
   >;

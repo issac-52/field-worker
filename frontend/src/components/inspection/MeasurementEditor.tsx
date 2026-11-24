@@ -81,6 +81,20 @@ export function MeasurementEditor({
     if (success) onClose();
     else if (navigator.onLine) void refresh();
   }
+  async function reset() {
+    if (!measurement || !expectedUpdatedAt || busy) return;
+    if (
+      !window.confirm(
+        `${PHASE_LABEL[phase]} 날짜와 지침을 초기화할까요? 이 검침 기록은 다시 입력할 수 있습니다.`,
+      )
+    )
+      return;
+    const success = await save(
+      () => api.resetMeasurement(site.id, phase, expectedUpdatedAt),
+      PHASE_LABEL[phase] + ' 기록을 초기화했습니다.',
+    );
+    if (success) onClose();
+  }
   const form = (
     <form
       onSubmit={(event) => {
@@ -164,6 +178,17 @@ export function MeasurementEditor({
       >
         {busy ? '저장 중...' : editing ? '수정 저장' : '검침 저장'}
       </Button>
+      {editing && (measurement.resettable ?? __MOCKS_ENABLED__) && (
+        <Button
+          variant="outline"
+          type="button"
+          className="outline-btn full"
+          disabled={busy}
+          onClick={() => void reset()}
+        >
+          검침값 초기화
+        </Button>
+      )}
       {inline && editing && (
         <Button
           variant="ghost"

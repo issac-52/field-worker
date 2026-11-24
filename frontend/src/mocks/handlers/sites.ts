@@ -187,6 +187,20 @@ export const sitesHandlers = [
     };
     return ok(publicSite(x, request));
   }),
+  http.delete('/api/sites/:id/measurements/:phase', async ({ params, request }) => {
+    const site = store.sites.find((s) => s.id === Number(params.id));
+    const phase = params.phase;
+    if (!site || (phase !== 'START' && phase !== 'END')) return err('수용가 또는 검침 없음', 404);
+    const measurement = site.inspections[phase];
+    if (!measurement) return err('등록된 검침이 없습니다.', 404);
+    if (!isAdmin(request) && measurement.workerId !== 11)
+      return err('본인 검침만 초기화할 수 있습니다.', 403);
+    const { expectedUpdatedAt } = (await request.json()) as { expectedUpdatedAt?: string };
+    if (expectedUpdatedAt !== (measurement.updatedAt ?? measurement.recordedAt))
+      return err('다른 수정이 반영되었습니다. 다시 조회하세요.', 409);
+    delete site.inspections[phase];
+    return ok(publicSite(site, request));
+  }),
   http.patch('/api/sites/:id/measurements/:phase', async ({ params, request }) => {
     const site = store.sites.find((value) => value.id === Number(params.id));
     const phase = params.phase as Phase;

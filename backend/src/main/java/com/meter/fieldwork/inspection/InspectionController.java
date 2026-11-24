@@ -44,6 +44,18 @@ public class InspectionController {
     return ApiResult.ok(inspections.history(id, phase, beforeId, actor.id(), admin(actor)));
   }
 
+  public record Reset(Instant expectedUpdatedAt) {}
+
+  @DeleteMapping("/{phase}")
+  ApiResult<?> reset(
+      @PathVariable long id,
+      @PathVariable Phase phase,
+      @RequestBody Reset body,
+      @AuthenticationPrincipal SessionUser actor) {
+    inspections.reset(id, phase, body.expectedUpdatedAt(), actor.id(), admin(actor));
+    return ApiResult.ok(sites.detail(id, admin(actor)));
+  }
+
   @PatchMapping("/{phase}")
   ApiResult<?> correct(
       @PathVariable long id,

@@ -26,6 +26,46 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   String number;
 
   @Test
+  void resetsOnlyTheSelectedOpenInspectionAndPreservesHistory() throws Exception {
+    jdbc.update(
+        "insert into"
+            + " inspections(site_id,phase,inspection_date,reading,worker_id,fee,settlement_status)"
+            + " values(?,'START','2026-11-24',1,?,1000,'OPEN'),"
+            + "(?,'END','2027-11-24',2,?,2000,'CONFIRMED')",
+        site,
+        actor.id(),
+        site,
+        actor.id());
+    String url = "/api/sites/" + site + "/measurements/";
+    for (String phase : java.util.List.of("END", "START")) {
+      var version =
+          jdbc.queryForObject(
+                  "select updated_at from inspections where site_id=? and phase=?",
+                  java.sql.Timestamp.class,
+                  site,
+                  phase)
+              .toInstant();
+      mvc.perform(
+              delete(url + phase)
+                  .with(user(actor))
+                  .with(csrf())
+                  .contentType("application/json")
+                  .content("{\"expectedUpdatedAt\":\"" + version + "\"}"))
+          .andExpect(phase.equals("END") ? status().isConflict() : status().isOk());
+    }
+    assertThat(
+            jdbc.queryForList("select phase from inspections where site_id=?", String.class, site))
+        .containsExactly("END");
+    assertThat(
+            jdbc.queryForObject(
+                "select before_value->>'reading' from inspection_edits where site_id=? and"
+                    + " phase='START' and after_value->>'reset'='true'",
+                String.class,
+                site))
+        .isEqualTo("1");
+  }
+
+  @Test
   void settlementGroupPreviewsThenConfirmsAndPaysOnlyMatchingRecords() throws Exception {
     long adminId =
         jdbc.queryForObject(
