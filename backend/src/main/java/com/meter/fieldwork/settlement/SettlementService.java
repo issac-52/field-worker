@@ -300,7 +300,8 @@ public class SettlementService {
                 + (expectedToken == null ? "" : " for update of i"),
             params);
     String token =
-        UUID.nameUUIDFromBytes(json(rows).getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        UUID.nameUUIDFromBytes(
+                (pay + "|" + json(rows)).getBytes(java.nio.charset.StandardCharsets.UTF_8))
             .toString();
     if (expectedToken == null)
       return Map.of(

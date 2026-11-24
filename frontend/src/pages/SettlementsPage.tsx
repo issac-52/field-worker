@@ -120,6 +120,14 @@ ${action} 처리할까요?`)
             onChange={(e) => setUntil(e.target.value)}
           />
         </label>
+        <Button
+          variant="outline"
+          className="outline-btn"
+          disabled={!from || busy}
+          onClick={() => setUntil(from)}
+        >
+          시작일 하루만
+        </Button>
       </div>
       {from && until && from > until && (
         <p className="form-error" role="alert">
