@@ -98,6 +98,30 @@ public class InspectionService {
     audit(site, phase, actor, before, current(site, phase));
   }
 
+  @Transactional
+  public void reset(long site, Phase phase, Instant expected, long actor, boolean admin) {
+    if (expected == null) throw new IllegalArgumentException();
+    lockLedgerAndSite(site);
+    var before = current(site, phase);
+    if (!admin && ((Number) before.get("worker_id")).longValue() != actor) throw forbidden();
+    if (!"OPEN".equals(before.get("settlement_status")))
+      throw new ApiException(409, "SETTLEMENT_LOCKED", "정산이 확정된 검침은 초기화할 수 없습니다.");
+    if (!((java.sql.Timestamp) before.get("updated_at")).toInstant().equals(expected))
+      throw new ApiException(409, "STALE_MEASUREMENT", "다른 수정이 반영되었습니다. 다시 조회하세요.");
+    Object inspectionId = before.get("id");
+    var adjustments =
+        db.queryForList(
+            "select adjustment_id,before_fee,after_fee from fee_adjustment_items where"
+                + " inspection_id=?",
+            inspectionId);
+    if (!adjustments.isEmpty()) {
+      before.put("fee_adjustments", adjustments);
+      db.update("delete from fee_adjustment_items where inspection_id=?", inspectionId);
+    }
+    db.update("delete from inspections where site_id=? and phase=?", site, phase.name());
+    audit(site, phase, actor, before, Map.of("reset", true));
+  }
+
   private void lockLedgerAndSite(long site) {
     db.execute("select pg_advisory_xact_lock(74012026)");
     if (db.queryForList("select id from worksites where id=? for update", site).isEmpty())
@@ -107,8 +131,8 @@ public class InspectionService {
   @Transactional(readOnly = true)
   public Map<String, Object> history(
       long site, Phase phase, Long beforeId, long actor, boolean admin) {
-    var latest = current(site, phase);
-    if (!admin && ((Number) latest.get("worker_id")).longValue() != actor) throw forbidden();
+    if (!admin && ((Number) current(site, phase).get("worker_id")).longValue() != actor)
+      throw forbidden();
     if (beforeId != null && beforeId < 1) throw new IllegalArgumentException();
     var rows =
         db.queryForList(
@@ -128,7 +152,8 @@ public class InspectionService {
         var after = json.readTree((String) row.get("after_value"));
         if (!admin) {
           if (before.isObject())
-            ((com.fasterxml.jackson.databind.node.ObjectNode) before).remove("fee");
+            ((com.fasterxml.jackson.databind.node.ObjectNode) before)
+                .remove(java.util.List.of("fee", "fee_adjustments"));
           ((com.fasterxml.jackson.databind.node.ObjectNode) after).remove("fee");
         }
         items.add(

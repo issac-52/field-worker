@@ -187,3 +187,7 @@ ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 
 ### 일괄 정산
 
 `POST /api/admin/settlements/group`에 `filter`와 `pay`를 전송하면 처리 가능한 대상의 건수, 금액, 확인용 토큰을 반환한다. 조사자 또는 시작일과 종료일을 지정한다. 동일한 조건에 `token`을 추가해 다시 보내면 전 페이지의 대상을 한 트랜잭션에서 처리한다. 확정은 미확정 기록을, 지급 처리는 확정 기록을 대상으로 한다. 미리보기 이후 대상이나 금액이 달라지면 HTTP 409를 반환한다.
+
+### 검침값 초기화
+
+`DELETE /api/sites/{id}/measurements/{phase}`에 `expectedUpdatedAt`을 전달한다. 관리자는 미확정 검침을, 조사자는 본인의 미확정 검침을 초기화할 수 있다. 해당 단계의 날짜와 지침을 삭제하고 이전 값은 검침 이력에 보관한다. 다른 단계와 사진은 유지된다. 조회 후 값이 바뀌었거나 정산이 확정된 경우 HTTP 409를 반환한다.
