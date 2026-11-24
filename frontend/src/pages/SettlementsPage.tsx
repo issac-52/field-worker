@@ -10,6 +10,8 @@ import { PHASE_LABEL } from '../types';
 
 export function SettlementsPage() {
   const {
+    middle,
+    small,
     settleWorker,
     setSettleWorker,
     settlePhase,
@@ -27,15 +29,46 @@ export function SettlementsPage() {
   } = useWork();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  async function transition(id: number, action: 'confirm' | 'pay') {
+  const invalidRange = Boolean(from && until && from > until);
+  const canProcess = Boolean(settleWorker || (from && until)) && !invalidRange;
+  const [message, setMessage] = useState('');
+  async function transition(pay: boolean) {
+    if (!canProcess || busy) return;
+    const filter = {
+      workerId: settleWorker ? Number(settleWorker) : undefined,
+      phase: settlePhase || undefined,
+      startDate: from || undefined,
+      endDate: until || undefined,
+      middleBlockId: middle || undefined,
+      smallBlockId: small || undefined,
+    };
+    const action = pay ? '지급 완료' : '정산 확정';
     setBusy(true);
     setError('');
+    setMessage('');
     try {
-      await call('/admin/settlements/' + action, {
+      const preview = await call<{ count: number; fee: number; token: string }>(
+        '/admin/settlements/group',
+        {
+          method: 'POST',
+          body: JSON.stringify({ filter, pay }),
+        },
+      );
+      if (!preview.count) {
+        setMessage(action + ' 대상이 없습니다.');
+        return;
+      }
+      if (
+        !window.confirm(`${preview.count.toLocaleString()}건 · ${formatWon(preview.fee)}
+${action} 처리할까요?`)
+      )
+        return;
+      const result = await call<{ updatedCount: number }>('/admin/settlements/group', {
         method: 'POST',
-        body: JSON.stringify({ inspectionIds: [id] }),
+        body: JSON.stringify({ filter, pay, token: preview.token }),
       });
       await refresh();
+      setMessage(`${result.updatedCount.toLocaleString()}건 ${action} 처리했습니다.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : '정산 처리 실패');
     } finally {
@@ -87,6 +120,14 @@ export function SettlementsPage() {
             onChange={(e) => setUntil(e.target.value)}
           />
         </label>
+        <Button
+          variant="outline"
+          className="outline-btn"
+          disabled={!from || busy}
+          onClick={() => setUntil(from)}
+        >
+          시작일 하루만
+        </Button>
       </div>
       {from && until && from > until && (
         <p className="form-error" role="alert">
@@ -124,11 +165,37 @@ export function SettlementsPage() {
             );
           })}
       </div>
+      {!__MOCKS_ENABLED__ && (
+        <section className="panel settlement-batch">
+          <h3>일괄 정산</h3>
+          <p>조사자 또는 검침 기간을 선택하면 조회 조건에 맞는 전체 페이지의 검침을 처리합니다.</p>
+          <div className="settlement-batch-actions">
+            <Button
+              disabled={!canProcess || busy || loading}
+              onClick={() => void transition(false)}
+            >
+              정산 확정
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canProcess || busy || loading}
+              onClick={() => void transition(true)}
+            >
+              지급 완료 처리
+            </Button>
+          </div>
+          {message && <p role="status">{message}</p>}
+          {error && (
+            <p role="alert" className="form-error">
+              {error}
+            </p>
+          )}
+        </section>
+      )}
       <section id="settlement-results" className="section-heading spaced">
         <h3>검침별 상세 내역</h3>
         <span>{(settlementData?.total ?? 0).toLocaleString()}건</span>
       </section>
-      {error && <p role="alert">{error}</p>}
       <div className="panel settle-list">
         {rows.map((row) => (
           <Button
@@ -144,6 +211,9 @@ export function SettlementsPage() {
               </b>
               <span>
                 {PHASE_LABEL[row.phase]} · {formatDate(row.date)} · {row.zone}
+                {row.settlementStatus &&
+                  ' · ' +
+                    { OPEN: '미확정', CONFIRMED: '확정', PAID: '지급 완료' }[row.settlementStatus]}
               </span>
             </div>
             <strong>{formatWon(row.fee)}</strong>
@@ -153,36 +223,6 @@ export function SettlementsPage() {
           <div className="empty">{loading ? '불러오는 중...' : '검침 기록이 없습니다.'}</div>
         )}
       </div>
-      {!__MOCKS_ENABLED__ && (
-        <section className="panel">
-          <h3>현재 페이지 정산 처리</h3>
-          {rows.map((row) => (
-            <div key={row.inspectionId}>
-              <span>
-                {row.workerName} · {PHASE_LABEL[row.phase]} ·{' '}
-                {row.settlementStatus === 'PAID'
-                  ? '지급 완료'
-                  : row.settlementStatus === 'CONFIRMED'
-                    ? '확정'
-                    : '미확정'}
-              </span>
-              {row.inspectionId && row.settlementStatus !== 'PAID' && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void transition(
-                      row.inspectionId!,
-                      row.settlementStatus === 'OPEN' ? 'confirm' : 'pay',
-                    )
-                  }
-                >
-                  {row.settlementStatus === 'OPEN' ? '정산 확정' : '지급 완료 처리'}
-                </button>
-              )}
-            </div>
-          ))}
-        </section>
-      )}
       <Pagination data={settlementData} onChange={changeSettlementPage} />
     </>
   );

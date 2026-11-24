@@ -237,3 +237,21 @@
 .site-work-filters input[type='date'] {
   width: auto;
 }
+
+.site-work-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  align-items: end;
+  gap: 8px 14px;
+}
+
+.site-work-filters label:has(select, input[type='date']) {
+  display: grid;
+  gap: 4px;
+}
+
+.site-work-filters select,
+.site-work-filters input[type='date'] {
+  width: 100%;
+  min-width: 0;
+}

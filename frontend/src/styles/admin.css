@@ -408,3 +408,65 @@
   max-width: 100%;
   min-width: 0;
 }
+
+.settlement-batch {
+  margin-block: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.settlement-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-panel select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: white;
+}
+
+.import-panel > p {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.import-panel form {
+  padding: 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+}
+
+.import-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+.import-options > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.import-options .field {
+  max-width: none;
+}
+.import-options p {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .import-panel {
+    padding: 14px;
+  }
+  .import-panel form .primary-btn,
+  .settlement-batch-actions > button {
+    flex: 1 1 100%;
+  }
+}
