@@ -2,10 +2,12 @@ package com.meter.fieldwork.document;
 
 import com.fasterxml.jackson.databind.*;
 import com.meter.fieldwork.global.ApiException;
+import com.meter.fieldwork.inspection.InspectionRules.Phase;
 import com.meter.fieldwork.photo.ObjectStorage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,7 +52,18 @@ public class DocumentService {
   }
 
   public record Request(
-      Long siteId, String middleBlock, String smallBlock, String title, boolean groupedByBlock) {
+      Long siteId,
+      String middleBlock,
+      String smallBlock,
+      String title,
+      boolean groupedByBlock,
+      LocalDate workDate,
+      Phase inspectionPhase) {
+    public Request(
+        Long siteId, String middleBlock, String smallBlock, String title, boolean groupedByBlock) {
+      this(siteId, middleBlock, smallBlock, title, groupedByBlock, null, null);
+    }
+
     public Request(Long siteId, String middleBlock, String smallBlock, String title) {
       this(siteId, middleBlock, smallBlock, title, false);
     }
@@ -60,6 +73,8 @@ public class DocumentService {
     String title = Objects.toString(request.title(), "").strip();
     if (title.isBlank() || title.length() > 100)
       throw new IllegalArgumentException("문서 제목은 1~100자로 입력하세요.");
+    if (request.inspectionPhase() != null && request.workDate() == null)
+      throw new IllegalArgumentException("검침일을 선택하세요.");
     return tx.execute(
         status -> {
           db.execute("select pg_advisory_xact_lock(4285101)");
@@ -82,6 +97,17 @@ public class DocumentService {
           if (request.smallBlock() != null && !request.smallBlock().isBlank()) {
             where += " and small_block=?";
             args.add(request.smallBlock());
+          }
+          if (request.workDate() != null) {
+            where +=
+                " and exists(select 1 from inspections i where i.site_id=worksites.id and"
+                    + " i.inspection_date=?";
+            args.add(request.workDate());
+            if (request.inspectionPhase() != null) {
+              where += " and i.phase=?";
+              args.add(request.inspectionPhase().name());
+            }
+            where += ")";
           }
           var sites =
               db.queryForList(

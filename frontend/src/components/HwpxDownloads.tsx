@@ -1,3 +1,4 @@
+import type { Phase } from '../types';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { call, ApiError } from '../api/client';
@@ -35,6 +36,8 @@ export function HwpxDownloads({
 }) {
   const client = useQueryClient();
   const [groupedByBlock, setGroupedByBlock] = useState(false);
+  const [workDate, setWorkDate] = useState('');
+  const [inspectionPhase, setInspectionPhase] = useState<Phase | ''>('');
   const [title, setTitle] = useState('지방상수도 현대화사업 성과측정을 위한');
   const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState<string>();
@@ -71,6 +74,8 @@ export function HwpxDownloads({
           middleBlock: middleBlock || undefined,
           smallBlock: smallBlock || undefined,
           title: title.trim(),
+          workDate: !siteId && workDate ? workDate : undefined,
+          inspectionPhase: !siteId && workDate && inspectionPhase ? inspectionPhase : undefined,
           groupedByBlock: !siteId && groupedByBlock,
         }),
       });
@@ -133,6 +138,31 @@ export function HwpxDownloads({
           {siteId ? '이 수용가' : smallBlock || middleBlock || '전체 수용가'}의 검침카드를
           생성합니다. 원경·시작 근경·완료 근경 사진을 넣고 위치도는 비워 둡니다.
         </p>
+        {!siteId && (
+          <div className="site-work-filters">
+            <label>
+              검침일 (선택)
+              <input
+                type="date"
+                value={workDate}
+                onChange={(event) => setWorkDate(event.target.value)}
+                disabled={busy}
+              />
+            </label>
+            <label>
+              검침 단계
+              <select
+                value={workDate ? inspectionPhase : ''}
+                onChange={(event) => setInspectionPhase(event.target.value as Phase | '')}
+                disabled={busy || !workDate}
+              >
+                <option value="">시작·종료 전체</option>
+                <option value="START">시작검침</option>
+                <option value="END">종료검침</option>
+              </select>
+            </label>
+          </div>
+        )}
         {!siteId && (
           <label className="field">
             파일 구성
