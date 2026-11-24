@@ -265,9 +265,10 @@ public class WorksiteService {
       value.put("workerName", record.get("nickname"));
       value.put("recordedAt", ((java.sql.Timestamp) record.get("recorded_at")).toInstant());
       value.put("updatedAt", ((java.sql.Timestamp) record.get("updated_at")).toInstant());
+      value.put("resettable", "OPEN".equals(record.get("settlement_status")));
       if (admin) {
-        value.put("fee", record.get("fee"));
         value.put("settlementStatus", record.get("settlement_status"));
+        value.put("fee", record.get("fee"));
       }
       inspections.put((String) record.get("phase"), value);
       if (record.get("phase").equals("START")) start = (java.math.BigDecimal) record.get("reading");

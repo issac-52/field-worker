@@ -35,6 +35,11 @@ export const siteApi = {
     signal?: AbortSignal,
   ) => call<Site>(`/sites/${id}/measurements`, { ...json(body), signal }),
   photos: (id: number, photos: SitePhoto[]) => call<Site>(`/sites/${id}/photos`, json({ photos })),
+  resetMeasurement: (id: number, phase: Phase, expectedUpdatedAt: string) =>
+    call<Site>(`/sites/${id}/measurements/${phase}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ expectedUpdatedAt }),
+    }),
   updateMeasurement: (
     id: number,
     phase: Phase,
