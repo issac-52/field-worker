@@ -49,7 +49,7 @@ export function PageContent() {
     );
   return (
     <>
-      {!['detail', 'investigators'].includes(page) && <BlockFilters />}
+      {!['detail', 'investigators', 'sites', 'map'].includes(page) && <BlockFilters />}
       {error ? (
         <section className="panel admin-pad" role="alert">
           <p>{error.message}</p>

@@ -39,9 +39,14 @@ export function useWorkController() {
   const [filter, setFilter] = useState('전체');
   const [ownWork, setOwnWork] = useState<SiteFilter['ownWork']>();
   const [missingStartPhotos, setMissingStartPhotos] = useState(false);
-  function openOwnSites(phase: Phase) {
+  const [workDate, setWorkDate] = useState('');
+  const [homeDate, setHomeDate] = useState('');
+  const [specialCondition, setSpecialCondition] = useState('');
+  function openOwnSites(phase?: Phase) {
     listPosition.setPage(1);
     setOwnWork(phase);
+    setWorkDate(homeDate);
+    setSpecialCondition('');
     setMissingStartPhotos(false);
     setFilter('전체');
     setQuery('');
@@ -69,11 +74,24 @@ export function useWorkController() {
             q: search || undefined,
             status: STATUS_FILTERS[filter],
             ownWork,
+            workDate: workDate || undefined,
+            specialCondition: specialCondition || undefined,
             missingStartPhotos: missingStartPhotos || undefined,
           }
-        : {}),
+        : { workDate: route.page === 'home' ? homeDate || undefined : undefined }),
     }),
-    [middle, small, route.page, search, filter, ownWork, missingStartPhotos],
+    [
+      middle,
+      small,
+      route.page,
+      search,
+      filter,
+      ownWork,
+      missingStartPhotos,
+      workDate,
+      homeDate,
+      specialCondition,
+    ],
   );
   const settlementFilter = useMemo<SettlementFilter>(
     () => ({
@@ -101,6 +119,9 @@ export function useWorkController() {
 
   function resetFilters() {
     setOwnWork(undefined);
+    setWorkDate('');
+    setHomeDate('');
+    setSpecialCondition('');
     setMissingStartPhotos(false);
     setMiddle('');
     setSmall('');
@@ -127,6 +148,12 @@ export function useWorkController() {
     currentUserId,
     adminOnly: ADMIN_PAGES.includes(route.page),
     openOwnSites,
+    workDate,
+    setWorkDate,
+    homeDate,
+    setHomeDate,
+    specialCondition,
+    setSpecialCondition,
     ownWork,
     setOwnWork,
     missingStartPhotos,

@@ -175,3 +175,7 @@ ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 
 ### 시작검침 저장과 완료 상태
 
 사진 수에 관계없이 시작 지침과 날짜를 저장할 수 있다. 종료검침 전에는 저장된 시작검침, 원경, 시작 근경이 모두 있는 수용가만 시작검침완료로 표시한다. 사진 추가·삭제 후 조회하면 현재 사진 기준으로 상태가 반영된다. 작업자별 검침 건수는 저장한 기록을 기준으로 집계한다.
+
+### 검침일과 특이사항 조회
+
+`GET /api/sites`와 `GET /api/site-summary`는 선택적으로 `workDate`(YYYY-MM-DD)와 `specialCondition`(NONE, HOPE, LOCATION_UNKNOWN, STACKED, OTHER)을 받는다. 검침일과 내 작업을 함께 선택하면 같은 검침 기록에서 날짜와 조사자를 확인한다. 작업 건수는 해당 날짜에 입력된 검침일 기준으로 집계한다.

@@ -8,17 +8,21 @@ export function filterSites(sites: Site[], params: URLSearchParams, actor?: numb
   const status = params.get('status');
   const phase = params.get('inspectionPhase') as Phase | null;
   const completion = params.get('inspectionStatus');
+  const date = params.get('workDate');
+  const condition = params.get('specialCondition');
   const own = params.get('ownWork');
   const missing = params.get('missingStartPhotos') === 'true';
   return sites
     .filter(
       (s) =>
-        (!own ||
+        (!condition || (s.specialCondition?.code ?? 'NONE') === condition) &&
+        ((!own && !date) ||
           (['START', 'END'] as const).some(
             (p) =>
-              (own === 'ANY' || own === p) &&
+              (!own || own === 'ANY' || own === p) &&
               s.inspections[p] &&
-              s.inspections[p]?.workerId === actor,
+              (!own || s.inspections[p]?.workerId === actor) &&
+              (!date || s.inspections[p]?.date === date),
           )) &&
         (!missing ||
           (!!s.inspections.START &&
@@ -59,7 +63,7 @@ export function paginate<T>(items: T[], params: URLSearchParams): PageResponse<T
   };
 }
 
-export function summarize(sites: Site[], admin: boolean): SiteSummary {
+export function summarize(sites: Site[], admin: boolean, date?: string | null): SiteSummary {
   const result: SiteSummary = {
     total: sites.length,
     done: 0,
@@ -77,7 +81,7 @@ export function summarize(sites: Site[], admin: boolean): SiteSummary {
     result[status === 'DONE' ? 'done' : status === 'IN_PROGRESS' ? 'progress' : 'todo']++;
     for (const phase of ['START', 'END'] as const) {
       const m = site.inspections[phase];
-      if (!m) continue;
+      if (!m || (date && m.date !== date)) continue;
       result[phase === 'START' ? 'startCount' : 'endCount']++;
       if (m.workerId === (admin ? 1 : 11))
         result[phase === 'START' ? 'ownStartCount' : 'ownEndCount']++;
