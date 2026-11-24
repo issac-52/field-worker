@@ -26,6 +26,43 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
   String number;
 
   @Test
+  void dailyWorkMatchesTheSameInspectionAndFiltersBySpecialCondition() throws Exception {
+    jdbc.update(
+        "update worksites set middle_block=?, special_condition='HOPE' where id=?", number, site);
+    for (String[] step : new String[][] {{"START", "2026-11-24"}, {"END", "2027-11-24"}}) {
+      jdbc.update(
+          "insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee)"
+              + " values(?,?,cast(? as date),1,?,0)",
+          site,
+          step[0],
+          step[1],
+          actor.id());
+    }
+    mvc.perform(
+            get("/api/site-summary")
+                .with(user(actor))
+                .param("middleBlockId", number)
+                .param("workDate", "2026-11-24")
+                .param("specialCondition", "HOPE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.total").value(1))
+        .andExpect(jsonPath("$.data.ownStartCount").value(1))
+        .andExpect(jsonPath("$.data.ownEndCount").value(0));
+    for (String[] filter :
+        new String[][] {{"START", "HOPE", "1"}, {"END", "HOPE", "0"}, {"START", "STACKED", "0"}}) {
+      mvc.perform(
+              get("/api/sites")
+                  .with(user(actor))
+                  .param("middleBlockId", number)
+                  .param("workDate", "2026-11-24")
+                  .param("ownWork", filter[0])
+                  .param("specialCondition", filter[1]))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.total").value(Integer.parseInt(filter[2])));
+    }
+  }
+
+  @Test
   void savedStartReadingBecomesCompleteOnlyWhenBothPhotoSlotsExist() throws Exception {
     jdbc.update("update worksites set middle_block=? where id=?", number, site);
     mvc.perform(
