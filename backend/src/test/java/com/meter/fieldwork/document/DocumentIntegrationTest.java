@@ -63,6 +63,54 @@ class DocumentIntegrationTest extends PostgresIntegrationTest {
   }
 
   @Test
+  void createsCardsForTheSelectedInspectionDateAndPhase() throws Exception {
+    db.update("update worksites set small_block='Daily' where id=?", site);
+    db.update(
+        "insert into inspections(site_id,phase,inspection_date,reading,worker_id,fee)"
+            + " values(?,'START','2026-11-24',1,?,0),(?,'END','2027-11-24',2,?,0)",
+        site,
+        actor,
+        site,
+        actor);
+    String body =
+        """
+        {"middleBlock":"%s","smallBlock":"Daily","title":"Daily export","groupedByBlock":true,
+         "workDate":"2026-11-24","inspectionPhase":"START"}
+        """
+            .formatted(block);
+    mvc.perform(
+            post("/api/exports/cards")
+                .with(user(principal))
+                .with(csrf())
+                .contentType("application/json")
+                .content(body.replace("\"START\"", "\"END\"")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("EMPTY_EXPORT"));
+    String result =
+        mvc.perform(
+                post("/api/exports/cards")
+                    .with(user(principal))
+                    .with(csrf())
+                    .contentType("application/json")
+                    .content(body))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    UUID job =
+        UUID.fromString(
+            new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(result)
+                .at("/data/id")
+                .asText());
+    assertThat(
+            db.queryForList(
+                "select site_id from document_job_items where job_id=?", Long.class, job))
+        .containsExactly(site);
+    service.cancel(job, actor);
+  }
+
+  @Test
   void defaultBatchCanFinishMoreThanFiftySmallCards() {
     db.update(
         "insert into"

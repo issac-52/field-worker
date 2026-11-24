@@ -179,3 +179,5 @@ ADMIN/CSRF `POST /api/admin/imports/prune/final-preview`에 multipart `file`을 
 ### 검침일과 특이사항 조회
 
 `GET /api/sites`와 `GET /api/site-summary`는 선택적으로 `workDate`(YYYY-MM-DD)와 `specialCondition`(NONE, HOPE, LOCATION_UNKNOWN, STACKED, OTHER)을 받는다. 검침일과 내 작업을 함께 선택하면 같은 검침 기록에서 날짜와 조사자를 확인한다. 작업 건수는 해당 날짜에 입력된 검침일 기준으로 집계한다.
+
+검침카드 생성 요청에 `workDate`(YYYY-MM-DD)를 지정하면 해당 검침일에 기록이 있는 수용가를 선택한다. `inspectionPhase`(START 또는 END)는 검침일과 함께 전달할 수 있다. 블록과 날짜 조건을 모두 만족하는 수용가만 작업에 포함하며, 같은 수용가는 한 번만 포함한다.
