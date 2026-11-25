@@ -34,7 +34,7 @@ export function filterSites(sites: Site[], params: URLSearchParams, actor?: numb
         (!status || statusOf(s) === status) &&
         (!phase || !completion || isPhaseComplete(s, phase) === (completion === 'COMPLETED')) &&
         (!q ||
-          [s.name, s.address, s.waterNo, s.managementNo, s.zone].some((v) =>
+          [s.name, s.address, s.waterNo, s.managementNo, s.meterNo, s.zone].some((v) =>
             v.toLocaleLowerCase().includes(q),
           )),
     )

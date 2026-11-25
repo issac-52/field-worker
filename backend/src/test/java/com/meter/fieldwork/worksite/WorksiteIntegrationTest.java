@@ -388,6 +388,15 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
 
   @Test
   void searchAndDetailUseBoundedPagesAndNullCoordinates() throws Exception {
+    String meter = "TEST-" + UUID.randomUUID();
+    jdbc.update("update worksites set meter_number=? where id=?", meter, site);
+    for (String endpoint : java.util.List.of("/api/sites", "/api/site-summary"))
+      mvc.perform(
+              get(endpoint)
+                  .param("q", meter.substring(2).toUpperCase(java.util.Locale.ROOT))
+                  .with(user(actor)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.total").value(1));
     mvc.perform(
             get("/api/sites")
                 .param("q", number)
