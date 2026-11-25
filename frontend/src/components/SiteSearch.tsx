@@ -36,7 +36,7 @@ export function SiteSearch() {
             aria-label="수용가 검색"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="성명, 주소, 관리번호 검색"
+            placeholder="성명, 주소, 관리번호, 기물번호 검색"
           />
           {query && (
             <Button
