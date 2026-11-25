@@ -33,7 +33,7 @@ export function HomePage() {
             <Search size={22} />
           </span>
           <b>수용가 찾기</b>
-          <small>성명·주소·관리번호</small>
+          <small>성명·주소·관리번호·기물번호</small>
           <ArrowRight size={17} />
         </Button>
         <Button variant="ghost" className="quick-card" onClick={() => navigate('map')}>

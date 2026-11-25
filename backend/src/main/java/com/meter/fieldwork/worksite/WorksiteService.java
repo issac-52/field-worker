@@ -131,7 +131,7 @@ public class WorksiteService {
     if (filter.q() != null && !filter.q().isBlank()) {
       where.append(
           " and (s.consumer_number ilike :q or s.name ilike :q or s.address ilike :q or"
-              + " s.management_number ilike :q)");
+              + " s.management_number ilike :q or s.meter_number ilike :q)");
       params.put(
           "q",
           "%"
