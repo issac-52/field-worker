@@ -130,14 +130,12 @@
   overflow: hidden;
   background: #f8fcfb;
 }
-.photos-panel .inline-photos .photo-slot img {
-  object-fit: scale-down;
-}
-
 .photo-slot img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: scale-down;
 }
 .photo-add {
   border: 0;
