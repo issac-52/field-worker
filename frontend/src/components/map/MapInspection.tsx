@@ -124,7 +124,7 @@ export function MapInspection({
             </>
           ) : (
             <MeasurementEditor
-              key={`${id}-${phase}`}
+              key={`${id}-${phase}-${site.inspections[phase]?.recordedAt ?? 'new'}`}
               site={site}
               phase={phase}
               inline
