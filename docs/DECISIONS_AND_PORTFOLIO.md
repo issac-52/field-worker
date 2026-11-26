@@ -1,6 +1,6 @@
 # 주요 의사결정·해결 기록
 
-업데이트: 2026-10-23. 중복 작업 일지·폐기된 API 상세·예상 면접 문답을 통합했다. 개발자의 선택과 사용자 확인, 코드 작성, 실제 검증을 구분한다. 현재 구현 상태는 [프로젝트 컨텍스트](PROJECT_CONTEXT.md), 검증 범위는 [검증 기록](FRONTEND_REVIEW.md)가 기준이다.
+업데이트: 2026-10-23. 중복 작업 일지·폐기된 API 상세·예상 면접 문답을 통합했다. 개발자의 선택과 사용자 확인, 코드 작성, 실제 검증을 구분한다. 현재 구현 상태는 [프로젝트 컨텍스트](PROJECT_CONTEXT.md), 검증 범위는 [검증 기록](archive/FRONTEND_REVIEW.md)가 기준이다.
 
 ## 기술 방향
 
@@ -33,7 +33,7 @@
 ## 2026-10-23 — 프론트 구조·권한·대량 조회
 
 - App/페이지/업무 입력/hooks/API/Mock/CSS를 분리했다. 중/소블록 필터와 서버 방식 페이지/전체 요약을 공유한다.
-- 수용가·조사자 관리·검침 상세는 기본 20건, API 최대 100건. 지도는 현재 목록 페이지로 한정해 응답 크기를 제한한다. 전체 지도 탐색의 제약은 [후속 제안](MAP_QUERY_DESIGN.md)으로 남겼다.
+- 수용가·조사자 관리·검침 상세는 기본 20건, API 최대 100건. 지도는 현재 목록 페이지로 한정해 응답 크기를 제한한다. 전체 지도 탐색의 제약은 [후속 제안](archive/MAP_QUERY_DESIGN.md)으로 남겼다.
 - 작업자는 본인 실적만 보고 금액은 받지 않는다. 관리자는 조사자별 건수/금액을 조회한다. Mock 권한과 운영 권한은 구분한다.
 - Node 회귀로 12,050건/603페이지, 블록 조건, 전체 집계·응답 제한·권한을 검증했다. 이는 운영 부하/메모리 측정이 아니다.
 
@@ -73,7 +73,7 @@
 - 10,000건 이상을 다운로드 시 전부 생성하는 대안보다, 저장 시 출력 변경 버전 기록 → 백그라운드에서 해당 HWP만 최신화 → 비공개 R2 보관을 선택했다. 저장 응답은 문서 생성을 기다리지 않는다.
 - 다운로드는 최신 HWP 준비를 확인한 뒤 R2 객체를 순차 ZIP으로 조립하는 방향이다. 사전 생성으로 대기 시간을 줄이지만 저장 공간·버전·실패 복구와 ZIP 조립 시간은 남는다.
 - RAM 약 2GB를 고려해 단일 작업자·한 건 생성·제한된 사진 디코딩·파일 스트림을 제안했다. 구체 제한과 시간/메모리는 미측정이다.
-- [HWP_EXPORT_DESIGN.md](HWP_EXPORT_DESIGN.md)에 최신성·실패 처리·검증 순서를 기록했다. 다음은 가상 텍스트/사진을 포함한 한 건 PoC이며 실제 생성/저장 API는 없다.
+- [HWP_EXPORT_DESIGN.md](archive/HWP_EXPORT_DESIGN.md)에 최신성·실패 처리·검증 순서를 기록했다. 다음은 가상 텍스트/사진을 포함한 한 건 PoC이며 실제 생성/저장 API는 없다.
 
 ## 2026-10-23 — CI 및 테스트 환경 통합
 
@@ -83,7 +83,7 @@
 - 앱/테스트의 타입 검사, Vitest 실행/Watch/V8 커버리지 명령을 제공한다. 전체 소스 기준 lines 31.49%이며 UI 렌더링 자동 검증까지 완료됐다는 뜻은 아니다.
 - Lombok compileOnly/annotationProcessor와 누락 import를 수정했다. Java 21/Gradle 9.6.0에서 clean test(health 1개) 및 assemble 통과. 테스트 소스가 Lombok을 사용하지 않아 테스트용 processor는 추가하지 않았다. DB/JPA 검증은 별도다.
 - CI는 기존 Frontend Tests & Build / Backend Tests & Build 이름을 유지했다. develop/main Push·대상 PR·수동 실행, Node 22/Java 21, npm/Gradle 캐시를 유지하고 형식·lint·타입·Vitest·빌드를 실패 시 중단하도록 연결했다.
-- 로컬 npm ci, format:check, lint, typecheck, test, test:coverage, build와 순서 섞기 회귀가 통과했다. 원격 Actions 실행은 아직 확인하지 않았다. 상세 범위는 [검증 기록](FRONTEND_REVIEW.md)을 따른다.
+- 로컬 npm ci, format:check, lint, typecheck, test, test:coverage, build와 순서 섞기 회귀가 통과했다. 원격 Actions 실행은 아직 확인하지 않았다. 상세 범위는 [검증 기록](archive/FRONTEND_REVIEW.md)을 따른다.
 
 ## 기록 규칙
 
