@@ -1,6 +1,6 @@
-# Backend MVP 실행 및 API 안내
+# 백엔드 실행 및 API 안내
 
-기준 브랜치 develop에서 만든 `codex/backend-mvp`의 미커밋 변경이다. Java 21 **JDK**(`javac` 포함), Gradle Wrapper 9.6.0, Docker 25 이상과 PostgreSQL 17을 사용한다. 운영 DB/AWS 변경이나 배포는 수행하지 않았다.
+백엔드 로컬 실행, 최초 관리자 생성, 인증 흐름과 API 사용 안내다. Java 21 **JDK**(`javac` 포함), Gradle Wrapper 9.6.0, Docker 25 이상과 PostgreSQL 17을 사용한다. 운영 배포는 [EC2 자동 배포](EC2_AUTOMATIC_DEPLOYMENT.md)를 따른다.
 
 ## 로컬 실행
 

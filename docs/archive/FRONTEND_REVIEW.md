@@ -1,6 +1,6 @@
 # 프론트 검증 기록과 한계
 
-업데이트: 2026-10-23. CI/테스트 통합 작업에서 아래 명령을 실제 실행했다. 로컬 Node 24.18.0/Windows 검증이며 GitHub Actions의 Node 22/Linux 실행 결과는 아직 없다. 기능은 [README](../frontend/README.md), 계약은 [API_CONTRACT](../frontend/API_CONTRACT.md)를 참고한다.
+업데이트: 2026-10-23. CI/테스트 통합 작업에서 아래 명령을 실제 실행했다. 로컬 Node 24.18.0/Windows 검증이며 GitHub Actions의 Node 22/Linux 실행 결과는 아직 없다. 기능은 [README](../../frontend/README.md), 계약은 [API_CONTRACT](../../frontend/API_CONTRACT.md)를 참고한다.
 
 ## 자동 검증
 
