@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export const PAGE_TITLES = {
   home: '홈',
@@ -31,15 +31,32 @@ function readRoute(): { page: Page; siteId: number } {
 
 export function useHashRoute() {
   const [route, setRoute] = useState(readRoute);
+  const scrollAfterNavigation = useRef(false);
   useEffect(() => {
-    const sync = () => setRoute(readRoute());
+    const sync = () => {
+      const next = readRoute();
+      setRoute((current) =>
+        current.page === next.page && current.siteId === next.siteId ? current : next,
+      );
+    };
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
+  useLayoutEffect(() => {
+    if (scrollAfterNavigation.current) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      scrollAfterNavigation.current = false;
+    }
+  }, [route]);
   function navigate(page: Page, siteId?: number) {
-    location.hash = page === 'detail' ? `detail/${siteId}` : page;
+    const hash = '#' + (page === 'detail' ? `detail/${siteId}` : page);
+    if (location.hash === hash) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      return;
+    }
+    history.pushState(null, '', hash);
+    scrollAfterNavigation.current = true;
     setRoute(readRoute());
-    window.scrollTo({ top: 0, behavior: 'instant' });
   }
   return {
     ...route,

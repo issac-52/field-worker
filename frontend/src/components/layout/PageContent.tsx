@@ -60,7 +60,7 @@ export function PageContent() {
       ) : (
         <>
           {loading && !['sites', 'map', 'detail', 'investigators'].includes(page) && (
-            <p className="loading" role="status">
+            <p className="page-loading-notice" role="status">
               불러오는 중...
             </p>
           )}
