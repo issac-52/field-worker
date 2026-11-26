@@ -1,89 +1,91 @@
-# 수도관리 — Field Work Manager
+# 수도관리 (field-worker)
 
-현장 조사자와 관리자를 위한 모바일 검침 관리 프로젝트. 대상 수용가 10,000건 이상, 사용자 약 20명, 초기 납기 2026-11-14.
+상수도 검침 현장 업무 시스템입니다. 약 2만 수용가의 Excel 등록부터 지도 조회, START/END 검침과 사진, 정산, HWPX 검침카드 출력까지 한 흐름으로 처리합니다. 실서비스로 운영 중이며 지역별로 따로 배포해 약 30명이 사용합니다.
 
-## 백엔드 MVP 업데이트 (2026-11-05)
+## 주요 기능
 
-`develop` 기준 별도 브랜치에서 세션 인증·관리자 계정 발급·전체 Excel Import·현장 조회/특이사항·START/END와 이력·사진 6장·정산·XLSX Export를 구현했다. PostgreSQL 통합 테스트와 실행 JAR의 실제 HTTP 흐름을 로컬에서 검증했다. 원격 배포와 실제 R2 연결은 검증하지 않았다. 프론트 소스는 MSW 상태를 유지한다.
-
-- [실행 명령과 전체 API](docs/BACKEND_RUNBOOK.md)
-- [프론트 연동 변경 사항](docs/FRONTEND_BACKEND_INTEGRATION.md)
-- [Phase별 검증·Excel 분석·제한](docs/BACKEND_MVP_PROGRESS.md)
-
-V1은 변경하지 않고 V2~V7을 추가했다. 최초 관리자 생성과 비밀번호 변경 절차는 실행 안내를 따른다. 아래 2026-10-23 기록의 백엔드/사진/HWP 상태는 이전 상태다.
-
-## 이전 상태 (2026-10-23)
-
-| 영역 | 실제 상태 |
+| 영역 | 내용 |
 | --- | --- |
-| 프론트엔드 | React/Vite/TypeScript, shadcn/ui 기반 Mock 시연 구현 |
-| 현장 업무 | 블록·검색·상태 필터, 목록/지도, START·END 등록/정정, 사진 4종, 특이사항 — MSW 메모리 저장 |
-| 관리자 | 조사자 계정·단가·정산·실제 XLSX 다운로드 — 데이터와 권한은 Mock |
-| 지도 | 실제 NAVER 동적 SDK 연동. 현재 목록 페이지 최대 20건의 좌표 표시 |
-| 백엔드 | Java 21/Spring Boot 3.5.6/Gradle/JPA/Flyway. User·Repository 초안, 빈 UserService, Health API. 실제 인증·업무 API 미구현 |
-| HWP·ZIP / R2 | 설계 단계. 다음 작업은 사진 포함 HWP 한 건 생성 PoC |
-| 운영 | EC2/Docker/PostgreSQL 기동은 사용자 보고. 이 문서 정리에서 원격 상태를 확인하지 않음 |
+| 계정 | 관리자 발급 계정(ADMIN / WORKER), 첫 로그인 시 비밀번호 변경, 서버 세션 + CSRF |
+| 수용가 등록 | Excel 최종/이전 양식 등록, 기존 기본정보 업데이트, 빈 정보 보완, 번호 없는 수용가는 주소+이름으로 식별, 파일에 없는 수용가 삭제 미리보기 |
+| 좌표·지도 | NAVER 주소 변환(관리자 배치), 지도 화면 범위 조회, 축소 시 구역별 집계 |
+| 검침 | START/END 독립 저장, END가 START보다 작으면 거부, 동시 수정 버전 검사, 정산 전 단건 초기화(이력 보존) |
+| 사진 | 수용가별 슬롯 저장, 비공개 R2 |
+| 정산 | 묶음 처리, 확정·지급 후 수정 잠금 |
+| 출력 | Excel, HWPX 검침카드(백그라운드 생성·캐시, 날짜·단계별, 소블록 합본, 전체 ZIP) |
+| 현장 사용 | 모바일 웹과 PWA 설치, 연결이 끊기면 기기에 임시 저장 후 자동 전송(계정별 분리) |
 
-Mock 역할 전환은 실제 로그인·권한 인증이 아니다. 새로고침하면 작업자 역할과 초기 데이터로 돌아간다. 현재 프론트의 업무 API는 실제 Spring 서버에 연결되어 있지 않다.
+## 구성
 
-## 문서 안내
+| 영역 | 기술 | 배포 |
+| --- | --- | --- |
+| Frontend | React, Vite, TypeScript, TanStack Query, shadcn/ui, Tailwind v4 | Cloudflare Workers (정적 자산 + `/api` 프록시) |
+| Backend | Java 21, Spring Boot 3.5, Spring Security, JPA, Flyway | AWS EC2 |
+| DB | PostgreSQL 17 | EC2 Docker Compose |
+| 파일 | Cloudflare R2 (비공개) | 사진, HWPX, ZIP |
+| 지도 | NAVER Maps, Geocoding | |
+| CI/CD | GitHub Actions | `CI`: 프론트·백엔드 테스트와 빌드 / `Backend Release`: master에서 JAR 빌드 후 OIDC·SSM으로 EC2 배포 |
 
-- [최종 Excel 신·구 양식 선택 및 기존 기본정보 업데이트](docs/FINAL_EXCEL_IMPORT.md)
+백엔드는 기능별 패키지(`auth`, `user`, `worksite`, `excel`, `geocoding`, `inspection`, `photo`, `settlement`, `document`, `global`)로 나눈 단일 Spring Boot 애플리케이션입니다.
 
-- [Excel 계량기 유무와 비고 분리 규칙](docs/EXCEL_METER_REMARKS.md)
+```
+backend/    Spring Boot API, Flyway 마이그레이션, HWPX 템플릿
+frontend/   React 앱, Cloudflare Worker(/api 프록시)
+docs/       운영·기능·성능·결정 기록
+compose.yml 로컬 개발용 PostgreSQL
+```
 
-- [HWPX 대량 생성 성능 개선 — 배치·동시 처리 비교와 한계](docs/performance/2026-11-12-hwpx/REPORT.md)
-- [목록 조회 1차 성능 개선 결과 — 전후 그래프·PDF·원시 결과](docs/performance/2026-11-10-list-optimization/REPORT.md)
+## 로컬 실행
 
-- [번호 없는 수용가의 주소·이름 식별과 추후 번호 등록](docs/OPTIONAL_CONSUMER_NUMBER.md)
+JDK 21, Docker, Node.js 22가 필요합니다.
 
-- [프로젝트 개요·성능 측정 포트폴리오 (PDF·그래프)](docs/portfolio/performance-baseline/README.md) — 2026-11-10 가상 2만 건 기준 측정, 개선 전 기록
+```bash
+# 1. 로컬 PostgreSQL
+docker compose up -d postgres
 
-- [프로젝트 인계·다음 작업](docs/PROJECT_CONTEXT.md)
-- [확정 요구사항과 미확정 정책](docs/REQUIREMENTS.md)
-- [프론트 실행·시연·배포](frontend/README.md)
-- [현재 Mock API 계약](frontend/API_CONTRACT.md)
-- [백엔드 구현 계획](docs/api-plan.md)
-- [HWP 사전 생성·ZIP 설계](docs/HWP_EXPORT_DESIGN.md)
-- [검증 기록과 한계](docs/FRONTEND_REVIEW.md)
-- [주요 의사결정·해결 기록](docs/DECISIONS_AND_PORTFOLIO.md)
-- [추후 지도 범위 조회 제안](docs/MAP_QUERY_DESIGN.md)
+# 2. 백엔드 (환경변수는 backend/.env.example 참고)
+cd backend
+bash gradlew test bootJar --no-daemon
+java -jar build/libs/fieldwork-backend-0.1.0-SNAPSHOT.jar
 
-## 프론트 실행
-
-```powershell
+# 3. 프론트엔드 (http://localhost:5173, /api는 로컬 백엔드로 프록시)
 cd frontend
 npm ci
-# .env.example을 참고해 Git 제외 파일인 .env.local / .env.demo를 설정
-npm run dev:demo
+npm run dev
 ```
 
-시연 주소는 http://localhost:5176/ 이다. 상세 환경 설정과 일반/시연 빌드 차이는 [프론트 README](frontend/README.md)를 따른다.
+최초 관리자 생성, 로그인·CSRF 흐름과 API 목록은 [백엔드 실행 안내](docs/BACKEND_RUNBOOK.md)를 따릅니다. 백엔드 없이 화면만 볼 때는 `npm run dev:demo`로 MSW 시연 모드를 실행합니다([프론트 안내](frontend/README.md)).
 
-## 백엔드 로컬 실행
+## 브랜치와 배포
 
-JDK 21과 Docker Compose가 필요하다. Wrapper는 저장소에 있으며 지정된 Gradle 버전은 9.6.0이다. 이 버전의 실제 빌드 호환성은 검증 완료로 간주하지 않는다.
+작업 브랜치 → `develop` PR → `master` 순서로 병합합니다. `master`에 병합되면 `Backend Release`가 테스트 후 JAR를 만들고, 배포가 켜져 있으면 EC2에 반영합니다. 배포 전 JAR를 백업하고 상태 확인에 실패하면 이전 JAR로 되돌립니다. 설정은 [EC2 자동 배포](docs/EC2_AUTOMATIC_DEPLOYMENT.md)와 [운영 설정](docs/PRODUCTION_CONFIGURATION.md)에 있습니다.
 
-```powershell
-# 저장소 루트: 로컬 개발용 PostgreSQL
- docker compose up -d
-cd backend
-$env:SPRING_PROFILES_ACTIVE='local'
-# DB_PASSWORD는 로컬 compose.yml의 개발 DB 설정에 맞춰 환경변수로 제공
-.\gradlew.bat test --no-daemon
-.\gradlew.bat bootRun
-```
+## 문서
 
-- local: localhost:5432/fieldwork, DB 사용자 fieldwork_app, 비밀번호는 DB_PASSWORD.
-- prod: DB_URL/DB_USER/DB_PASSWORD를 외부에서 주입한다.
-- GET /api/health만 공개하며 나머지는 SecurityConfig에서 거부한다. health는 고정 응답으로 DB 상태 진단이 아니다.
-- Lombok import/annotationProcessor를 수정하고 Java 21 + Gradle 9.6.0에서 clean test 및 assemble을 확인했다. 현재 테스트는 health 단위 테스트 1개이며 DB/JPA 통합 검증은 별도다.
-- 루트 compose.yml은 로컬 전용이다. EC2의 별도 /opt/field-work/compose.yml을 덮어쓰지 않는다.
-- Flyway 변경 전 각 DB 적용 이력을 확인한다. 적용된 마이그레이션을 수정하거나 DB 볼륨을 삭제하지 않는다.
+**운영·실행**
+- [백엔드 실행과 API](docs/BACKEND_RUNBOOK.md)
+- [운영 설정 (Workers, EC2, R2 변수)](docs/PRODUCTION_CONFIGURATION.md)
+- [EC2 자동 배포](docs/EC2_AUTOMATIC_DEPLOYMENT.md)
+- [프론트 실행·빌드](frontend/README.md), [API 계약](frontend/API_CONTRACT.md)
 
-실제 환경파일·인증정보·고객 원본·사진은 Git과 공개 자료에 넣지 않는다. 작업 규칙은 [AGENTS.md](AGENTS.md)를 따른다.
+**기능별 규칙**
+- [최종 Excel 양식과 기존 정보 업데이트](docs/FINAL_EXCEL_IMPORT.md)
+- [필터된 Excel 업로드와 기존 DB 정리](docs/VISIBLE_EXCEL_AND_PRUNE.md)
+- [번호 없는 수용가 식별](docs/OPTIONAL_CONSUMER_NUMBER.md)
+- [Excel 계량기 유무와 비고 분리](docs/EXCEL_METER_REMARKS.md)
+- [주소 좌표 변환과 원본 상세정보](docs/GEOCODING_AND_SOURCE_DETAILS.md)
+- [HWPX 검침카드 출력](docs/HWPX_EXPORT.md)
 
-## EC2 자동 배포
+**성능 기록**
+- [목록 조회 개선 (SQL 62→4회)](docs/performance/2026-11-10-list-optimization/REPORT.md)
+- [HWPX 대량 생성 개선](docs/performance/2026-11-12-hwpx/REPORT.md)
+- [가상 2만 건 기준 측정](docs/PERFORMANCE_BASELINE_2026-11-10.md), [측정 자료 모음](docs/portfolio/performance-baseline/README.md)
 
-[GitHub Actions JAR 빌드·OIDC/SSM 배포 설정](docs/EC2_AUTOMATIC_DEPLOYMENT.md)을 따른다.
-`Backend Release`는 master에서 테스트 후 JAR 아티팩트를 만들며, AWS 설정과 `EC2_DEPLOY_ENABLED=true` 적용 후 EC2 배포도 수행한다.
+**맥락과 결정**
+- [프로젝트 맥락 (현재 규칙 요약)](docs/PROJECT_CONTEXT.md)
+- [주요 의사결정·해결 기록](docs/DECISIONS_AND_PORTFOLIO.md)
+- [지난 설계·인계 문서](docs/archive/README.md)
+
+## 데이터 보호
+
+실제 환경파일, 인증정보, 고객 원본 Excel, 사진은 Git과 공개 자료에 넣지 않습니다. 테스트와 문서에는 가상 데이터만 사용합니다. 작업 규칙은 [AGENTS.md](AGENTS.md)를 따릅니다.

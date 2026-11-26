@@ -99,7 +99,7 @@ bash backend/gradlew -p backend clean test assemble manualExcelTest --no-daemon
 - 프론트 변경 없이 즉시 운영 전환할 수 있는 상태로 보고하지 않는다. 봉인 null 표시, consumerNumber 분리, 로그인/CSRF, 특이사항, 사진6장과 multipart, Import 결과, 정산 확정/지급 UI가 필요하다.
 - 사진 고아 객체의 주기적 버킷 대조, 정산 취소/재개방은 미구현이다. HWP/ZIP은 요청에 따라 제외했다.
 
-전체 API와 설정은 [실행 안내](BACKEND_RUNBOOK.md), 요청/응답 변경 예시는 [프론트 연동 문서](FRONTEND_BACKEND_INTEGRATION.md)를 참고한다.
+전체 API와 설정은 [실행 안내](../BACKEND_RUNBOOK.md), 요청/응답 변경 예시는 [프론트 연동 문서](FRONTEND_BACKEND_INTEGRATION.md)를 참고한다.
 
 
 ## 전체 변경 파일
