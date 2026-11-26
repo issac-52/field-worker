@@ -24,7 +24,10 @@ export function MeasurementEditor({
 }) {
   const { user } = useSession();
   const { role, users, refresh, currentUserId } = useWork();
-  const availableWorkers = users.filter((user) => user.role === 'WORKER' && user.active);
+  const availableWorkers = users.filter(
+    (user) =>
+      user.role === 'WORKER' && user.active && (role === 'ADMIN' || user.id === currentUserId),
+  );
   const year = phase === 'START' ? 2026 : 2027;
   const firstDate = `${year}-01-01`;
   const lastDate = `${year}-12-31`;
@@ -36,9 +39,7 @@ export function MeasurementEditor({
       (currentDate < firstDate ? firstDate : currentDate > lastDate ? lastDate : currentDate),
   );
   const [reading, setReading] = useState(measurement ? String(measurement.reading) : '');
-  const [workerId, setWorkerId] = useState(
-    measurement?.workerId ?? (role === 'WORKER' ? currentUserId : (availableWorkers[0]?.id ?? 0)),
-  );
+  const [workerId, setWorkerId] = useState(measurement?.workerId ?? 0);
   const [expectedUpdatedAt] = useState(measurement?.updatedAt ?? measurement?.recordedAt);
   const { busy, error, save } = useSaveAction();
   async function submit() {
@@ -143,7 +144,7 @@ export function MeasurementEditor({
         <select
           required
           value={workerId || ''}
-          disabled={editing || role === 'WORKER' || busy}
+          disabled={editing || busy}
           onChange={(event) => setWorkerId(Number(event.target.value))}
         >
           <option value="" disabled>
