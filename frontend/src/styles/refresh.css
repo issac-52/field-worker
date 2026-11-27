@@ -687,7 +687,7 @@ tbody tr:hover {
 
 .inspection-marker[data-condition] span,
 .map-legend span[data-condition]::before {
-  background: var(--condition-ink);
+  background: var(--condition-marker);
 }
 .map-legend {
   flex-wrap: wrap;
