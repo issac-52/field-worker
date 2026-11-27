@@ -13,6 +13,7 @@ import { NoteEditor } from '../components/inspection/NoteEditor';
 import { PhotoEditor } from '../components/inspection/PhotoEditor';
 import { formatDate, formatWon } from '../lib/format';
 import { LIVE_PHOTO_SLOTS, PHOTO_SLOTS } from '../types';
+import { highlightedCondition } from '../lib/specialCondition';
 import { specialConditionText } from '../lib/specialCondition';
 import type { Phase } from '../types';
 
@@ -130,7 +131,16 @@ export function SiteDetailPage() {
                 <ArrowRight size={14} />
               </Button>
             </div>
-            <p>{specialConditionText(site.specialCondition) || '등록된 특이사항이 없습니다.'}</p>
+            <p>
+              <span
+                className={
+                  highlightedCondition(site.specialCondition?.code) ? 'condition-badge' : undefined
+                }
+                data-condition={highlightedCondition(site.specialCondition?.code)}
+              >
+                {specialConditionText(site.specialCondition) || '등록된 특이사항이 없습니다.'}
+              </span>
+            </p>
           </section>
           {role === 'ADMIN' && !__MOCKS_ENABLED__ && (
             <HwpxDownloads key={site.id} siteId={site.id} />

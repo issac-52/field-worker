@@ -1,3 +1,4 @@
+import { ConditionBadge } from './ConditionBadge';
 import { Button } from './ui/button';
 import type { Phase, SiteListItem } from '../types';
 import { SiteStatusIcon, SiteStatusLegend } from './SiteStatusIcon';
@@ -26,6 +27,7 @@ export function SiteList({
           >
             <SiteStatusIcon site={site} phase={phase} />
             <strong className="site-name" title={site.name}>
+              <ConditionBadge code={site.specialCondition?.code} />
               {site.name || '성명 미기재'}
             </strong>
             <span className="site-row-meta">

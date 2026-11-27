@@ -74,6 +74,7 @@ export const sitesHandlers = [
         latitude: s.latitude,
         longitude: s.longitude,
         status: statusOf(s),
+        conditionCode: s.specialCondition?.code,
       }));
     return ok({ items: items.length > 500 ? [] : items, truncated: items.length > 500 });
   }),
