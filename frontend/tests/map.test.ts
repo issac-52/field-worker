@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
 import { validViewport, validMapArea } from '../src/lib/mapViewport';
-import { mapMarker } from '../src/lib/mapMarker';
+import { mapMarker, mapMarkerForStatus } from '../src/lib/mapMarker';
 import { watchCurrentLocation } from '../src/lib/currentLocation';
 import { seedSites } from '../src/mocks/data';
 import { hasCoordinates } from '../src/lib/coordinates';
@@ -94,6 +94,14 @@ describe('map without network', () => {
         },
       },
     };
+    for (const [code, label] of [
+      ['HOPE', '호폐'],
+      ['LOCATION_UNKNOWN', '위치불명'],
+    ]) {
+      const marker = mapMarkerForStatus('DONE', code);
+      expect(marker.label).toBe('검침완료 · ' + label);
+      expect(marker.content).toContain('data-condition="' + code + '"');
+    }
     expect(mapMarker(started).label).toBe('미처리');
     const overview = { slot: 'OVERVIEW' as const, url: '/overview' };
     expect(mapMarker({ ...started, photos: [overview] }).label).toBe('미처리');

@@ -170,7 +170,7 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
         listeners.push(sdk.Event.addListener(marker, 'click', () => setClusterSelection(cluster)));
       });
       valid?.forEach((site) => {
-        const appearance = mapMarkerForStatus(site.status);
+        const appearance = mapMarkerForStatus(site.status, site.conditionCode);
         const marker = new sdk.Marker({
           map,
           position: new sdk.LatLng(site.latitude, site.longitude),
@@ -302,6 +302,8 @@ export function FieldMap({ onSelect }: { onSelect: (id: number) => void }) {
               <span className="pending">미처리</span>
               <span className="started">시작검침완료</span>
               <span className="complete">검침완료</span>
+              <span data-condition="HOPE">호폐</span>
+              <span data-condition="LOCATION_UNKNOWN">위치불명</span>
             </div>
             <Button
               variant="ghost"
