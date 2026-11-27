@@ -256,15 +256,11 @@
   min-width: 0;
 }
 
-[data-condition='HOPE'] {
+[data-condition='HOPE'],
+[data-condition='LOCATION_UNKNOWN'] {
   --condition-ink: #92400e;
   --condition-marker: #fb923c;
   --condition-fill: #ffedd5;
-}
-[data-condition='LOCATION_UNKNOWN'] {
-  --condition-ink: #6b4588;
-  --condition-marker: #c4a5e8;
-  --condition-fill: #f3e8ff;
 }
 .condition-badge {
   display: inline-block;
