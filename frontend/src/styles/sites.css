@@ -257,11 +257,13 @@
 }
 
 [data-condition='HOPE'] {
-  --condition-ink: #991b1b;
-  --condition-fill: #fee2e2;
+  --condition-ink: #92400e;
+  --condition-marker: #fb923c;
+  --condition-fill: #ffedd5;
 }
 [data-condition='LOCATION_UNKNOWN'] {
-  --condition-ink: #6b21a8;
+  --condition-ink: #6b4588;
+  --condition-marker: #c4a5e8;
   --condition-fill: #f3e8ff;
 }
 .condition-badge {
