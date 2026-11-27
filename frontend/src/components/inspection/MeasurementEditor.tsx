@@ -39,7 +39,9 @@ export function MeasurementEditor({
       (currentDate < firstDate ? firstDate : currentDate > lastDate ? lastDate : currentDate),
   );
   const [reading, setReading] = useState(measurement ? String(measurement.reading) : '');
-  const [workerId, setWorkerId] = useState(measurement?.workerId ?? 0);
+  const [workerId, setWorkerId] = useState(
+    measurement?.workerId ?? (role === 'WORKER' ? currentUserId : 0),
+  );
   const [expectedUpdatedAt] = useState(measurement?.updatedAt ?? measurement?.recordedAt);
   const { busy, error, save } = useSaveAction();
   async function submit() {
@@ -144,7 +146,7 @@ export function MeasurementEditor({
         <select
           required
           value={workerId || ''}
-          disabled={editing || busy}
+          disabled={role === 'WORKER' || editing || busy}
           onChange={(event) => setWorkerId(Number(event.target.value))}
         >
           <option value="" disabled>
