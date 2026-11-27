@@ -82,7 +82,7 @@ public class MapSiteController {
     var items =
         db.queryForList(
             """
-            select s.id,s.latitude,s.longitude,
+            select s.id,s.latitude,s.longitude,s.special_condition as "conditionCode",
               case when exists(select 1 from inspections i where i.site_id=s.id and i.phase='END') then 'DONE'
                    when exists(select 1 from inspections i where i.site_id=s.id and i.phase='START') and %s then 'IN_PROGRESS'
                    else 'TODO' end as status

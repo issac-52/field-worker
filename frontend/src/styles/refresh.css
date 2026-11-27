@@ -684,3 +684,11 @@ tbody tr:hover {
 .inspection-marker.complete span {
   background: #16a34a;
 }
+
+.inspection-marker[data-condition] span,
+.map-legend span[data-condition]::before {
+  background: var(--condition-ink);
+}
+.map-legend {
+  flex-wrap: wrap;
+}

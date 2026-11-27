@@ -8,6 +8,10 @@ export const SPECIAL_CONDITIONS = {
   OTHER: '기타',
 } as const;
 
+export function highlightedCondition(code?: string) {
+  return code === 'HOPE' || code === 'LOCATION_UNKNOWN' ? code : undefined;
+}
+
 export function specialConditionText(condition: Site['specialCondition']) {
   if (!condition || condition.code === 'NONE') return '';
   if (condition.code === 'OTHER') return condition.description.trim() || '기타';

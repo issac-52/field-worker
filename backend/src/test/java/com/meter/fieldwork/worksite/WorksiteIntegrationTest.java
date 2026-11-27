@@ -201,7 +201,7 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
 
   @Test
   void mapUsesBoundsInsteadOfListFiltersAndRejectsWideQueries() throws Exception {
-    jdbc.update("update worksites set latitude=35.82,longitude=128.74 where id=?", site);
+    jdbc.update("update worksites set latitude=35.82,longitude=128.74,special_condition='HOPE' where id=?", site);
     mvc.perform(
             get("/api/map-sites")
                 .with(user(actor))
@@ -214,6 +214,7 @@ class WorksiteIntegrationTest extends PostgresIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.items[0].id").value(site))
         .andExpect(jsonPath("$.data.items[0].status").value("TODO"))
+        .andExpect(jsonPath("$.data.items[0].conditionCode").value("HOPE"))
         .andExpect(jsonPath("$.data.items[0].name").doesNotExist());
     mvc.perform(
             get("/api/map-sites")

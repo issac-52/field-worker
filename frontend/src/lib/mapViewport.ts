@@ -10,6 +10,7 @@ export type MapSite = {
   id: number;
   latitude: number;
   longitude: number;
+  conditionCode?: string;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
 };
 export type MapCluster = {

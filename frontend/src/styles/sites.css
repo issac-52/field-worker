@@ -255,3 +255,22 @@
   width: 100%;
   min-width: 0;
 }
+
+[data-condition='HOPE'] {
+  --condition-ink: #991b1b;
+  --condition-fill: #fee2e2;
+}
+[data-condition='LOCATION_UNKNOWN'] {
+  --condition-ink: #6b21a8;
+  --condition-fill: #f3e8ff;
+}
+.condition-badge {
+  display: inline-block;
+  margin-inline-end: .4em;
+  padding: .12em .45em;
+  border-radius: .35em;
+  color: var(--condition-ink);
+  background: var(--condition-fill);
+  font-size: .8rem;
+  font-weight: 700;
+}
