@@ -319,3 +319,22 @@
   font-weight: 400;
   color: #657e85;
 }
+
+.page-loading-notice {
+  position: fixed;
+  z-index: 20;
+  inset-inline-end: 1rem;
+  top: 4.5rem;
+  margin: 0;
+  padding: .4rem .75rem;
+  border-radius: .5rem;
+  background: white;
+  color: #475569;
+  font-size: .8125rem;
+  pointer-events: none;
+  animation: show-loading-notice 0s 250ms backwards;
+}
+@keyframes show-loading-notice {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
